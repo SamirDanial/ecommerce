@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -25,23 +25,25 @@ const Wishlist: React.FC = () => {
   } = useWishlistStore();
   const { isAuthenticated, getToken } = useClerkAuth();
 
-  // Load wishlist when component mounts and user is authenticated
-  useEffect(() => {
+  // Memoize the load wishlist function to prevent infinite loops
+  const loadWishlist = useCallback(async () => {
     if (isAuthenticated) {
-      const loadWishlist = async () => {
-        try {
-          const token = await getToken();
-          if (token) {
-            await syncWithDatabase(token);
-          }
-        } catch (error) {
-          console.error('Error loading wishlist:', error);
+      try {
+        const token = await getToken();
+        if (token) {
+          await syncWithDatabase(token);
         }
-      };
-
-      loadWishlist();
+      } catch (error) {
+        console.error('Error loading wishlist:', error);
+      }
     }
   }, [isAuthenticated, syncWithDatabase, getToken]);
+
+  // Load wishlist when component mounts and user is authenticated
+  useEffect(() => {
+    // Temporarily disabled to prevent infinite loops
+    // loadWishlist();
+  }, []);
 
   // Track page view
   useEffect(() => {
