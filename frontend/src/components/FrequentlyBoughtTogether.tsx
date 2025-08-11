@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Checkbox } from './ui/checkbox';
 import { Separator } from './ui/separator';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
-import { Star, Package, ShoppingCart, Check, Zap } from 'lucide-react';
+import { ShoppingCart, Package, Check, Star, Zap } from 'lucide-react';
 import { useCartStore } from '../stores/cartStore';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { Product } from '../types';
@@ -27,7 +26,6 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [bundleItems, setBundleItems] = useState<BundleItem[]>([]);
-  const [itemQuantities, setItemQuantities] = useState<Record<number, number>>({});
   
   const { addToCart } = useCartStore();
   const { addInteraction } = useUserInteractionStore();
@@ -104,7 +102,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
     
     // Add each selected item to cart
     selectedBundle.forEach(item => {
-      const quantity = itemQuantities[item.product.id] || 1;
+      const quantity = 1; // itemQuantities[item.product.id] || 1; // This line was removed
       addToCart(item.product, quantity);
       
       // Track interaction

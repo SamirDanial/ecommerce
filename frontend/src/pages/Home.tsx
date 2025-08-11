@@ -5,7 +5,7 @@ import { productService, flashSaleService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ShoppingBag, Star, Heart, ArrowRight, Zap, TrendingUp, Gift, Clock } from 'lucide-react';
+import { ShoppingBag, Star, Heart, ArrowRight, Zap, TrendingUp, Gift } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import { WishlistButton } from '../components/WishlistButton';

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Heart, Trash2, ShoppingCart, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { Heart, Trash2 } from 'lucide-react';
+import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { Separator } from '../components/ui/separator';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
-import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { Link } from 'react-router-dom';
 
 const Wishlist: React.FC = () => {
-  const { wishlist, removeFromWishlist, clearInteractions } = useUserInteractionStore();
+  const { wishlist, removeFromWishlist } = useUserInteractionStore();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   if (wishlist.length === 0) {
@@ -155,7 +155,7 @@ const Wishlist: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Link to={`/products/${item.slug}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full">
-                    <Eye className="h-4 w-4 mr-2" />
+                    {/* <Eye className="h-4 w-4 mr-2" /> */}
                     View Details
                   </Button>
                 </Link>

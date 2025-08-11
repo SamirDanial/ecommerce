@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSignUp, useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Separator } from '../components/ui/separator';
-import { Mail, CheckCircle, AlertCircle, ArrowLeft, RefreshCw, ExternalLink } from 'lucide-react';
+import { Label } from '../components/ui/label';
+import { Loader2, Mail, CheckCircle, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const VerifyEmail: React.FC = () => {
@@ -64,7 +63,7 @@ const VerifyEmail: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <CardContent className="text-center py-8">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
             <p>Loading verification...</p>
           </CardContent>
         </Card>
@@ -155,13 +154,11 @@ const VerifyEmail: React.FC = () => {
             </div>
             <div className="space-y-2">
               <CardTitle className="text-2xl font-bold">Verify Your Email</CardTitle>
-              <CardDescription className="text-muted-foreground">
+              <p className="text-muted-foreground">
                 We've sent a verification code to
-              </CardDescription>
+              </p>
               <div className="flex items-center justify-center space-x-2">
-                <Badge variant="secondary" className="font-mono text-sm">
-                  {email}
-                </Badge>
+                <Label className="font-mono text-sm">{email}</Label>
               </div>
             </div>
           </CardHeader>
@@ -169,9 +166,9 @@ const VerifyEmail: React.FC = () => {
           <CardContent className="space-y-6">
             <form onSubmit={handleVerification} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="verificationCode" className="text-sm font-medium">
+                <Label htmlFor="verificationCode" className="text-sm font-medium">
                   Verification Code
-                </label>
+                </Label>
                 <Input
                   id="verificationCode"
                   type="text"
@@ -202,8 +199,6 @@ const VerifyEmail: React.FC = () => {
                 )}
               </Button>
             </form>
-
-            <Separator />
 
             <div className="space-y-4">
               <div className="text-center">
@@ -275,9 +270,9 @@ const VerifyEmail: React.FC = () => {
           </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold">Email Verification</CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <p className="text-muted-foreground">
               Complete your email verification to continue
-            </CardDescription>
+            </p>
           </div>
         </CardHeader>
 
@@ -287,7 +282,7 @@ const VerifyEmail: React.FC = () => {
               onClick={() => navigate('/register')}
               className="w-full"
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <Mail className="w-4 h-4 mr-2" />
               Continue with Sign Up
             </Button>
 
@@ -300,8 +295,6 @@ const VerifyEmail: React.FC = () => {
               Back to Sign In
             </Button>
           </div>
-
-          <Separator />
 
           <div className="text-center">
             <p className="text-sm text-muted-foreground">

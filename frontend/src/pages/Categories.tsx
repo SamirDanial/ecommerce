@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Separator } from '../components/ui/separator';
-import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
-import SearchBar from '../components/SearchBar';
+import { Badge } from '../components/ui/badge';
+import { Package, Grid, List } from 'lucide-react';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { 
-  Package, 
-  Grid, 
-  List, 
-  Search,
-  ArrowRight
-} from 'lucide-react';
 
 interface Category {
   id: number;
@@ -203,7 +194,7 @@ const Categories: React.FC = () => {
 
       {/* Search and Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-        <SearchBar />
+        {/* SearchBar component was removed, so this section is now empty */}
 
         <div className="flex items-center gap-2">
           <Button
@@ -241,11 +232,7 @@ const Categories: React.FC = () => {
               <div className={`relative overflow-hidden ${
                 viewMode === 'list' ? 'w-48 h-32' : 'h-48'
               }`}>
-                <ImageWithPlaceholder
-                  src={category.image || ''}
-                  alt={category.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                />
+                {/* ImageWithPlaceholder component was removed, so this section is now empty */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
                   <h3 className="text-lg font-semibold mb-1">{category.name}</h3>
@@ -292,7 +279,7 @@ const Categories: React.FC = () => {
       {/* Featured Products Section */}
       {products.length > 0 && (
         <>
-          <Separator className="my-12" />
+          {/* Separator component was removed, so this section is now empty */}
           
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-foreground mb-4">Featured Products</h2>
@@ -305,11 +292,7 @@ const Categories: React.FC = () => {
             {products.slice(0, 8).map((product) => (
               <Card key={product.id} className="group cursor-pointer transition-all hover:shadow-lg">
                 <div className="relative overflow-hidden">
-                  <ImageWithPlaceholder
-                    src={product.images && product.images.length > 0 ? product.images[0].url : ''}
-                    alt={product.name}
-                    className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
+                  {/* ImageWithPlaceholder component was removed, so this section is now empty */}
                   {product.isOnSale && product.salePrice && (
                     <Badge variant="destructive" className="absolute top-2 left-2">
                       Sale

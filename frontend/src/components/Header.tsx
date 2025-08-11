@@ -24,7 +24,6 @@ import { useClerkAuth } from '../hooks/useClerkAuth';
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0);
   
   const { getTotalItems } = useCartStore();
   const { wishlist } = useUserInteractionStore();
@@ -37,14 +36,14 @@ const Header: React.FC = () => {
   // Force re-render when authentication state changes
   useEffect(() => {
     if (isLoaded) {
-      setForceUpdate(prev => prev + 1);
+      // setForceUpdate(prev => prev + 1); // This line was removed
     }
   }, [isAuthenticated, user, isLoaded]);
 
   // Listen for custom authentication change events
   useEffect(() => {
     const handleAuthChange = () => {
-      setForceUpdate(prev => prev + 1);
+      // setForceUpdate(prev => prev + 1); // This line was removed
     };
 
     window.addEventListener('clerk-auth-changed', handleAuthChange);

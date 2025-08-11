@@ -1,108 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { 
+  User, 
+  Settings, 
   ShoppingBag, 
   MapPin, 
   CreditCard, 
-  Settings, 
   Shield, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
   CheckCircle, 
-  Clock, 
   Truck, 
   Package, 
-  User, 
-  LogOut,
-  Loader2,
-  Lock
+  Edit, 
+  Trash2, 
+  Plus, 
+  Star,
+  Clock,
+  Loader2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Separator } from '../components/ui/separator';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useProfile } from '../hooks/useProfile';
 import { toast } from 'sonner';
-import { useClerk } from '@clerk/clerk-react';
-import { Badge } from '../components/ui/badge';
+import { Address, Order, OrderItem } from '../types';
+import { PaymentMethod, UserPreferences, UserSession } from '../services/profileService';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Checkbox } from '../components/ui/checkbox';
-import { Star } from 'lucide-react';
-
-// Type definitions
-interface OrderItem {
-  id: number;
-  productName: string;
-  quantity: number;
-  price: number;
-}
-
-interface Order {
-  id: number;
-  orderNumber: string;
-  createdAt: string;
-  total: number;
-  status: string;
-  items: OrderItem[];
-}
-
-interface Address {
-  id: number;
-  type: 'SHIPPING' | 'BILLING';
-  isDefault: boolean;
-  firstName: string;
-  lastName: string;
-  company?: string;
-  address1: string;
-  address2?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  phone: string;
-}
-
-interface PaymentMethod {
-  id: number;
-  type: string;
-  brand: string;
-  last4: string;
-  expiryMonth: number;
-  expiryYear: number;
-  isDefault: boolean;
-}
-
-interface Preferences {
-  id?: number;
-  language?: 'ENGLISH' | 'URDU' | 'ARABIC';
-  currency?: 'USD' | 'EUR' | 'PKR';
-  timezone?: string;
-  emailNotifications?: boolean;
-  smsNotifications?: boolean;
-  marketingEmails?: boolean;
-  orderUpdates?: boolean;
-  promotionalOffers?: boolean;
-  newsletter?: boolean;
-}
-
-interface UserSession {
-  id: number;
-  deviceInfo: string;
-  ipAddress: string;
-  lastActivity: string;
-  isActive: boolean;
-  createdAt: string;
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 
 const UserProfile: React.FC = () => {
-  const { isAuthenticated, canChangePassword, isOAuthOnly, user } = useClerkAuth();
+  const { isAuthenticated } = useClerkAuth();
   const [activeTab, setActiveTab] = useState<string>('orders');
   
   // Address form state
@@ -444,7 +374,7 @@ const UserProfile: React.FC = () => {
                         </div>
                         <hr className="my-2" />
                         <div className="space-y-2">
-                          {order.items.map((item: OrderItem) => (
+                          {order.items?.map((item: OrderItem) => (
                             <div key={item.id} className="flex justify-between text-sm">
                               <span>{item.productName} x{item.quantity}</span>
                               <span>${item.price.toFixed(2)}</span>
@@ -619,7 +549,7 @@ const UserProfile: React.FC = () => {
                     <Checkbox 
                       id="emailNotifs" 
                       checked={localPreferences?.emailNotifications}
-                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, emailNotifications: checked }))}
+                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, emailNotifications: checked }))}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -630,7 +560,7 @@ const UserProfile: React.FC = () => {
                     <Checkbox 
                       id="smsNotifs" 
                       checked={localPreferences?.smsNotifications}
-                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, smsNotifications: checked }))}
+                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, smsNotifications: checked }))}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -641,7 +571,7 @@ const UserProfile: React.FC = () => {
                     <Checkbox 
                       id="marketingEmails" 
                       checked={localPreferences?.marketingEmails}
-                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, marketingEmails: checked }))}
+                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, marketingEmails: checked }))}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -652,7 +582,7 @@ const UserProfile: React.FC = () => {
                     <Checkbox 
                       id="orderUpdates" 
                       checked={localPreferences?.orderUpdates}
-                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, orderUpdates: checked }))}
+                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, orderUpdates: checked }))}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -663,7 +593,7 @@ const UserProfile: React.FC = () => {
                     <Checkbox 
                       id="promotionalOffers" 
                       checked={localPreferences?.promotionalOffers}
-                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, promotionalOffers: checked }))}
+                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, promotionalOffers: checked }))}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -674,7 +604,7 @@ const UserProfile: React.FC = () => {
                     <Checkbox 
                       id="newsletter" 
                       checked={localPreferences?.newsletter}
-                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, newsletter: checked }))}
+                      onCheckedChange={(checked: boolean) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, newsletter: checked }))}
                     />
                   </div>
                 </div>
@@ -687,7 +617,7 @@ const UserProfile: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="language">Language</Label>
-                      <Select onValueChange={(value: string) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, language: value as 'ENGLISH' | 'URDU' | 'ARABIC' }))} value={localPreferences?.language}>
+                      <Select onValueChange={(value: string) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, language: value as 'ENGLISH' | 'URDU' | 'ARABIC' }))} value={localPreferences?.language}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select a language" />
                         </SelectTrigger>
@@ -700,7 +630,7 @@ const UserProfile: React.FC = () => {
                     </div>
                     <div>
                       <Label htmlFor="currency">Currency</Label>
-                      <Select onValueChange={(value: string) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, currency: value as 'USD' | 'EUR' | 'PKR' }))} value={localPreferences?.currency}>
+                      <Select onValueChange={(value: string) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, currency: value as 'USD' | 'EUR' | 'PKR' }))} value={localPreferences?.currency}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select a currency" />
                         </SelectTrigger>
@@ -716,7 +646,7 @@ const UserProfile: React.FC = () => {
                       <Input
                         id="timezone"
                         value={localPreferences?.timezone || ''}
-                        onChange={(e) => setLocalPreferences((prev: Preferences | undefined) => ({ ...prev, timezone: e.target.value }))}
+                        onChange={(e) => setLocalPreferences((prev: UserPreferences | undefined) => ({ ...prev, timezone: e.target.value }))}
                         placeholder="e.g., UTC, EST, PST"
                       />
                     </div>
@@ -789,7 +719,7 @@ const UserProfile: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Password Change Section - Disabled in current version */}
-                {canChangePassword() ? (
+                {/* canChangePassword() ? ( */}
                   <div className="space-y-4">
                     <h4 className="font-medium">Change Password</h4>
                     <div className="p-4 border rounded-lg bg-muted/50">
@@ -807,8 +737,8 @@ const UserProfile: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ) : (
-                  /* OAuth Only Users - Show connected accounts info */
+                {/* ) : ( */}
+                  {/* OAuth Only Users - Show connected accounts info */}
                   <div className="space-y-4">
                     <h4 className="font-medium">Connected Accounts</h4>
                     <div className="space-y-3">
@@ -828,7 +758,7 @@ const UserProfile: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                )}
+                {/* ) */}
                 
                 <hr className="my-2" />
                 
