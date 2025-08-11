@@ -1,0 +1,192 @@
+import api, { createAuthHeaders } from '../lib/axios';
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  status: string;
+  total: number;
+  items: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  productName: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Address {
+  id: number;
+  type: 'SHIPPING' | 'BILLING';
+  firstName: string;
+  lastName: string;
+  company?: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  isDefault: boolean;
+}
+
+export interface PaymentMethod {
+  id: number;
+  type: string;
+  last4: string;
+  brand: string;
+  expiryMonth: number;
+  expiryYear: number;
+  isDefault: boolean;
+}
+
+export interface UserPreferences {
+  id?: number;
+  emailNotifications?: boolean;
+  smsNotifications?: boolean;
+  marketingEmails?: boolean;
+  orderUpdates?: boolean;
+  promotionalOffers?: boolean;
+  newsletter?: boolean;
+  language?: 'ENGLISH' | 'URDU' | 'ARABIC';
+  currency?: 'USD' | 'EUR' | 'PKR';
+  timezone?: string;
+}
+
+export interface UserSession {
+  id: number;
+  deviceInfo: string;
+  ipAddress: string;
+  lastActivity: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+// Profile API functions
+export const profileService = {
+  // Get user orders
+  getOrders: async (token: string) => {
+    const response = await api.get('/api/profile/orders', {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Get user addresses
+  getAddresses: async (token: string) => {
+    const response = await api.get('/api/profile/addresses', {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Get user payment methods
+  getPaymentMethods: async (token: string) => {
+    const response = await api.get('/api/profile/payment-methods', {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Get user preferences
+  getPreferences: async (token: string) => {
+    const response = await api.get('/api/profile/preferences', {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Update user preferences
+  updatePreferences: async (token: string, preferences: UserPreferences) => {
+    const response = await api.put('/api/profile/preferences', 
+      preferences,
+      { headers: createAuthHeaders(token) }
+    );
+    return response.data;
+  },
+
+  // Delete address
+  deleteAddress: async (token: string, addressId: number) => {
+    const response = await api.delete(`/api/profile/addresses/${addressId}`, {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Delete payment method
+  deletePaymentMethod: async (token: string, methodId: number) => {
+    const response = await api.delete(`/api/profile/payment-methods/${methodId}`, {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Add new address
+  addAddress: async (token: string, address: Omit<Address, 'id'>) => {
+    const response = await api.post('/api/profile/addresses', 
+      address,
+      { headers: createAuthHeaders(token) }
+    );
+    return response.data;
+  },
+
+  // Update address
+  updateAddress: async (token: string, addressId: number, address: Partial<Address>) => {
+    const response = await api.put(`/api/profile/addresses/${addressId}`, 
+      address,
+      { headers: createAuthHeaders(token) }
+    );
+    return response.data;
+  },
+
+  // Add new payment method
+  addPaymentMethod: async (token: string, paymentMethod: Omit<PaymentMethod, 'id'>) => {
+    const response = await api.post('/api/profile/payment-methods', 
+      paymentMethod,
+      { headers: createAuthHeaders(token) }
+    );
+    return response.data;
+  },
+
+  // Update payment method
+  updatePaymentMethod: async (token: string, methodId: number, paymentMethod: Partial<PaymentMethod>) => {
+    const response = await api.put(`/api/profile/payment-methods/${methodId}`, 
+      paymentMethod,
+      { headers: createAuthHeaders(token) }
+    );
+    return response.data;
+  },
+
+  // Change password
+  changePassword: async (token: string, passwordData: ChangePasswordRequest) => {
+    const response = await api.put('/api/profile/change-password', 
+      passwordData,
+      { headers: createAuthHeaders(token) }
+    );
+    return response.data;
+  },
+
+  // Get user sessions
+  getSessions: async (token: string) => {
+    const response = await api.get('/api/profile/sessions', {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Revoke session
+  revokeSession: async (token: string, sessionId: number) => {
+    const response = await api.delete(`/api/profile/sessions/${sessionId}`, {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+};

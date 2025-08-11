@@ -1,0 +1,480 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  clerkId       String?   @unique // Clerk user ID for integration
+  name          String    @db.VarChar(100)
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  avatar        String?
+  phone         String?
+  isEmailVerified Boolean  @default(false)
+  emailVerificationToken String?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  addresses    Address[]
+  orders       Order[]
+  reviews      Review[]
+  wishlist     WishlistItem[]
+  cartItems    CartItem[]
+  recentlyViewed RecentlyViewed[]
+  profile      UserProfile?
+  preferences  UserPreferences?
+  paymentMethods PaymentMethod[]
+  sessions     UserSession[]
+
+  @@map("users")
+}
+
+model Address {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  type        AddressType @default(SHIPPING)
+  firstName   String   @db.VarChar(50)
+  lastName    String   @db.VarChar(50)
+  company     String?
+  address1    String   @db.VarChar(200)
+  address2    String?
+  city        String   @db.VarChar(100)
+  state       String   @db.VarChar(100)
+  postalCode  String   @db.VarChar(20)
+  country     String   @db.VarChar(100)
+  phone       String   @db.VarChar(20)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingOrders Order[] @relation("ShippingAddress")
+  billingOrders Order[] @relation("BillingAddress")
+
+  @@map("addresses")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  slug        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  image       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  slug        String   @unique @db.VarChar(200)
+  description String   @db.Text
+  shortDescription String? @db.VarChar(500)
+  price       Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  costPrice   Decimal? @db.Decimal(10, 2)
+  sku         String?  @unique @db.VarChar(100)
+  barcode     String?  @unique @db.VarChar(100)
+  categoryId  Int
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  isOnSale    Boolean  @default(false)
+  salePrice   Decimal? @db.Decimal(10, 2)
+  saleEndDate DateTime?
+  weight      Decimal? @db.Decimal(8, 2)
+  dimensions  String?  @db.VarChar(100)
+  tags        String[] @default([])
+  metaTitle   String?  @db.VarChar(200)
+  metaDescription String? @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  category    Category @relation(fields: [categoryId], references: [id])
+  variants    ProductVariant[]
+  images      ProductImage[]
+  reviews     Review[]
+  cartItems   CartItem[]
+  wishlistItems WishlistItem[]
+  orderItems  OrderItem[]
+  recentlyViewed RecentlyViewed[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  size        Size
+  color       String   @db.VarChar(50)
+  colorCode   String?  @db.VarChar(7)
+  stock       Int      @default(0)
+  sku         String?  @unique @db.VarChar(100)
+  price       Decimal? @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  url         String   @db.VarChar(500)
+  alt         String?  @db.VarChar(200)
+  sortOrder   Int      @default(0)
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model CartItem {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  variantId   Int?
+  quantity    Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId, variantId])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+model Order {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  orderNumber   String   @unique @db.VarChar(50)
+  status        OrderStatus @default(PENDING)
+  subtotal      Decimal  @db.Decimal(10, 2)
+  tax           Decimal  @db.Decimal(10, 2) @default(0)
+  shipping      Decimal  @db.Decimal(10, 2) @default(0)
+  discount      Decimal  @db.Decimal(10, 2) @default(0)
+  total         Decimal  @db.Decimal(10, 2)
+  currency      Currency @default(USD)
+  language      Language @default(ENGLISH)
+  notes         String?  @db.Text
+  shippingAddressId Int?
+  billingAddressId Int?
+  paymentMethodId Int?
+  paymentStatus PaymentStatus @default(PENDING)
+  trackingNumber String? @db.VarChar(100)
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id])
+  shippingAddress Address? @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress Address? @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  variantId   Int?
+  productName String   @db.VarChar(200)
+  productSku  String?  @db.VarChar(100)
+  size        Size?
+  color       String?  @db.VarChar(50)
+  quantity    Int
+  price       Decimal  @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    Currency @default(USD)
+  method      PaymentMethodType @default(CREDIT_CARD)
+  status      PaymentStatus @default(PENDING)
+  transactionId String? @db.VarChar(200)
+  gatewayResponse String? @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Review {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  rating      Int
+  title       String?  @db.VarChar(200)
+  comment     String?  @db.Text
+  isVerified  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+model DiscountCode {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  type        DiscountType @default(PERCENTAGE)
+  value       Decimal  @db.Decimal(10, 2)
+  minAmount   Decimal? @db.Decimal(10, 2)
+  maxDiscount Decimal? @db.Decimal(10, 2)
+  usageLimit  Int?
+  usedCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  startsAt    DateTime @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("discount_codes")
+}
+
+model RecentlyViewed {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  viewedAt    DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("recently_viewed")
+}
+
+model FlashSale {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  discountPercentage Int @default(0)
+  startDate   DateTime @default(now())
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  bannerColor String?  @db.VarChar(7) // Hex color code
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("flash_sales")
+}
+
+model UserProfile {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  firstName     String?  @db.VarChar(50)
+  lastName      String?  @db.VarChar(50)
+  dateOfBirth   DateTime?
+  gender        String?  @db.VarChar(20)
+  bio           String?  @db.Text
+  website       String?  @db.VarChar(200)
+  socialLinks   Json?    // Store social media links as JSON
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserPreferences {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      @unique
+  language              Language @default(ENGLISH)
+  currency              Currency @default(USD)
+  timezone              String?  @db.VarChar(50)
+  emailNotifications    Boolean  @default(true)
+  smsNotifications      Boolean  @default(false)
+  marketingEmails       Boolean  @default(true)
+  orderUpdates          Boolean  @default(true)
+  promotionalOffers     Boolean  @default(true)
+  newsletter            Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model PaymentMethod {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  type          PaymentMethodType   @default(CREDIT_CARD)
+  provider      String        @db.VarChar(50) // Visa, Mastercard, PayPal, etc.
+  accountNumber String?       @db.VarChar(50) // Last 4 digits for cards
+  expiryMonth   Int?
+  expiryYear    Int?
+  cardholderName String?      @db.VarChar(100)
+  isDefault     Boolean       @default(false)
+  isActive      Boolean       @default(true)
+  metadata      Json?         // Store additional payment method data
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders        Order[]       // Orders that use this payment method
+
+  @@map("payment_methods")
+}
+
+model UserSession {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  sessionToken  String   @unique @db.VarChar(255)
+  deviceInfo    String?  @db.VarChar(200)
+  ipAddress     String?  @db.VarChar(45)
+  userAgent     String?  @db.Text
+  isActive      Boolean  @default(true)
+  lastActivity  DateTime @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+}
+
+enum Size {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+  XXXL
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethodType {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  APPLE_PAY
+  GOOGLE_PAY
+  BANK_TRANSFER
+  CRYPTO
+}
+
+enum Currency {
+  USD
+  EUR
+  PKR
+}
+
+enum Language {
+  ENGLISH
+  URDU
+  ARABIC
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
