@@ -1,18 +1,160 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Heart, Trash2 } from 'lucide-react';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
+import { useWishlistStore } from '../stores/wishlistStore';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { Separator } from '../components/ui/separator';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
+import { toast } from 'sonner';
 
 const Wishlist: React.FC = () => {
-  const { wishlist, removeFromWishlist } = useUserInteractionStore();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  const { addInteraction } = useUserInteractionStore();
+  const { 
+    items, 
+    isLoading, 
+    error, 
+    removeItem, 
+    clearWishlist,
+    syncWithDatabase 
+  } = useWishlistStore();
+  const { isAuthenticated, getToken } = useClerkAuth();
 
-  if (wishlist.length === 0) {
+  // Load wishlist when component mounts and user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const loadWishlist = async () => {
+        try {
+          const token = await getToken();
+          if (token) {
+            await syncWithDatabase(token);
+          }
+        } catch (error) {
+          console.error('Error loading wishlist:', error);
+        }
+      };
+
+      loadWishlist();
+    }
+  }, [isAuthenticated, syncWithDatabase, getToken]);
+
+  // Track page view
+  useEffect(() => {
+    addInteraction({
+      type: 'page_view',
+      targetType: 'page',
+      data: { path: '/wishlist', name: 'Wishlist' }
+    });
+  }, [addInteraction]);
+
+  const handleRemoveFromWishlist = async (productId: number) => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to manage your wishlist');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      if (token) {
+        await removeItem(productId, token);
+        toast.success('Item removed from wishlist');
+      }
+    } catch (error) {
+      toast.error('Failed to remove item from wishlist');
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to manage your wishlist');
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to clear your entire wishlist?')) {
+      try {
+        const token = await getToken();
+        if (token) {
+          await clearWishlist(token);
+          toast.success('Wishlist cleared');
+        }
+      } catch (error) {
+        toast.error('Failed to clear wishlist');
+      }
+    }
+  };
+
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-16">
+          <Heart className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
+          <h1 className="text-3xl font-bold text-foreground mb-4">Sign In to View Your Wishlist</h1>
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+            Create an account or sign in to save your favorite products and build your wishlist.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link to="/login">
+              <Button size="lg">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/register">
+              <Button variant="outline" size="lg">
+                Create Account
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-gray-200 rounded-lg h-64"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-16">
+          <Heart className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
+          <h1 className="text-3xl font-bold text-foreground mb-4">Error Loading Wishlist</h1>
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+            {error}
+          </p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-16">
@@ -38,24 +180,6 @@ const Wishlist: React.FC = () => {
     );
   }
 
-  const handleRemoveFromWishlist = (productId: number) => {
-    removeFromWishlist(productId);
-  };
-
-  const handleClearAll = () => {
-    if (window.confirm('Are you sure you want to clear your entire wishlist?')) {
-      wishlist.forEach(item => removeFromWishlist(item.id));
-    }
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -63,7 +187,7 @@ const Wishlist: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">My Wishlist</h1>
           <p className="text-muted-foreground">
-            {wishlist.length} {wishlist.length === 1 ? 'item' : 'items'} saved
+            {items.length} {items.length === 1 ? 'item' : 'items'} saved
           </p>
         </div>
         
@@ -105,98 +229,64 @@ const Wishlist: React.FC = () => {
         ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
         : 'space-y-4'
       }>
-        {wishlist.map((item) => (
-          <Card 
-            key={item.id} 
-            className={`group overflow-hidden transition-all hover:shadow-lg ${
-              viewMode === 'list' ? 'flex' : ''
-            }`}
-          >
-            <div className={`relative overflow-hidden ${
-              viewMode === 'list' ? 'w-48 h-32' : 'h-48'
-            }`}>
+        {items.map((item) => (
+          <Card key={item.id} className="group cursor-pointer transition-all hover:shadow-lg">
+            <div className="relative overflow-hidden">
               <ImageWithPlaceholder
-                src={item.image || ''}
-                alt={item.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                src={item.product.images && item.product.images.length > 0 ? item.product.images[0].url : ''}
+                alt={item.product.name}
+                className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
               />
-              <div className="absolute top-2 right-2">
-                <Badge variant="secondary" className="bg-background/80">
-                  Saved {formatDate(item.addedAt)}
+              {item.product.comparePrice && item.product.comparePrice > item.product.price && (
+                <Badge variant="destructive" className="absolute top-2 left-2">
+                  Sale
                 </Badge>
-              </div>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-2 right-2 h-8 w-8 p-0 bg-background/80 hover:bg-background"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveFromWishlist(item.productId);
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
             </div>
-
-            <CardContent className={`p-4 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-              <h3 className="font-semibold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-                {item.name}
-              </h3>
+            
+            <CardContent className="p-4">
+              <Link to={`/products/${item.product.slug}`}>
+                <h4 className="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                  {item.product.name}
+                </h4>
+              </Link>
               
-              <div className="flex items-center gap-2 mb-3">
-                {item.comparePrice && item.comparePrice > item.price ? (
-                  <>
-                    <span className="font-bold text-primary text-lg">
-                      ${item.price.toFixed(2)}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {item.product.comparePrice && item.product.comparePrice > item.product.price ? (
+                    <>
+                      <span className="font-semibold text-primary">
+                        ${item.product.price.toFixed(2)}
+                      </span>
+                      <span className="text-sm text-muted-foreground line-through">
+                        ${item.product.comparePrice.toFixed(2)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-primary">
+                      ${item.product.price.toFixed(2)}
                     </span>
-                    <span className="text-muted-foreground line-through">
-                      ${item.comparePrice.toFixed(2)}
-                    </span>
-                    <Badge variant="destructive" className="ml-auto">
-                      {Math.round(((item.comparePrice - item.price) / item.comparePrice) * 100)}% OFF
-                    </Badge>
-                  </>
-                ) : (
-                  <span className="font-bold text-primary text-lg">
-                    ${item.price.toFixed(2)}
-                  </span>
-                )}
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Link to={`/products/${item.slug}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full">
-                    {/* <Eye className="h-4 w-4 mr-2" /> */}
-                    View Details
-                  </Button>
-                </Link>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveFromWishlist(item.id)}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Added {formatDate(item.createdAt)}</span>
               </div>
             </CardContent>
           </Card>
         ))}
-      </div>
-
-      {/* Analytics Section */}
-      <Separator className="my-12" />
-      
-      <div className="bg-muted/30 rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Your Wishlist Insights</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary mb-2">{wishlist.length}</div>
-            <div className="text-sm text-muted-foreground">Total Items</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary mb-2">
-              ${wishlist.reduce((total, item) => total + item.price, 0).toFixed(2)}
-            </div>
-            <div className="text-sm text-muted-foreground">Total Value</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary mb-2">
-              {wishlist.filter(item => item.comparePrice && item.comparePrice > item.price).length}
-            </div>
-            <div className="text-sm text-muted-foreground">On Sale</div>
-          </div>
-        </div>
       </div>
     </div>
   );

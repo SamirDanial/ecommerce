@@ -8,7 +8,7 @@ import { Separator } from '../components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
-import { WishlistButton } from '../components/WishlistButton';
+import WishlistButton from '../components/WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCartStore } from '../stores/cartStore';
 import { 
@@ -308,7 +308,7 @@ const ProductDetail: React.FC = () => {
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
-                  <WishlistButton product={product} size="md" />
+                  <WishlistButton product={product} size="icon" />
                   <Button size="sm" variant="outline" onClick={handleShare}>
                     <Share2 className="h-4 w-4" />
                   </Button>

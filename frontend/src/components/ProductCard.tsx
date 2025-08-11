@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Star } from 'lucide-react';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
-import { WishlistButton } from './WishlistButton';
+import WishlistButton from './WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 
 interface ProductCardProps {

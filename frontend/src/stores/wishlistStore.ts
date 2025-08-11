@@ -1,71 +1,146 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { wishlistService, WishlistItem } from '../services/wishlistService';
 
-export interface WishlistItem {
-  id: number;
-  name: string;
-  slug: string;
-  price: number;
-  comparePrice?: number;
-  image?: string;
-  addedAt: number;
+interface WishlistStore {
+  items: WishlistItem[];
+  isLoading: boolean;
+  error: string | null;
+  
+  // Actions
+  addItem: (product: any, token: string) => Promise<void>;
+  removeItem: (productId: number, token: string) => Promise<void>;
+  clearWishlist: (token: string) => Promise<void>;
+  loadWishlist: (token: string) => Promise<void>;
+  checkWishlistStatus: (productId: number, token: string) => Promise<boolean>;
+  syncWithDatabase: (token: string) => Promise<void>;
+  
+  // State management
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
 }
 
-interface WishlistState {
-  wishlist: WishlistItem[];
-  addToWishlist: (product: any) => void;
-  removeFromWishlist: (productId: number) => void;
-  isInWishlist: (productId: number) => boolean;
-  clearWishlist: () => void;
-  getWishlistCount: () => number;
-}
-
-export const useWishlistStore = create<WishlistState>()(
+export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
-      wishlist: [],
+      items: [],
+      isLoading: false,
+      error: null,
 
-      addToWishlist: (product) => {
-        const { wishlist } = get();
-        const existingItem = wishlist.find(item => item.id === product.id);
+      setLoading: (loading) => set({ isLoading: loading }),
+      setError: (error) => set({ error }),
 
-        if (!existingItem) {
-          const newItem: WishlistItem = {
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            price: product.price,
-            comparePrice: product.comparePrice,
-            image: product.images?.[0]?.url,
-            addedAt: Date.now()
-          };
-          set({ wishlist: [...wishlist, newItem] });
+      addItem: async (product, token) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Add to database
+          const result = await wishlistService.addToWishlist(token, product.id);
+          
+          // Update local state
+          set((state) => ({
+            items: [...state.items, result.data],
+            isLoading: false
+          }));
+        } catch (error: any) {
+          set({ 
+            error: error.message || 'Failed to add item to wishlist',
+            isLoading: false 
+          });
+          throw error;
         }
       },
 
-      removeFromWishlist: (productId) => {
-        const { wishlist } = get();
-        const filteredWishlist = wishlist.filter(item => item.id !== productId);
-        set({ wishlist: filteredWishlist });
+      removeItem: async (productId, token) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Remove from database
+          await wishlistService.removeFromWishlist(token, productId);
+          
+          // Update local state
+          set((state) => ({
+            items: state.items.filter(item => item.productId !== productId),
+            isLoading: false
+          }));
+        } catch (error: any) {
+          set({ 
+            error: error.message || 'Failed to remove item from wishlist',
+            isLoading: false 
+          });
+          throw error;
+        }
       },
 
-      isInWishlist: (productId) => {
-        const { wishlist } = get();
-        return wishlist.some(item => item.id === productId);
+      clearWishlist: async (token) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Clear from database
+          await wishlistService.clearWishlist(token);
+          
+          // Update local state
+          set({ items: [], isLoading: false });
+        } catch (error: any) {
+          set({ 
+            error: error.message || 'Failed to clear wishlist',
+            isLoading: false 
+          });
+          throw error;
+        }
       },
 
-      clearWishlist: () => {
-        set({ wishlist: [] });
+      loadWishlist: async (token) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Load from database
+          const result = await wishlistService.getWishlist(token);
+          
+          set({ 
+            items: result.data || [],
+            isLoading: false 
+          });
+        } catch (error: any) {
+          set({ 
+            error: error.message || 'Failed to load wishlist',
+            isLoading: false 
+          });
+        }
       },
 
-      getWishlistCount: () => {
-        const { wishlist } = get();
-        return wishlist.length;
+      checkWishlistStatus: async (productId, token) => {
+        try {
+          // Check in database
+          const result = await wishlistService.checkWishlistStatus(token, productId);
+          return result.isInWishlist;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      syncWithDatabase: async (token) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Load from database
+          const result = await wishlistService.getWishlist(token);
+          
+          set({ 
+            items: result.data || [],
+            isLoading: false 
+          });
+        } catch (error: any) {
+          set({ 
+            error: error.message || 'Failed to sync wishlist',
+            isLoading: false 
+          });
+        }
       }
     }),
     {
       name: 'wishlist-store',
-      partialize: (state) => ({ wishlist: state.wishlist })
+      partialize: (state) => ({ items: state.items }), // Only persist items
     }
   )
 );

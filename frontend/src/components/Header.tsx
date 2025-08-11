@@ -1,133 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { 
   ShoppingCart, 
   Heart, 
   User, 
   Settings, 
   LogOut, 
-  Menu
+  Menu 
 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-
+import { useCartStore } from '../stores/cartStore';
+import { useWishlistStore } from '../stores/wishlistStore';
+import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useClerk } from '@clerk/clerk-react';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
-import { useCartStore } from '../stores/cartStore';
-import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { useClerkAuth } from '../hooks/useClerkAuth';
-
-
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { getTotalItems } = useCartStore();
-  const { wishlist } = useUserInteractionStore();
+  const { items: wishlistItems } = useWishlistStore();
   const { user, isAuthenticated, signOut, isLoaded } = useClerkAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Simple wishlist count state
   const [wishlistCount, setWishlistCount] = useState(0);
 
-  // Force re-render when authentication state changes
+  // Update wishlist count whenever wishlist changes
   useEffect(() => {
-    if (isLoaded) {
-      // setForceUpdate(prev => prev + 1); // This line was removed
-    }
-  }, [isAuthenticated, user, isLoaded]);
-
-  // Listen for custom authentication change events
-  useEffect(() => {
-    const handleAuthChange = () => {
-      // setForceUpdate(prev => prev + 1); // This line was removed
-    };
-
-    window.addEventListener('clerk-auth-changed', handleAuthChange);
-    
-    return () => {
-      window.removeEventListener('clerk-auth-changed', handleAuthChange);
-    };
-  }, []);
-
+    setWishlistCount(wishlistItems.length);
+  }, [wishlistItems]);
 
   // Check initial state on mount
   useEffect(() => {
     // Check localStorage on mount for initial wishlist count
     const wishlistStore = localStorage.getItem('wishlist-store');
-    const userInteractionStore = localStorage.getItem('user-interaction-store');
     
     if (wishlistStore) {
       try {
         const parsed = JSON.parse(wishlistStore);
-        if (wishlist.length === 0 && parsed?.wishlist?.length > 0) {
-          setWishlistCount(parsed.wishlist.length);
+        if (wishlistItems.length === 0 && parsed?.state?.items?.length > 0) {
+          setWishlistCount(parsed.state.items.length);
         }
       } catch (error) {
         console.error('Error parsing wishlist-store:', error);
       }
     }
-    
-    if (userInteractionStore) {
-      try {
-        const parsed = JSON.parse(userInteractionStore);
-        if (wishlist.length === 0 && parsed?.wishlist?.length > 0) {
-          setWishlistCount(parsed.wishlist.length);
-        }
-      } catch (error) {
-        console.error('Error parsing user-interaction-store:', error);
-      }
-    }
-  }, [wishlist]);
-
-  // Update wishlist count whenever wishlist changes
-  useEffect(() => {
-    // Get count from store first, fallback to localStorage
-    let count = wishlist.length;
-    
-    // If store is empty, check localStorage
-    if (count === 0) {
-      // Check both possible localStorage keys
-      const wishlistStore = localStorage.getItem('wishlist-store');
-      const userInteractionStore = localStorage.getItem('user-interaction-store');
-      
-      if (wishlistStore) {
-        try {
-          const parsed = JSON.parse(wishlistStore);
-          if (parsed?.wishlist?.length > 0) {
-            count = parsed.wishlist.length;
-          }
-        } catch (error) {
-          console.error('Error parsing wishlist-store:', error);
-        }
-      }
-      
-      if (userInteractionStore) {
-        try {
-          const parsed = JSON.parse(userInteractionStore);
-          if (parsed?.wishlist?.length > 0) {
-            count = parsed.wishlist.length;
-          }
-        } catch (error) {
-          console.error('Error parsing user-interaction-store:', error);
-        }
-      }
-    }
-    
-    setWishlistCount(count);
-  }, [wishlist]);
+  }, [wishlistItems]);
 
   // Listen for storage changes (cross-tab updates)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'wishlist-store' || e.key === 'user-interaction-store') {
+      if (e.key === 'wishlist-store') {
         if (e.newValue) {
           try {
             const parsed = JSON.parse(e.newValue);
-            const newCount = parsed?.wishlist?.length || 0;
+            const newCount = parsed?.state?.items?.length || 0;
             setWishlistCount(newCount);
           } catch (error) {
             console.error('Error parsing storage event:', error);
@@ -140,10 +74,6 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-
-
-
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 0);
@@ -152,8 +82,6 @@ const Header: React.FC = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-
 
   const handleLogout = () => {
     signOut();

@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Button } from './ui/button';
 import { Heart } from 'lucide-react';
-import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { cn } from '../lib/utils';
+import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useWishlistStore } from '../stores/wishlistStore';
+import LoginPopup from './LoginPopup';
+import { toast } from 'sonner';
 
 interface WishlistButtonProps {
   product: {
@@ -12,71 +15,128 @@ interface WishlistButtonProps {
     comparePrice?: number;
     images?: { url: string; alt?: string }[];
   };
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'lg' | 'icon';
+  variant?: 'default' | 'outline' | 'ghost';
   className?: string;
-  showText?: boolean;
 }
 
-export const WishlistButton: React.FC<WishlistButtonProps> = ({
-  product,
-  size = 'md',
-  className,
-  showText = false
+const WishlistButton: React.FC<WishlistButtonProps> = ({ 
+  product, 
+  size = 'icon', 
+  variant = 'outline',
+  className = ''
 }) => {
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useUserInteractionStore();
-  const isWishlisted = isInWishlist(product.id);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
+  
+  const { isAuthenticated, getToken } = useClerkAuth();
+  const { 
+    addItem, 
+    removeItem, 
+    checkWishlistStatus, 
+    syncWithDatabase,
+    items 
+  } = useWishlistStore();
 
-  const handleToggleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (isWishlisted) {
-      removeFromWishlist(product.id);
-    } else {
-      addToWishlist(product);
+  // Check if product is in wishlist on mount and when items change
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (isAuthenticated) {
+        try {
+          const token = await getToken();
+          if (token) {
+            const status = await checkWishlistStatus(product.id, token);
+            setIsInWishlist(status);
+          }
+        } catch (error) {
+          console.error('Error checking wishlist status:', error);
+        }
+      } else {
+        // For unauthenticated users, check local state
+        setIsInWishlist(items.some(item => item.productId === product.id));
+      }
+    };
+
+    checkStatus();
+  }, [isAuthenticated, product.id, items, checkWishlistStatus, getToken]);
+
+  // Sync wishlist with database when user authenticates
+  useEffect(() => {
+    if (isAuthenticated) {
+      const syncWishlist = async () => {
+        try {
+          const token = await getToken();
+          if (token) {
+            await syncWithDatabase(token);
+          }
+        } catch (error) {
+          console.error('Error syncing wishlist:', error);
+        }
+      };
+
+      syncWishlist();
+    }
+  }, [isAuthenticated, syncWithDatabase, getToken]);
+
+  const handleWishlistToggle = async () => {
+    if (!isAuthenticated) {
+      setShowLoginPopup(true);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      if (isInWishlist) {
+        await removeItem(product.id, token);
+        toast.success('Removed from wishlist');
+      } else {
+        await addItem(product, token);
+        toast.success('Added to wishlist');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update wishlist');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10'
-  };
-
-  const iconSizes = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6'
-  };
-
   return (
-    <button
-      onClick={handleToggleWishlist}
-      className={cn(
-        showText ? 'flex items-center gap-2' : 'flex items-center justify-center',
-        'rounded-full transition-all duration-200 hover:scale-110',
-        'bg-background/80 backdrop-blur-sm border border-border/50',
-        'hover:bg-background hover:border-border',
-        sizeClasses[size],
-        className
-      )}
-      aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-      title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-    >
-      <Heart
-        className={cn(
-          iconSizes[size],
-          'transition-all duration-200',
-          isWishlisted
-            ? 'fill-red-500 text-red-500 animate-pulse'
-            : 'text-muted-foreground hover:text-red-500'
-        )}
+    <>
+      <Button
+        variant={variant}
+        size={size}
+        className={`transition-all duration-200 hover:scale-105 ${
+          isInWishlist 
+            ? 'bg-red-500 hover:bg-red-600 text-white border-red-500' 
+            : ''
+        } ${className}`}
+        onClick={handleWishlistToggle}
+        disabled={isLoading}
+        aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+      >
+        <Heart 
+          className={`h-4 w-4 transition-all duration-200 ${
+            isInWishlist 
+              ? 'fill-current' 
+              : ''
+          }`}
+        />
+      </Button>
+
+      <LoginPopup
+        isOpen={showLoginPopup}
+        onClose={() => setShowLoginPopup(false)}
+        message={`Sign in to add "${product.name}" to your wishlist`}
       />
-      {showText && (
-        <span className="text-sm font-medium">
-          {isWishlisted ? 'Saved' : 'Save'}
-        </span>
-      )}
-    </button>
+    </>
   );
 };
+
+export default WishlistButton;

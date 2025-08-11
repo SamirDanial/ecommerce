@@ -8,6 +8,7 @@ import clerkWebhookRoutes from './routes/clerkWebhookRoutes';
 import productRoutes from './routes/productRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import searchRoutes from './routes/searchRoutes';
+import wishlistRoutes from './routes/wishlistRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/clerk', clerkWebhookRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

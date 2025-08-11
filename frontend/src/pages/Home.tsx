@@ -8,7 +8,7 @@ import { Badge } from '../components/ui/badge';
 import { ShoppingBag, Star, Heart, ArrowRight, Zap, TrendingUp, Gift } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
-import { WishlistButton } from '../components/WishlistButton';
+import WishlistButton from '../components/WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCartStore } from '../stores/cartStore';
 
