@@ -22,6 +22,7 @@ export class JWTService {
   static async initialize() {
     try {
       const clerkIssuerUrl = process.env.CLERK_ISSUER_URL;
+      
       if (!clerkIssuerUrl) {
         throw new Error('CLERK_ISSUER_URL environment variable is required');
       }
@@ -29,7 +30,6 @@ export class JWTService {
       this.jwksUrl = `${clerkIssuerUrl}/.well-known/jwks.json`;
       this.jwks = createRemoteJWKSet(new URL(this.jwksUrl));
       
-      console.log('JWT service initialized with Clerk JWKS');
     } catch (error) {
       console.error('Failed to initialize JWT service:', error);
       throw error;

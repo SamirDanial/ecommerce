@@ -4,6 +4,11 @@ import { prisma } from '../lib/prisma';
 
 const router = express.Router();
 
+// Test endpoint (no auth required)
+router.get('/test', (req, res) => {
+  res.json({ message: 'Wishlist test endpoint working', timestamp: new Date().toISOString() });
+});
+
 // Get user's wishlist
 router.get('/', authenticateClerkToken, async (req: any, res) => {
   try {

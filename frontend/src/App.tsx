@@ -6,6 +6,7 @@ import Header from './components/Header';
 import ThemeProvider from './components/ThemeProvider';
 import ClerkProvider from './components/ClerkProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import GlobalWishlistLoader from './components/GlobalWishlistLoader';
 import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
@@ -37,6 +38,7 @@ function App() {
         <ThemeProvider>
           <Router>
             <div className="App">
+              <GlobalWishlistLoader />
               <Header />
               <main>
                 <Routes>

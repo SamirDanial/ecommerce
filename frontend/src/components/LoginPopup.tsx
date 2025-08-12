@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -25,24 +26,108 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, message = "Sig
     navigate('/register');
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  // Use portal to render at document body level
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center isolate"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        transform: 'none',
+        transformOrigin: 'initial'
+      }}
+    >
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-        onClick={onClose}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onClose();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
+        }}
       />
       
       {/* Modal Content */}
-      <div className="relative w-full max-w-md mx-4">
-        <Card className="shadow-2xl border-0 bg-background/95 backdrop-blur-sm">
-          <CardHeader className="text-center pb-6 relative">
+      <div 
+        className="relative w-full max-w-md mx-4 z-10"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          transform: 'none',
+          transformOrigin: 'initial'
+        }}
+      >
+        <Card 
+          className="shadow-2xl border-0 bg-background/95 backdrop-blur-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
+          <CardHeader 
+            className="text-center pb-6 relative"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             {/* Close button */}
             <Button
               variant="ghost"
               size="sm"
               className="absolute right-4 top-4 h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClose();
+              }}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -60,7 +145,21 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, message = "Sig
             </p>
           </CardHeader>
           
-          <CardContent className="space-y-4 px-6 pb-6">
+          <CardContent 
+            className="space-y-4 px-6 pb-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 Create an account or sign in to:
@@ -84,7 +183,11 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, message = "Sig
 
             <div className="space-y-3 pt-4">
               <Button 
-                onClick={handleLogin}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleLogin();
+                }}
                 className="w-full"
                 size="lg"
               >
@@ -92,7 +195,11 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, message = "Sig
               </Button>
               
               <Button 
-                onClick={handleSignup}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleSignup();
+                }}
                 variant="outline"
                 className="w-full"
                 size="lg"
@@ -109,7 +216,8 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, message = "Sig
           </CardContent>
         </Card>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

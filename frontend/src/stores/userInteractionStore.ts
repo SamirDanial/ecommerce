@@ -3,22 +3,12 @@ import { persist } from 'zustand/middleware';
 
 export interface UserInteraction {
   id: string;
-  type: 'product_view' | 'category_view' | 'wishlist_add' | 'wishlist_remove' | 'cart_add' | 'cart_remove' | 'page_view';
+  type: 'product_view' | 'category_view' | 'cart_add' | 'cart_remove' | 'page_view';
   targetId?: string;
   targetType?: 'product' | 'category' | 'page';
   data?: any;
   timestamp: number;
   sessionId: string;
-}
-
-export interface WishlistItem {
-  id: number;
-  name: string;
-  slug: string;
-  price: number;
-  comparePrice?: number;
-  image?: string;
-  addedAt: number;
 }
 
 export interface RecentlyViewedProduct {
@@ -31,21 +21,11 @@ export interface RecentlyViewedProduct {
   viewedAt: number;
 }
 
-
-
 interface UserInteractionState {
-  // Wishlist
-  wishlist: WishlistItem[];
-  addToWishlist: (product: any) => void;
-  removeFromWishlist: (productId: number) => void;
-  isInWishlist: (productId: number) => boolean;
-  
   // Recently Viewed
   recentlyViewed: RecentlyViewedProduct[];
   addToRecentlyViewed: (product: any) => void;
   clearRecentlyViewed: () => void;
-  
-
   
   // User Interactions
   interactions: UserInteraction[];
@@ -59,7 +39,6 @@ interface UserInteractionState {
   // Analytics
   getPopularProducts: () => { id: number; count: number }[];
   getPopularCategories: () => { id: string; count: number }[];
-
   getUserBehaviorPatterns: () => any;
 }
 
@@ -71,60 +50,9 @@ export const useUserInteractionStore = create<UserInteractionState>()(
   persist(
     (set, get) => ({
       // Initial state
-      wishlist: [],
       recentlyViewed: [],
       interactions: [],
       sessionId: generateSessionId(),
-      
-      // Wishlist methods
-      addToWishlist: (product) => {
-        const { wishlist, addInteraction } = get();
-        const existingIndex = wishlist.findIndex(item => item.id === product.id);
-        
-        if (existingIndex === -1) {
-          const wishlistItem: WishlistItem = {
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            price: product.price,
-            comparePrice: product.comparePrice,
-            image: product.images?.[0]?.url,
-            addedAt: Date.now()
-          };
-          
-          set({ wishlist: [...wishlist, wishlistItem] });
-          
-          // Track interaction
-          addInteraction({
-            type: 'wishlist_add',
-            targetId: product.id.toString(),
-            targetType: 'product',
-            data: { productName: product.name }
-          });
-        }
-      },
-      
-      removeFromWishlist: (productId) => {
-        const { wishlist, addInteraction } = get();
-        const product = wishlist.find(item => item.id === productId);
-        
-        if (product) {
-          set({ wishlist: wishlist.filter(item => item.id !== productId) });
-          
-          // Track interaction
-          addInteraction({
-            type: 'wishlist_remove',
-            targetId: productId.toString(),
-            targetType: 'product',
-            data: { productName: product.name }
-          });
-        }
-      },
-      
-      isInWishlist: (productId) => {
-        const { wishlist } = get();
-        return wishlist.some(item => item.id === productId);
-      },
       
       // Recently viewed methods
       addToRecentlyViewed: (product) => {
@@ -221,11 +149,10 @@ export const useUserInteractionStore = create<UserInteractionState>()(
 
       
       getUserBehaviorPatterns: () => {
-        const { interactions, wishlist, recentlyViewed } = get();
+        const { interactions, recentlyViewed } = get();
         
         return {
           totalInteractions: interactions.length,
-          wishlistSize: wishlist.length,
           recentlyViewedCount: recentlyViewed.length,
           mostActiveHours: getMostActiveHours(interactions),
           preferredCategories: getPreferredCategories(interactions)
@@ -235,7 +162,6 @@ export const useUserInteractionStore = create<UserInteractionState>()(
     {
       name: 'user-interactions',
       partialize: (state) => ({
-        wishlist: state.wishlist,
         recentlyViewed: state.recentlyViewed,
         interactions: state.interactions.slice(-1000), // Keep last 1000 interactions
         sessionId: state.sessionId

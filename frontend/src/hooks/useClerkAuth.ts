@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { useClerkAuthStore } from '../stores/clerkAuthStore';
+import { useWishlistStore } from '../stores/wishlistStore';
 
 export const useClerkAuth = () => {
   const { user, isLoaded: clerkLoaded } = useUser();
@@ -17,6 +18,9 @@ export const useClerkAuth = () => {
     setLoaded, 
     logout 
   } = useClerkAuthStore();
+
+  // Get wishlist store to clear it on logout
+  const { clearWishlistOnLogout } = useWishlistStore();
 
   useEffect(() => {
     if (clerkLoaded) {
@@ -79,6 +83,9 @@ export const useClerkAuth = () => {
 
   const handleSignOut = async () => {
     try {
+      // Clear wishlist before signing out
+      clearWishlistOnLogout();
+      
       await clerkSignOut();
       logout();
       setLocalIsAuthenticated(false);

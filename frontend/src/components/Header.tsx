@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
@@ -15,64 +15,21 @@ import {
 import { useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
-import { useClerk } from '@clerk/clerk-react';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
+import WishlistHoverOverlay from './WishlistHoverOverlay';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { getTotalItems } = useCartStore();
-  const { items: wishlistItems } = useWishlistStore();
-  const { user, isAuthenticated, signOut, isLoaded } = useClerkAuth();
+  const { getWishlistCount } = useWishlistStore();
+  const { user, isAuthenticated, signOut } = useClerkAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Simple wishlist count state
-  const [wishlistCount, setWishlistCount] = useState(0);
-
-  // Update wishlist count whenever wishlist changes
-  useEffect(() => {
-    setWishlistCount(wishlistItems.length);
-  }, [wishlistItems]);
-
-  // Check initial state on mount
-  useEffect(() => {
-    // Check localStorage on mount for initial wishlist count
-    const wishlistStore = localStorage.getItem('wishlist-store');
-    
-    if (wishlistStore) {
-      try {
-        const parsed = JSON.parse(wishlistStore);
-        if (wishlistItems.length === 0 && parsed?.state?.items?.length > 0) {
-          setWishlistCount(parsed.state.items.length);
-        }
-      } catch (error) {
-        console.error('Error parsing wishlist-store:', error);
-      }
-    }
-  }, [wishlistItems]);
-
-  // Listen for storage changes (cross-tab updates)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'wishlist-store') {
-        if (e.newValue) {
-          try {
-            const parsed = JSON.parse(e.newValue);
-            const newCount = parsed?.state?.items?.length || 0;
-            setWishlistCount(newCount);
-          } catch (error) {
-            console.error('Error parsing storage event:', error);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  // Get wishlist count from store
+  const wishlistCount = getWishlistCount();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -137,19 +94,21 @@ const Header: React.FC = () => {
             <div className="hidden lg:flex items-center space-x-4">
               <ThemeToggle />
               
-              <Link to="/wishlist" className="relative">
-                <Button variant="ghost" size="sm">
-                  <Heart className="h-4 w-4" />
-                  {wishlistCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
-                    >
-                      {wishlistCount > 99 ? '99+' : wishlistCount}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
+              <WishlistHoverOverlay>
+                <Link to="/wishlist">
+                  <Button variant="ghost" size="sm">
+                    <Heart className="h-4 w-4" />
+                    {wishlistCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
+                      >
+                        {wishlistCount > 99 ? '99+' : wishlistCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              </WishlistHoverOverlay>
 
               <Link to="/cart" className="relative">
                 <Button variant="ghost" size="sm">
@@ -209,19 +168,21 @@ const Header: React.FC = () => {
             <div className="lg:hidden flex items-center space-x-2">
               <ThemeToggle />
               
-              <Link to="/wishlist" className="relative">
-                <Button variant="ghost" size="sm">
-                  <Heart className="h-4 w-4" />
-                  {wishlistCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
-                    >
-                      {wishlistCount > 99 ? '99+' : wishlistCount}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
+              <WishlistHoverOverlay>
+                <Link to="/wishlist">
+                  <Button variant="ghost" size="sm">
+                    <Heart className="h-4 w-4" />
+                    {wishlistCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
+                      >
+                        {wishlistCount > 99 ? '99+' : wishlistCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              </WishlistHoverOverlay>
 
               <Link to="/cart" className="relative">
                 <Button variant="ghost" size="sm">
@@ -392,24 +353,26 @@ const Header: React.FC = () => {
 
                     {/* Quick Actions */}
                     <div className="flex items-center space-x-4 animate-in slide-in-from-right-2 duration-500 delay-1000">
-                      <Link to="/wishlist" onClick={handleMenuClick} className="flex-1 group">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="w-full relative transition-all duration-300 hover:scale-105 hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:border-pink-200 dark:hover:border-pink-800"
-                        >
-                          <Heart className="h-4 w-4 mr-2 transition-all duration-300 group-hover:scale-110 group-hover:fill-pink-500 group-hover:text-pink-500" />
-                          Wishlist
-                          {wishlistCount > 0 && (
-                            <Badge 
-                              variant="destructive" 
-                              className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 animate-pulse z-10"
-                            >
-                              {wishlistCount > 99 ? '99+' : wishlistCount}
-                            </Badge>
-                          )}
-                        </Button>
-                      </Link>
+                       <WishlistHoverOverlay position="top">
+                         <Link to="/wishlist" onClick={handleMenuClick} className="flex-1 group">
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             className="w-full relative transition-all duration-300 hover:scale-105 hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:border-pink-200 dark:hover:border-pink-800"
+                           >
+                             <Heart className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:scale-110 group-hover:fill-pink-500 group-hover:text-pink-500" />
+                             Wishlist
+                             {wishlistCount > 0 && (
+                               <Badge 
+                                 variant="destructive" 
+                                 className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 animate-pulse z-10"
+                               >
+                                 {wishlistCount > 99 ? '99+' : wishlistCount}
+                               </Badge>
+                             )}
+                           </Button>
+                         </Link>
+                       </WishlistHoverOverlay>
                       <Link to="/cart" onClick={handleMenuClick} className="flex-1 group">
                         <Button 
                           variant="ghost" 
