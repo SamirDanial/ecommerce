@@ -45,6 +45,7 @@ import {
   SortAsc,
   SortDesc,
 } from "lucide-react";
+import { categoryService } from '../services/api';
 
 interface FilterState {
   search: string;
@@ -120,9 +121,7 @@ const Products: React.FC = () => {
         // Load all products by default (no filters applied)
         const [productsData, categoriesData] = await Promise.all([
           productService.getAll({}), // Send empty params to get all products
-          fetch("http://localhost:5000/api/categories").then((res) =>
-            res.json()
-          ),
+          categoryService.getAll(),
         ]);
         setProducts(productsData);
         setCategories(categoriesData);
@@ -200,9 +199,7 @@ const Products: React.FC = () => {
       
       const [productsData, categoriesData] = await Promise.all([
         productService.getAll(formData),
-        fetch("http://localhost:5000/api/categories").then((res) =>
-          res.json()
-        ),
+        categoryService.getAll(),
       ]);
       
       setProducts(productsData);
@@ -240,9 +237,7 @@ const Products: React.FC = () => {
       
       const [productsData, categoriesData] = await Promise.all([
         productService.getAll({}), // Send empty params to get all products
-        fetch("http://localhost:5000/api/categories").then((res) =>
-          res.json()
-        ),
+        categoryService.getAll(),
       ]);
       
       setProducts(productsData);

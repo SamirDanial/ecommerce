@@ -11,6 +11,7 @@ import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import WishlistButton from '../components/WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCartStore } from '../stores/cartStore';
+import { categoryService } from '../services/api';
 
 const Home: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -70,7 +71,7 @@ const Home: React.FC = () => {
       try {
         const [productsData, categoriesData, flashSalesData] = await Promise.all([
           productService.getFeatured(),
-          fetch('http://localhost:5000/api/categories').then(res => res.json()),
+          categoryService.getAll(),
           flashSaleService.getActive()
         ]);
         setFeaturedProducts(productsData);

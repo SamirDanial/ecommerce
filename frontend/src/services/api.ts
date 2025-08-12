@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Product, AuthResponse, FlashSale } from '../types';
+import { User, Product, AuthResponse, FlashSale, Category } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -46,6 +46,24 @@ export const authService = {
 
   getProfile: async (): Promise<User> => {
     const response = await api.get('/users/profile');
+    return response.data;
+  },
+};
+
+// Category services
+export const categoryService = {
+  getAll: async (): Promise<Category[]> => {
+    const response = await api.get('/categories');
+    return response.data;
+  },
+
+  getBySlug: async (slug: string): Promise<Category> => {
+    const response = await api.get(`/categories/${slug}`);
+    return response.data;
+  },
+
+  getProducts: async (slug: string, limit: number = 50): Promise<Product[]> => {
+    const response = await api.get(`/products?category=${slug}&limit=${limit}`);
     return response.data;
   },
 };

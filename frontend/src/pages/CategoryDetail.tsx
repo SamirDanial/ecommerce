@@ -1,24 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
 import { Separator } from '../components/ui/separator';
+import { Star, Filter, Grid, List, ArrowUpDown, Heart, ShoppingCart, Package } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
-import SearchBar from '../components/SearchBar';
-import { 
-  Package, 
-  Grid, 
-  List, 
-  Filter, 
-  Star,
-  ShoppingCart,
-  Heart,
-  ArrowUpDown
-} from 'lucide-react';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCartStore } from '../stores/cartStore';
+import { useQuery } from '@tanstack/react-query';
+import { categoryService } from '../services/api';
+import SearchBar from '../components/SearchBar';
 
 interface Product {
   id: number;
@@ -50,7 +43,6 @@ const CategoryDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [category, setCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>('featured');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
@@ -60,75 +52,26 @@ const CategoryDetail: React.FC = () => {
   const { addInteraction } = useUserInteractionStore();
   const { addToCart } = useCartStore();
 
-  const fetchCategory = useCallback(async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/categories/${slug}`);
-      if (!response.ok) throw new Error('Failed to fetch category');
-      const data = await response.json();
-      setCategory(data);
-    } catch (error) {
-      console.error('Failed to fetch category:', error);
-      // Fallback category data
-      setCategory({
-        id: 1,
-        name: slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : 'Category',
-        slug: slug || '',
-        description: `Browse our collection of ${slug || 'category'} products`,
-        productCount: 0
-      });
-    }
-  }, [slug]);
+  const { data: fetchedCategory, isLoading: isCategoryLoading } = useQuery<Category>({
+    queryKey: ['category', slug],
+    queryFn: () => categoryService.getBySlug(slug!),
+    enabled: !!slug,
+  });
 
-  const fetchProducts = useCallback(async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/products?category=${slug}&limit=50`);
-      if (!response.ok) throw new Error('Failed to fetch products');
-      const data = await response.json();
-      setProducts(data.data || data);
-    } catch (error) {
-      console.error('Failed to fetch products:', error);
-      // Fallback products for demo
-      setProducts([
-        {
-          id: 1,
-          name: 'Sample Product 1',
-          slug: 'sample-product-1',
-          description: 'This is a sample product description',
-          price: 99.99,
-          comparePrice: 129.99,
-          images: [{ url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop' }],
-          averageRating: 4.5,
-          reviewCount: 23,
-          isOnSale: true,
-          salePrice: 89.99,
-          isFeatured: true,
-          tags: ['featured', 'popular']
-        },
-        {
-          id: 2,
-          name: 'Sample Product 2',
-          slug: 'sample-product-2',
-          description: 'Another sample product for demonstration',
-          price: 149.99,
-          images: [{ url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop' }],
-          averageRating: 4.2,
-          reviewCount: 15,
-          isOnSale: false,
-          isFeatured: false,
-          tags: ['new']
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }, [slug]);
+  const { data: fetchedProducts, isLoading: isProductsLoading } = useQuery<Product[]>({
+    queryKey: ['products', 'category', slug],
+    queryFn: () => categoryService.getProducts(slug!, 50),
+    enabled: !!slug,
+  });
 
   useEffect(() => {
-    if (slug) {
-      fetchCategory();
-      fetchProducts();
+    if (fetchedCategory) {
+      setCategory(fetchedCategory);
     }
-  }, [slug, fetchCategory, fetchProducts]);
+    if (fetchedProducts) {
+      setProducts(fetchedProducts);
+    }
+  }, [fetchedCategory, fetchedProducts]);
 
   const filteredProducts = products.filter(product => {
     const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
@@ -154,7 +97,7 @@ const CategoryDetail: React.FC = () => {
 
   const allTags = Array.from(new Set(products.flatMap(p => p.tags)));
 
-  if (loading) {
+  if (isCategoryLoading || isProductsLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse">

@@ -1,50 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Package, Grid, List } from 'lucide-react';
+import { Star, ShoppingBag, Grid, List, Package } from 'lucide-react';
+import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  image?: string;
-  productCount?: number;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  price: number;
-  comparePrice?: number;
-  images?: { url: string; alt?: string }[];
-  averageRating?: number;
-  reviewCount?: number;
-  isOnSale?: boolean;
-  salePrice?: number;
-}
+import { useQuery } from '@tanstack/react-query';
+import { categoryService } from '../services/api';
+import { toast } from 'sonner';
 
 const Categories: React.FC = () => {
-  const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
 
-  const { addInteraction } = useUserInteractionStore();
+  // Fetch categories using React Query
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
+    queryKey: ['categories'],
+    queryFn: categoryService.getAll,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  useEffect(() => {
-    fetchCategories();
-    fetchProducts();
-  }, []);
+  // Fetch products for selected category using React Query
+  const { data: products = [] } = useQuery({
+    queryKey: ['products', 'category', selectedCategory],
+    queryFn: () => selectedCategory ? categoryService.getProducts(selectedCategory, 12) : Promise.resolve([]),
+    enabled: !!selectedCategory,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
   // Track page view
   useEffect(() => {
@@ -55,131 +38,58 @@ const Categories: React.FC = () => {
     });
   }, [addInteraction]);
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:5000/api/categories');
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const data = await response.json();
-      setCategories(data.data || data);
-    } catch (error) {
-      console.error('Failed to fetch categories:', error);
-      // Fallback categories for demo
-      setCategories([
-        {
-          id: 1,
-          name: 'Electronics',
-          slug: 'electronics',
-          description: 'Latest gadgets and electronic devices',
-          image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=400&fit=crop',
-          isActive: true,
-          sortOrder: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          name: 'Clothing',
-          slug: 'clothing',
-          description: 'Fashionable clothing for all seasons',
-          image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop',
-          isActive: true,
-          sortOrder: 2,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 3,
-          name: 'Home & Garden',
-          slug: 'home-garden',
-          description: 'Everything you need for your home and garden',
-          image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop',
-          isActive: true,
-          sortOrder: 3,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 4,
-          name: 'Sports',
-          slug: 'sports',
-          description: 'Sports equipment and athletic wear',
-          image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop',
-          isActive: true,
-          sortOrder: 4,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 5,
-          name: 'Books',
-          slug: 'books',
-          description: 'Books for all ages and interests',
-          image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=400&fit=crop',
-          isActive: true,
-          sortOrder: 5,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 6,
-          name: 'Beauty',
-          slug: 'beauty',
-          description: 'Beauty products and cosmetics',
-          image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop',
-          isActive: true,
-          sortOrder: 6,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/products?limit=12');
-      if (!response.ok) throw new Error('Failed to fetch products');
-      const data = await response.json();
-      setProducts(data.data || data);
-    } catch (error) {
-      console.error('Failed to fetch products:', error);
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredCategories = categories;
-
-  const handleCategoryClick = (category: Category) => {
-    // Navigate to category products page
-    navigate(`/categories/${category.slug}`);
+  const handleCategorySelect = (categorySlug: string) => {
+    setSelectedCategory(categorySlug);
     addInteraction({
       type: 'category_view',
-      targetId: category.id.toString(),
+      targetId: categorySlug,
       targetType: 'category',
-      data: { slug: category.slug, name: category.name }
+      data: { slug: categorySlug }
     });
   };
 
-  if (loading) {
+  const handleProductClick = (product: any) => {
+    addToRecentlyViewed(product);
+    addInteraction({
+      type: 'product_view',
+      targetId: product.id.toString(),
+      targetType: 'product',
+      data: { slug: product.slug, name: product.name }
+    });
+  };
+
+  const handleAddToCart = (product: any) => {
+    addInteraction({
+      type: 'cart_add',
+      targetId: product.id.toString(),
+      targetType: 'product',
+      data: { slug: product.slug, name: product.name }
+    });
+    toast.success(`${product.name} added to cart`);
+  };
+
+  if (categoriesLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-gray-200 rounded-lg h-64"></div>
-            ))}
-          </div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading categories...</p>
         </div>
       </div>
     );
   }
 
+  if (categoriesError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Categories</h1>
+          <p className="text-muted-foreground mb-4">Failed to load categories. Please try again later.</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
 
   return (
@@ -215,32 +125,31 @@ const Categories: React.FC = () => {
       </div>
 
       {/* Categories Grid */}
-      {filteredCategories.length > 0 ? (
+      {categories.length > 0 ? (
         <div className={`grid gap-6 ${
           viewMode === 'grid' 
             ? 'grid-cols-2 md:grid-cols-2 lg:grid-cols-3' 
             : 'grid-cols-1'
         }`}>
-          {filteredCategories.map((category) => (
+          {categories.map((category) => (
             <Card
               key={category.id}
               className={`group cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
                 viewMode === 'list' ? 'flex' : ''
               }`}
-              onClick={() => handleCategoryClick(category)}
+              onClick={() => handleCategorySelect(category.slug)}
             >
               <div className={`relative overflow-hidden ${
                 viewMode === 'list' ? 'w-48 h-32' : 'h-48'
               }`}>
-                {/* ImageWithPlaceholder component was removed, so this section is now empty */}
+                <ImageWithPlaceholder
+                  src={category.image || '/placeholder-category.jpg'}
+                  alt={category.name}
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
                   <h3 className="text-lg font-semibold mb-1">{category.name}</h3>
-                  {category.productCount && (
-                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                      {category.productCount} products
-                    </Badge>
-                  )}
                 </div>
               </div>
 
@@ -256,9 +165,9 @@ const Categories: React.FC = () => {
                     Browse Category
                   </Button>
                   
-                  {viewMode === 'list' && category.productCount && (
+                  {viewMode === 'list' && (
                     <span className="text-sm text-muted-foreground">
-                      {category.productCount} products available
+                      {products.length} products available
                     </span>
                   )}
                 </div>
@@ -292,35 +201,73 @@ const Categories: React.FC = () => {
             {products.slice(0, 8).map((product) => (
               <Card key={product.id} className="group cursor-pointer transition-all hover:shadow-lg">
                 <div className="relative overflow-hidden">
-                  {/* ImageWithPlaceholder component was removed, so this section is now empty */}
+                  <ImageWithPlaceholder
+                    src={product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                    alt={product.name}
+                    className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
                   {product.isOnSale && product.salePrice && (
                     <Badge variant="destructive" className="absolute top-2 left-2">
                       Sale
                     </Badge>
                   )}
+                  <div className="absolute top-2 right-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 bg-background/80 hover:bg-background"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToCart(product);
+                      }}
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <CardContent className="p-4">
-                  <h4 className="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
-                    {product.name}
-                  </h4>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {product.comparePrice && product.comparePrice > product.price ? (
-                        <>
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    <h4 className="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                      {product.name}
+                    </h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {product.comparePrice && product.comparePrice > product.price ? (
+                          <>
+                            <span className="font-semibold text-primary">
+                              ${product.price.toFixed(2)}
+                            </span>
+                            <span className="text-sm text-muted-foreground line-through">
+                              ${product.comparePrice.toFixed(2)}
+                            </span>
+                          </>
+                        ) : (
                           <span className="font-semibold text-primary">
                             ${product.price.toFixed(2)}
                           </span>
-                          <span className="text-sm text-muted-foreground line-through">
-                            ${product.comparePrice.toFixed(2)}
+                        )}
+                      </div>
+                      {product.averageRating && (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-xs text-muted-foreground">
+                            {product.averageRating.toFixed(1)}
                           </span>
-                        </>
-                      ) : (
-                        <span className="font-semibold text-primary">
-                          ${product.price.toFixed(2)}
-                        </span>
+                        </div>
                       )}
                     </div>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    View Product
+                  </Button>
                 </CardContent>
               </Card>
             ))}
