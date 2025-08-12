@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSignIn, SignIn, useAuth } from '@clerk/clerk-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,8 +18,8 @@ const ClerkLogin: React.FC = () => {
   
   const { signIn, isLoaded } = useSignIn();
   const { isSignedIn } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
+  const { navigateToReturnUrl, navigateToRegister } = useAuthRedirect();
   
   // Check if we're on the factor-one route (password step)
   const isFactorOne = location.pathname === '/login/factor-one';
@@ -36,12 +37,14 @@ const ClerkLogin: React.FC = () => {
   // Monitor OAuth authentication completion
   useEffect(() => {
     if (isSignedIn && !isFactorOne) {
-      // User completed OAuth login, refresh page to update all components
+      // User completed OAuth login
       toast.success('Welcome back!');
-      navigate('/');
+      
+      // Navigate back to the original page or default to home
+      navigateToReturnUrl();
       window.location.reload();
     }
-  }, [isSignedIn, isFactorOne, navigate]);
+  }, [isSignedIn, isFactorOne, navigateToReturnUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,8 +82,8 @@ const ClerkLogin: React.FC = () => {
         // Sign in successful
         toast.success('Welcome back!');
         
-        // Navigate to home page and refresh to ensure all components update
-        navigate('/');
+        // Navigate back to the original page or default to home
+        navigateToReturnUrl();
         window.location.reload();
       } else if (result.status === 'needs_first_factor') {
         setError('Please check your email for verification before signing in');
@@ -105,7 +108,8 @@ const ClerkLogin: React.FC = () => {
   };
 
   const handleClose = () => {
-    navigate('/');
+    // Navigate back to the original page or default to home
+    navigateToReturnUrl();
   };
 
   return (
@@ -135,7 +139,7 @@ const ClerkLogin: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 className="absolute left-4 top-4 h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
-                onClick={() => navigate('/login')}
+                onClick={() => navigateToReturnUrl()}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -189,7 +193,7 @@ const ClerkLogin: React.FC = () => {
                   routing="path"
                   path="/login"
                   signUpUrl="/register"
-                  afterSignInUrl="/"
+                  afterSignInUrl={location.state?.returnTo || window.location.pathname !== '/login' ? window.location.pathname : "/"}
                   initialValues={{
                     emailAddress: ''
                   }}
@@ -260,7 +264,7 @@ const ClerkLogin: React.FC = () => {
                 <span className="text-muted-foreground text-sm">Don't have an account? </span>
                 <button
                   type="button"
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigateToRegister('Create a new account')}
                   className="text-primary hover:underline font-medium text-sm transition-colors"
                 >
                   Sign up

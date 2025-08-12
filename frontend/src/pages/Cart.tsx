@@ -7,6 +7,8 @@ import { Separator } from '../components/ui/separator';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { useCartStore } from '../stores/cartStore';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
+import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Cart: React.FC = () => {
@@ -23,10 +25,12 @@ const Cart: React.FC = () => {
   } = useCartStore();
   
   const { addInteraction } = useUserInteractionStore();
+  const { isAuthenticated } = useClerkAuth();
+  const { navigateToLogin } = useAuthRedirect();
   const [isClearing, setIsClearing] = useState(false);
 
-  // TODO: Replace this with actual authentication check when login is implemented
-  const isLoggedIn = false; // This will be replaced with actual auth state
+  // Use actual authentication state
+  const isLoggedIn = isAuthenticated;
 
   // Track page view
   React.useEffect(() => {
@@ -36,6 +40,8 @@ const Cart: React.FC = () => {
       data: { path: '/cart', name: 'Cart' }
     });
   }, [addInteraction]);
+
+
 
   if (items.length === 0) {
     return (
@@ -110,8 +116,8 @@ const Cart: React.FC = () => {
         data: { action: 'sign_in_required', itemsCount: items.length, total: getTotal() }
       });
       
-      // Navigate to login page when implemented
-      // navigate('/login');
+      // Navigate to login page with return URL
+      navigateToLogin('Please sign in to complete your checkout');
       return;
     }
 
@@ -321,7 +327,8 @@ const Cart: React.FC = () => {
                       targetType: 'page',
                       data: { action: 'sign_in_navigation', from: 'cart' }
                     });
-                    // navigate('/login'); // Uncomment when login page is implemented
+                    // Navigate to login page with return URL
+                    navigateToLogin('Please sign in to access your account');
                   }}
                 >
                   Sign In / Create Account

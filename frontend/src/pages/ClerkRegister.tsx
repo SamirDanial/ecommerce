@@ -1,15 +1,17 @@
 import React from 'react';
 import { SignUp } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { X } from 'lucide-react';
 
 const ClerkRegister: React.FC = () => {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const { navigateToReturnUrl } = useAuthRedirect();
 
   const handleClose = () => {
-    navigate('/');
+    navigateToReturnUrl();
   };
 
   return (
@@ -56,7 +58,7 @@ const ClerkRegister: React.FC = () => {
               routing="path"
               path="/register"
               signInUrl="/login"
-              afterSignUpUrl="/register/verify-email-address"
+              afterSignUpUrl={location.state?.returnTo || "/register/verify-email-address"}
             />
           </CardContent>
         </Card>

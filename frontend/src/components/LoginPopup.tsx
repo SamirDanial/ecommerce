@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { X, Heart, Lock } from 'lucide-react';
@@ -12,18 +12,18 @@ interface LoginPopupProps {
 }
 
 const LoginPopup: React.FC<LoginPopupProps> = ({ isOpen, onClose, message = "Sign in to save items to your wishlist" }) => {
-  const navigate = useNavigate();
+  const { navigateToLogin, navigateToRegister } = useAuthRedirect();
 
   if (!isOpen) return null;
 
   const handleLogin = () => {
     onClose();
-    navigate('/login');
+    navigateToLogin(message);
   };
 
   const handleSignup = () => {
     onClose();
-    navigate('/register');
+    navigateToRegister(message);
   };
 
   // Use portal to render at document body level

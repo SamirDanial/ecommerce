@@ -7,6 +7,8 @@ import ThemeProvider from './components/ThemeProvider';
 import ClerkProvider from './components/ClerkProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalWishlistLoader from './components/GlobalWishlistLoader';
+import { StoreResetButtons } from './components/StoreResetButtons';
+import { AuthRedirectWrapper } from './components/AuthRedirectWrapper';
 import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
@@ -18,6 +20,8 @@ import ClerkLogin from './pages/ClerkLogin';
 import ClerkRegister from './pages/ClerkRegister';
 import VerifyEmail from './pages/VerifyEmail';
 import UserProfile from './pages/UserProfile';
+import About from './pages/About';
+import Contact from './pages/Contact';
 import './App.css';
 
 // Create a client
@@ -37,39 +41,40 @@ function App() {
       <ClerkProvider>
         <ThemeProvider>
           <Router>
-            <div className="App">
-              <GlobalWishlistLoader />
-              <Header />
-              <main>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/products" element={<Products />} />
-                  <Route path="/products/:slug" element={<ProductDetail />} />
-                  <Route path="/categories" element={<Categories />} />
-                  <Route path="/categories/:slug" element={<CategoryDetail />} />
-                  <Route path="/wishlist" element={
-                    <ProtectedRoute>
-                      <Wishlist />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/cart" element={
-                    <ProtectedRoute>
-                      <Cart />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/login" element={<ClerkLogin />} />
-                  <Route path="/login/factor-one" element={<ClerkLogin />} />
-                  <Route path="/register" element={<ClerkRegister />} />
-                  <Route path="/register/verify-email-address" element={<VerifyEmail />} />
-                  <Route path="/profile" element={
-                    <ProtectedRoute>
-                      <UserProfile />
-                    </ProtectedRoute>
-                  } />
-                </Routes>
-              </main>
-              <Toaster position="top-right" richColors />
-            </div>
+            <AuthRedirectWrapper>
+              <div className="App">
+                <GlobalWishlistLoader />
+                <Header />
+                <main>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/products" element={<Products />} />
+                    <Route path="/products/:slug" element={<ProductDetail />} />
+                    <Route path="/categories" element={<Categories />} />
+                    <Route path="/categories/:slug" element={<CategoryDetail />} />
+                    <Route path="/wishlist" element={
+                      <ProtectedRoute>
+                        <Wishlist />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/login" element={<ClerkLogin />} />
+                    <Route path="/login/factor-one" element={<ClerkLogin />} />
+                    <Route path="/register" element={<ClerkRegister />} />
+                    <Route path="/register/verify-email-address" element={<VerifyEmail />} />
+                    <Route path="/profile" element={
+                      <ProtectedRoute>
+                        <UserProfile />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/contact" element={<Contact />} />
+                  </Routes>
+                </main>
+                <Toaster position="top-right" richColors />
+                <StoreResetButtons />
+              </div>
+            </AuthRedirectWrapper>
           </Router>
         </ThemeProvider>
       </ClerkProvider>

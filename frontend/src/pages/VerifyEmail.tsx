@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSignUp, useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,7 +14,7 @@ const VerifyEmail: React.FC = () => {
   const [isResending, setIsResending] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [hasAutoSent, setHasAutoSent] = useState(false);
-  const navigate = useNavigate();
+  const { navigateToRegister, navigateToLogin, navigateToReturnUrl } = useAuthRedirect();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { user, isLoaded: userLoaded } = useUser();
 
@@ -44,7 +44,7 @@ const VerifyEmail: React.FC = () => {
           console.error('Auto-send verification error:', error);
           if (error.errors?.[0]?.code === 'form_identifier_not_found') {
             toast.error('Verification session expired. Please return to sign up.');
-            navigate('/register');
+            navigateToRegister('Verification session expired. Please return to sign up.');
           } else {
             toast.error('Failed to send verification code automatically.');
           }
@@ -55,7 +55,7 @@ const VerifyEmail: React.FC = () => {
     // Add a small delay to ensure Clerk has fully loaded
     const timer = setTimeout(autoSendVerification, 1000);
     return () => clearTimeout(timer);
-  }, [signUpLoaded, userLoaded, signUp, hasAutoSent, navigate]);
+  }, [signUpLoaded, userLoaded, signUp, hasAutoSent, navigateToRegister]);
 
   // If not loaded yet, show loading
   if (!signUpLoaded || !userLoaded) {
@@ -73,7 +73,7 @@ const VerifyEmail: React.FC = () => {
 
   // If user is already signed in and email is verified, redirect to home
   if (user && user.primaryEmailAddress?.verification?.status === 'verified') {
-    navigate('/');
+    navigateToReturnUrl();
     return null;
   }
 
@@ -98,7 +98,7 @@ const VerifyEmail: React.FC = () => {
         
         if (result.status === 'complete') {
           toast.success('Email verified successfully!');
-          setTimeout(() => navigate('/'), 1500);
+          setTimeout(() => navigateToReturnUrl(), 1500);
         } else {
           toast.error('Verification incomplete. Please try again.');
         }
@@ -112,7 +112,7 @@ const VerifyEmail: React.FC = () => {
           toast.error('Invalid verification code. Please try again.');
         } else if (error.errors?.[0]?.code === 'form_identifier_not_found') {
           toast.error('Verification session expired. Please start over.');
-          navigate('/register');
+          navigateToRegister('Verification session expired. Please start over.');
         } else {
           toast.error('Verification failed. Please try again.');
         }
@@ -136,7 +136,7 @@ const VerifyEmail: React.FC = () => {
         
         if (error.errors?.[0]?.code === 'form_identifier_not_found') {
           toast.error('Session expired. Please return to sign up.');
-          navigate('/register');
+          navigateToRegister('Session expired. Please return to sign up.');
         } else {
           toast.error('Failed to send verification code. Please try again.');
         }
@@ -230,7 +230,7 @@ const VerifyEmail: React.FC = () => {
               <div className="text-center">
                 <Button
                   variant="ghost"
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigateToRegister('Return to sign up')}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
@@ -279,7 +279,7 @@ const VerifyEmail: React.FC = () => {
         <CardContent className="space-y-6">
           <div className="space-y-4">
             <Button
-              onClick={() => navigate('/register')}
+              onClick={() => navigateToRegister('Continue with sign up')}
               className="w-full"
             >
               <Mail className="w-4 h-4 mr-2" />
@@ -288,7 +288,7 @@ const VerifyEmail: React.FC = () => {
 
             <Button
               variant="outline"
-              onClick={() => navigate('/login')}
+              onClick={() => navigateToLogin('Return to sign in')}
               className="w-full"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
