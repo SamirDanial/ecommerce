@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -8,13 +8,10 @@ import {
   Truck, 
   CheckCircle, 
   Clock, 
-  MapPin, 
-  Calendar,
-  X,
   RefreshCw
 } from 'lucide-react';
 import { useClerkAuth } from '../hooks/useClerkAuth';
-import { trackingService, OrderTracking } from '../services/trackingService';
+import { trackingService } from '../services/trackingService';
 import { toast } from 'sonner';
 
 interface OrderTrackingModalProps {
@@ -31,18 +28,11 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   orderNumber
 }) => {
   const { getToken } = useClerkAuth();
-  const [trackingData, setTrackingData] = useState<OrderTracking | null>(null);
+  const [trackingData, setTrackingData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch tracking data when modal opens
-  useEffect(() => {
-    if (isOpen && orderId) {
-      fetchTrackingData();
-    }
-  }, [isOpen, orderId]);
-
-  const fetchTrackingData = async () => {
+  const fetchTrackingData = useCallback(async () => {
     try {
       setLoading(true);
       const token = await getToken();
@@ -59,7 +49,14 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken, orderId]);
+
+  // Fetch tracking data when modal opens
+  useEffect(() => {
+    if (isOpen && orderId) {
+      fetchTrackingData();
+    }
+  }, [isOpen, orderId, fetchTrackingData]);
 
   const refreshTracking = async () => {
     try {
@@ -235,7 +232,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">Status History</h3>
               <div className="space-y-3">
-                {trackingData.statusHistory.map((entry, index) => (
+                {trackingData.statusHistory.map((entry: any, index: number) => (
                   <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
                       <span className="text-xs font-medium text-blue-600">{index + 1}</span>

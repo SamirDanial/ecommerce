@@ -26,19 +26,8 @@ router.get('/test', (req, res) => {
 // Create payment intent route
 router.post('/create-payment-intent', authenticateClerkToken, async (req, res) => {
   try {
-    // console.log('=== CREATING PAYMENT INTENT ===');
-    // console.log('1. Route hit successfully');
-    console.log('2. Request body:', req.body);
-    
     const { amount, currency, orderDetails, customerName, shippingAddress } = req.body;
 
-    console.log('orderDetails', JSON.stringify(orderDetails, null, 2));
-    
-    // console.log('2a. Order details:', orderDetails);
-    // console.log('2b. Customer name:', customerName);
-    // console.log('2c. Shipping address:', shippingAddress);
-    // console.log('3. User from middleware:', req.user);
-    
     if (!amount || !currency) {
       return res.status(400).json({
         error: 'Missing required fields: amount and currency'
@@ -57,10 +46,6 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
 
         if (existingCustomers.data.length > 0) {
           customer = existingCustomers.data[0];
-          // console.log('4a. Found existing customer:', {
-          //   id: customer.id,
-          //   email: customer.email
-          // });
         } else {
           // Create new customer
           customer = await stripe.customers.create({
@@ -69,10 +54,6 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
               clerkUserId: (req as any).user?.clerkId || 'unknown',
               userId: (req as any).user?.id?.toString() || 'unknown'
             }
-          });
-          console.log('4a. Created new customer:', {
-            id: customer.id,
-            email: customer.email
           });
         }
       } catch (customerError) {
@@ -102,23 +83,16 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
             price: item.price,
             total: item.quantity * item.price
           })),
-          subtotal: orderDetails.items.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0),
-          total: amount / 100,
-          currency: currency.toUpperCase()
+          subtotal: orderDetails.subtotal || orderDetails.items.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0),
+          total: orderDetails.total,
+          currency: currency.toUpperCase(),
+          discount: orderDetails.discount || null,
+          shippingMethod: orderDetails.shippingMethod || 'standard',
+          shippingCost: orderDetails.shippingCost || 0,
+          tax: orderDetails.tax || 0 // Add the missing tax field
         }),
         shippingAddress: JSON.stringify(shippingAddress) // Add shipping address to metadata
       }
-    });
-
-    console.log('4. Payment intent created:', {
-      id: paymentIntent.id,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      client_secret: paymentIntent.client_secret ? 'present' : 'missing',
-      customer: customer ? {
-        id: customer.id,
-        email: customer.email
-      } : 'none'
     });
 
     // Return the payment intent for embedded form processing
@@ -170,54 +144,51 @@ function calculateShippingCost(shippingAddress: any, subtotal: number): number {
     // Reduced shipping discount percentage (configurable)
     const reducedShippingDiscount = parseFloat(process.env.REDUCED_SHIPPING_DISCOUNT || '0.8'); // Changed from 0.7 to 0.8 (20% off instead of 30%)
     
-    console.log('Shipping calculation details:', {
-      country,
-      baseRate,
-      subtotal,
-      freeShippingThreshold,
-      reducedShippingThreshold,
-      reducedShippingDiscount
-    });
-    
     // Free shipping for orders over threshold
     if (subtotal >= freeShippingThreshold) {
-      console.log('Free shipping applied (order >= threshold)');
       return 0;
     }
     
     // Reduced shipping for orders over reduced threshold
     if (subtotal >= reducedShippingThreshold) {
       const reducedRate = baseRate * reducedShippingDiscount;
-      console.log('Reduced shipping applied:', { originalRate: baseRate, reducedRate, discount: reducedShippingDiscount });
       return reducedRate;
     }
     
-    console.log('Standard shipping applied:', { rate: baseRate });
     return baseRate;
     
   } catch (error) {
-    console.log('Error calculating shipping cost, using default:', error);
-    return parseFloat(process.env.SHIPPING_DEFAULT || '9.99');
+    console.error('Error calculating shipping cost, using default:', error);
+    return 0;
   }
 }
 
 // Helper function to calculate discount from discount codes
 function calculateDiscount(orderDetails: any): number {
   try {
+    
     // Check if there's a discount code applied in the order details
-    if (orderDetails.discountCode) {
-      const discountCode = orderDetails.discountCode;
+    if (orderDetails && orderDetails.discount) {
+      const discount = orderDetails.discount;
       
-      if (discountCode.type === 'PERCENTAGE') {
-        return (orderDetails.subtotal * discountCode.value) / 100;
-      } else if (discountCode.type === 'FIXED') {
-        return Math.min(discountCode.value, orderDetails.subtotal); // Don't discount more than subtotal
+      // Use the pre-calculated amount from the frontend if available
+      if (discount.calculatedAmount !== undefined) {
+        return discount.calculatedAmount;
+      }
+      
+      // Fallback to calculation if needed
+      if (discount.type === 'PERCENTAGE') {
+        const discountAmount = (orderDetails.subtotal * discount.value) / 100;
+        return discountAmount;
+      } else if (discount.type === 'FIXED') {
+        const discountAmount = Math.min(discount.amount, orderDetails.subtotal);
+        return discountAmount;
       }
     }
     
     return 0;
   } catch (error) {
-    console.log('Error calculating discount, using 0:', error);
+    console.error('Error calculating discount, using 0:', error);
     return 0;
   }
 }
@@ -241,30 +212,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  console.log('=== STRIPE WEBHOOK RECEIVED ===');
-  console.log('Event type:', event.type);
-
   try {
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object;
-        console.log('Payment intent succeeded:', {
-          id: paymentIntent.id,
-          amount: paymentIntent.amount,
-          currency: paymentIntent.currency,
-          customer: paymentIntent.customer,
-          metadata: paymentIntent.metadata
-        });
         
         try {
           // Extract order details from metadata
           const metadata = paymentIntent.metadata;
-          console.log('Processing payment intent metadata:', metadata);
           
           const userId = parseInt(metadata.userId || '0');
           const customerName = metadata.customerName || 'Unknown Customer';
-          
-          console.log('Extracted user info:', { userId, customerName });
           
           if (userId && paymentIntent.amount) {
             // Parse order details from metadata
@@ -277,10 +235,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 orderDetails = JSON.parse(metadata.orderDetails);
                 items = orderDetails.items || [];
                 subtotal = orderDetails.subtotal || 0;
-                console.log('Parsed order details:', { items, subtotal });
               }
             } catch (e) {
-              console.log('Could not parse orderDetails from metadata, using default structure');
               // Create a default item structure if parsing fails
               items = [{
                 productId: 1,
@@ -294,45 +250,61 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             
             const amount = paymentIntent.amount / 100; // Convert from cents
 
-            // Calculate tax (assuming 10% tax rate - you can adjust this)
+            // Use tax from frontend UI if available, otherwise calculate
             const taxRate = parseFloat(process.env.TAX_RATE || '0.10'); // Default 10% tax, configurable via TAX_RATE env var
-            const tax = subtotal * taxRate;
+            let tax = 0;
+            if (orderDetails && orderDetails.tax !== undefined) {
+              tax = orderDetails.tax; // Use exact UI tax value
+            } else {
+              // Fallback to calculation if not provided
+              tax = subtotal * taxRate;
+            }
             
             // Extract shipping address from metadata if available
             let shippingAddressData: any = null;
             if (metadata.shippingAddress) {
               try {
                 shippingAddressData = JSON.parse(metadata.shippingAddress);
-                console.log('Extracted shipping address:', shippingAddressData);
               } catch (e) {
-                console.log('Could not parse shipping address from metadata:', e);
+                // Shipping address parsing failed, continue without it
               }
             }
             
-            // Calculate shipping cost based on country and order value
-            const shippingCost = calculateShippingCost(shippingAddressData, subtotal);
+            // Use shipping cost from frontend if available, otherwise calculate based on country and order value
+            let shippingCost = 0;
+            if (orderDetails && orderDetails.shippingCost !== undefined) {
+              shippingCost = orderDetails.shippingCost;
+            } else {
+              shippingCost = calculateShippingCost(shippingAddressData, subtotal);
+            }
             
-            // Calculate discount (if any discount codes were applied)
-            const discount = calculateDiscount(orderDetails);
+            // Use discount from frontend UI if available, otherwise calculate
+            let discount = 0;
+            if (orderDetails && orderDetails.discount && orderDetails.discount.calculatedAmount !== undefined) {
+              discount = orderDetails.discount.calculatedAmount; // Use exact UI discount value
+            } else {
+              // Fallback to calculation if not provided
+              discount = calculateDiscount(orderDetails);
+            }
             
             // Calculate final total (should match Stripe amount)
             const calculatedTotal = subtotal + tax + shippingCost - discount;
             
-            // Use Stripe amount as the source of truth for total
-            const finalTotal = amount;
-            
-            console.log('Order calculations:', { 
-              subtotal, 
-              taxRate, 
-              tax, 
-              shippingCost, 
-              discount, 
-              calculatedTotal, 
-              stripeAmount: amount 
-            });
+            // Use frontend total if available, otherwise use Stripe amount
+            const finalTotal = orderDetails?.total || amount;
             
             // Generate tracking number
             const trackingNumber = `TRK-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            
+            // Retrieve payment method details from Stripe to get expiry information
+            let paymentMethodDetails = null;
+            if (paymentIntent.payment_method) {
+              try {
+                paymentMethodDetails = await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string);
+              } catch (error) {
+                console.error('Failed to retrieve payment method details:', error);
+              }
+            }
             
             // Create payment method record
             const paymentMethod = await prisma.paymentMethod.create({
@@ -340,33 +312,34 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 userId: userId,
                 type: 'CREDIT_CARD',
                 provider: 'STRIPE',
-                accountNumber: `****${paymentIntent.payment_method ? paymentIntent.payment_method.toString().slice(-4) : '****'}`,
+                accountNumber: `****${paymentMethodDetails?.card?.last4 || '****'}`,
+                expiryMonth: paymentMethodDetails?.card?.exp_month || null,
+                expiryYear: paymentMethodDetails?.card?.exp_year || null,
                 cardholderName: customerName,
                 isDefault: false,
                 isActive: true,
                 metadata: {
                   stripePaymentMethodId: paymentIntent.payment_method,
-                  stripeCustomerId: paymentIntent.customer
+                  stripeCustomerId: paymentIntent.customer,
+                  cardBrand: paymentMethodDetails?.card?.brand || 'unknown',
+                  last4: paymentMethodDetails?.card?.last4 || 'unknown'
                 }
               }
             });
-            
-            console.log('Payment method created:', { paymentMethodId: paymentMethod.id, type: paymentMethod.type });
             
             // Parse customer name for address fields
             const nameParts = customerName.split(' ');
             const firstName = nameParts[0] || 'Unknown';
             const lastName = nameParts.slice(1).join(' ') || 'Unknown';
             
-            console.log('Parsed customer name:', { firstName, lastName });
-            
             const orderData = {
               userId: userId,
               orderNumber: generateOrderNumber(),
-              subtotal: subtotal,
-              tax: tax, // Use calculated tax
-              shipping: shippingCost, // Use calculated shipping cost
-              discount: discount, // Use calculated discount
+              subtotal: subtotal, // Use original subtotal
+              tax: tax, // Use exact UI tax value
+              shipping: shippingCost, // Use exact UI shipping cost
+              shippingMethod: orderDetails?.shippingMethod || 'standard', // Store shipping method
+              discount: discount, // Use exact UI discount value
               total: finalTotal, // Use calculated final total
               currency: paymentIntent.currency.toUpperCase() as 'USD' | 'EUR' | 'PKR',
               language: 'ENGLISH' as const,
@@ -409,31 +382,9 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               }
             };
             
-            console.log('Creating order with data:', orderData);
-
             const order = await createOrderFromPayment(orderData);
-            console.log('Order created successfully:', {
-              orderId: order.id,
-              orderNumber: order.orderNumber,
-              subtotal: order.subtotal,
-              tax: order.tax,
-              shipping: order.shipping,
-              discount: order.discount,
-              total: order.total,
-              itemsCount: order.items?.length || 0,
-              customerName: customerName,
-              shippingAddress: {
-                firstName: order.shippingFirstName,
-                lastName: order.shippingLastName,
-                city: order.shippingCity,
-                state: order.shippingState,
-                country: order.shippingCountry
-              },
-              paymentMethodId: paymentMethod.id,
-              trackingNumber: trackingNumber
-            });
           } else {
-            console.log('Missing userId or amount in payment intent metadata');
+            // Missing required data, skip processing
           }
         } catch (error) {
           console.error('Error creating order from payment intent:', error);

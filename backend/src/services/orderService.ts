@@ -8,6 +8,7 @@ export interface CreateOrderData {
   subtotal: number;
   tax: number;
   shipping: number;
+  shippingMethod?: string; // Add shipping method field
   discount: number;
   total: number;
   currency: 'USD' | 'EUR' | 'PKR';
@@ -53,6 +54,13 @@ export interface CreateOrderData {
 
 export const createOrderFromPayment = async (orderData: CreateOrderData) => {
   try {
+    console.log('OrderService: Creating order with data:', {
+      orderNumber: orderData.orderNumber,
+      userId: orderData.userId,
+      shippingMethod: orderData.shippingMethod,
+      shipping: orderData.shipping
+    });
+    
     // Create the order
     const order = await prisma.order.create({
       data: {
@@ -71,6 +79,7 @@ export const createOrderFromPayment = async (orderData: CreateOrderData) => {
         subtotal: orderData.subtotal,
         tax: orderData.tax,
         shipping: orderData.shipping,
+        shippingMethod: orderData.shippingMethod, // Add shipping method
         discount: orderData.discount,
         total: orderData.total,
         currency: orderData.currency,

@@ -1,19 +1,37 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { validateDiscountCode, DiscountCode } from '../services/discountService';
+import { CurrencyService } from '../services/currencyService';
+import { LanguageService } from '../services/languageService';
 
-// Default currencies
-export const defaultCurrencies = [
-  { code: 'USD', symbol: '$', rate: 1, name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', rate: 0.85, name: 'Euro' },
-  { code: 'PKR', symbol: '₨', rate: 280, name: 'Pakistani Rupee' }
+// Fallback currencies (used when API is not available)
+export const fallbackCurrencies: DynamicCurrency[] = [
+  { id: 1, code: 'USD', symbol: '$', rate: 1, name: 'US Dollar', isActive: true, isDefault: true, decimals: 2, position: 'before' },
+  { id: 2, code: 'EUR', symbol: '€', rate: 0.85, name: 'Euro', isActive: true, isDefault: false, decimals: 2, position: 'before' },
+  { id: 3, code: 'GBP', symbol: '£', rate: 0.73, name: 'British Pound', isActive: true, isDefault: false, decimals: 2, position: 'before' },
+  { id: 4, code: 'JPY', symbol: '¥', rate: 110, name: 'Japanese Yen', isActive: true, isDefault: false, decimals: 0, position: 'before' },
+  { id: 5, code: 'CNY', symbol: '¥', rate: 6.45, name: 'Chinese Yuan', isActive: true, isDefault: false, decimals: 2, position: 'before' },
+  { id: 6, code: 'INR', symbol: '₹', rate: 74.5, name: 'Indian Rupee', isActive: true, isDefault: false, decimals: 2, position: 'before' },
+  { id: 7, code: 'PKR', symbol: '₨', rate: 280, name: 'Pakistani Rupee', isActive: true, isDefault: false, decimals: 2, position: 'before' }
 ];
 
-// Default languages
-export const defaultLanguages = [
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'ur', name: 'Urdu', nativeName: 'اردو' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية' }
+// Fallback languages (used when API is not available)
+export const fallbackLanguages: DynamicLanguage[] = [
+  { id: 1, code: 'en', name: 'English', nativeName: 'English', isActive: true, isDefault: true, isRTL: false },
+  { id: 2, code: 'es', name: 'Spanish', nativeName: 'Español', isActive: true, isDefault: false, isRTL: false },
+  { id: 3, code: 'fr', name: 'French', nativeName: 'Français', isActive: true, isDefault: false, isRTL: false },
+  { id: 4, code: 'de', name: 'German', nativeName: 'Deutsch', isActive: true, isDefault: false, isRTL: false },
+  { id: 5, code: 'it', name: 'Italian', nativeName: 'Italiano', isActive: true, isDefault: false, isRTL: false },
+  { id: 6, code: 'pt', name: 'Portuguese', nativeName: 'Português', isActive: true, isDefault: false, isRTL: false },
+  { id: 7, code: 'ru', name: 'Russian', nativeName: 'Русский', isActive: true, isDefault: false, isRTL: false },
+  { id: 8, code: 'zh', name: 'Chinese', nativeName: '中文', isActive: true, isDefault: false, isRTL: false },
+  { id: 9, code: 'ja', name: 'Japanese', nativeName: '日本語', isActive: true, isDefault: false, isRTL: false },
+  { id: 10, code: 'ko', name: 'Korean', nativeName: '한국어', isActive: true, isDefault: false, isRTL: false },
+  { id: 11, code: 'ar', name: 'Arabic', nativeName: 'العربية', isActive: true, isDefault: false, isRTL: true },
+  { id: 12, code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', isActive: true, isDefault: false, isRTL: false },
+  { id: 13, code: 'ur', name: 'Urdu', nativeName: 'اردو', isActive: true, isDefault: false, isRTL: true },
+  { id: 14, code: 'bn', name: 'Bengali', nativeName: 'বাংলা', isActive: true, isDefault: false, isRTL: false },
+  { id: 15, code: 'th', name: 'Thai', nativeName: 'ไทย', isActive: true, isDefault: false, isRTL: false }
 ];
 
 // Shipping costs
@@ -64,6 +82,22 @@ export interface Language {
   nativeName: string;
 }
 
+// Extended interfaces for dynamic data
+export interface DynamicCurrency extends Currency {
+  id: number;
+  isActive: boolean;
+  isDefault: boolean;
+  decimals: number;
+  position: 'before' | 'after';
+}
+
+export interface DynamicLanguage extends Language {
+  id: number;
+  isActive: boolean;
+  isDefault: boolean;
+  isRTL: boolean;
+}
+
 interface CartState {
   // Cart Items
   items: CartItem[];
@@ -75,12 +109,20 @@ interface CartState {
   getTotalItems: () => number;
   
   // Pricing & Currency
-  selectedCurrency: Currency;
-  setCurrency: (currency: Currency) => void;
+  selectedCurrency: DynamicCurrency;
+      setCurrency: (currency: DynamicCurrency) => void;
   getSubtotal: () => number;
   getTotal: () => number;
   getSavings: () => number;
   getConvertedPrice: (price: number) => number;
+  
+  // Dynamic Currency & Language Data
+  availableCurrencies: DynamicCurrency[];
+  availableLanguages: DynamicLanguage[];
+  isLoadingCurrencies: boolean;
+  isLoadingLanguages: boolean;
+  fetchCurrencies: () => Promise<void>;
+  fetchLanguages: () => Promise<void>;
   
   // Shipping & Taxes
   shippingAddress: ShippingAddress | null;
@@ -97,8 +139,8 @@ interface CartState {
   getDiscountAmount: () => number;
   
   // Language
-  selectedLanguage: Language;
-  setLanguage: (language: Language) => void;
+  selectedLanguage: DynamicLanguage;
+      setLanguage: (language: DynamicLanguage) => void;
   
   // Utility
   isInCart: (productId: number, color?: string, size?: string) => boolean;
@@ -112,11 +154,17 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       // Initial state
       items: [],
-      selectedCurrency: defaultCurrencies[0] || { code: 'USD', symbol: '$', rate: 1, name: 'US Dollar' },
+      selectedCurrency: fallbackCurrencies[0],
       shippingAddress: null,
       shippingMethod: 'standard',
       appliedDiscount: null,
-      selectedLanguage: defaultLanguages[0] || { code: 'en', name: 'English', nativeName: 'English' },
+      selectedLanguage: fallbackLanguages[0],
+      
+      // Dynamic data state
+      availableCurrencies: fallbackCurrencies,
+      availableLanguages: fallbackLanguages,
+      isLoadingCurrencies: false,
+      isLoadingLanguages: false,
 
       // Cart item methods
       addToCart: (product, quantity = 1, color, size) => {
@@ -201,7 +249,7 @@ export const useCartStore = create<CartState>()(
       },
 
       // Currency methods
-      setCurrency: (currency) => {
+      setCurrency: (currency: DynamicCurrency) => {
         set({ selectedCurrency: currency });
       },
 
@@ -271,7 +319,12 @@ export const useCartStore = create<CartState>()(
           const validation = await validateDiscountCode(code, subtotal, token);
           
           if (validation.isValid && validation.discount) {
-            set({ appliedDiscount: validation.discount });
+            // Store both the discount code and the calculated amount
+            const discountWithAmount = {
+              ...validation.discount,
+              calculatedAmount: validation.discountAmount || 0
+            };
+            set({ appliedDiscount: discountWithAmount });
             return true;
           } else {
             console.error('Invalid discount code:', validation.message);
@@ -291,6 +344,12 @@ export const useCartStore = create<CartState>()(
         const { appliedDiscount, getSubtotal, selectedCurrency } = get();
         if (!appliedDiscount) return 0;
         
+        // Use the pre-calculated amount from the backend if available
+        if (appliedDiscount.calculatedAmount !== undefined) {
+          return appliedDiscount.calculatedAmount * selectedCurrency.rate;
+        }
+        
+        // Fallback to local calculation if needed
         const subtotal = getSubtotal();
         if (appliedDiscount.minAmount && subtotal < appliedDiscount.minAmount) return 0;
         
@@ -310,8 +369,43 @@ export const useCartStore = create<CartState>()(
       },
 
       // Language methods
-      setLanguage: (language) => {
+      setLanguage: (language: DynamicLanguage) => {
         set({ selectedLanguage: language });
+      },
+
+      // Dynamic data methods
+      fetchCurrencies: async () => {
+        try {
+          set({ isLoadingCurrencies: true });
+          const currencies = await CurrencyService.getAllCurrencies();
+          set({ 
+            availableCurrencies: currencies,
+            isLoadingCurrencies: false 
+          });
+        } catch (error) {
+          console.error('Failed to fetch currencies, using fallback:', error);
+          set({ 
+            availableCurrencies: fallbackCurrencies,
+            isLoadingCurrencies: false 
+          });
+        }
+      },
+
+      fetchLanguages: async () => {
+        try {
+          set({ isLoadingLanguages: true });
+          const languages = await LanguageService.getAllLanguages();
+          set({ 
+            availableLanguages: languages,
+            isLoadingLanguages: false 
+          });
+        } catch (error) {
+          console.error('Failed to fetch languages, using fallback:', error);
+          set({ 
+            availableLanguages: fallbackLanguages,
+            isLoadingLanguages: false 
+          });
+        }
       },
 
       // Utility methods

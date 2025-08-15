@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { useClerkAuthStore } from '../stores/clerkAuthStore';
 import { useWishlistStore } from '../stores/wishlistStore';
@@ -8,27 +8,28 @@ export const useClerkAuth = () => {
   const { isSignedIn, getToken } = useAuth();
   const { signOut: clerkSignOut } = useClerk();
   
-  // Local state to track authentication changes
-  const [localIsAuthenticated, setLocalIsAuthenticated] = useState(false);
-  const [localUser, setLocalUser] = useState<any>(null);
-  
-  const { 
-    setUser, 
-    setAuthenticated, 
-    setLoaded, 
-    logout 
-  } = useClerkAuthStore();
+  const { logout, user: storeUser, isAuthenticated: storeAuthenticated } = useClerkAuthStore();
 
   // Get wishlist store to clear it on logout
   const { clearWishlistOnLogout } = useWishlistStore();
 
+  // Local state to handle temporary session loss
+  const [localIsAuthenticated, setLocalIsAuthenticated] = useState(storeAuthenticated);
+  const [localUser, setLocalUser] = useState(storeUser);
+
+  // Update local state when store changes
+  useEffect(() => {
+    setLocalIsAuthenticated(storeAuthenticated);
+    setLocalUser(storeUser);
+  }, [storeAuthenticated, storeUser]);
+
+  // Handle Clerk state changes
   useEffect(() => {
     if (clerkLoaded) {
-      setLoaded(true);
-      
-      // Update local state immediately when Clerk state changes
-      if (user && isSignedIn) {
-        // Transform Clerk user to our format
+      if (isSignedIn && user) {
+        // Clerk says we're authenticated
+        setLocalIsAuthenticated(true);
+        // Transform Clerk user to our format for local state
         const transformedUser = {
           id: user.id,
           emailAddresses: user.emailAddresses.map(email => ({
@@ -43,43 +44,21 @@ export const useClerkAuth = () => {
           imageUrl: user.imageUrl,
           createdAt: user.createdAt || new Date(),
           updatedAt: user.updatedAt || new Date(),
-          // Add authentication method detection
           hasPassword: user.passwordEnabled || false,
           externalAccounts: user.externalAccounts || [],
           isOAuthOnly: !user.passwordEnabled && (user.externalAccounts?.length > 0 || false)
         };
-        
         setLocalUser(transformedUser);
-        setLocalIsAuthenticated(true);
-        setUser(transformedUser);
-        setAuthenticated(true);
-        
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new CustomEvent('clerk-auth-changed', { 
-          detail: { isAuthenticated: true, user: transformedUser } 
-        }));
-      } else {
-        setLocalUser(null);
-        setLocalIsAuthenticated(false);
-        setUser(null);
-        setAuthenticated(false);
-        
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new CustomEvent('clerk-auth-changed', { 
-          detail: { isAuthenticated: false, user: null } 
-        }));
+      } else if (!isSignedIn && !user) {
+        // Only clear local state if we don't have stored state
+        // This prevents clearing during temporary session loss
+        if (!storeUser) {
+          setLocalIsAuthenticated(false);
+          setLocalUser(null);
+        }
       }
     }
-  }, [user, isSignedIn, clerkLoaded, setUser, setAuthenticated, setLoaded]);
-
-  // Additional effect to handle immediate state updates
-  useEffect(() => {
-    // Force a re-render when authentication state changes
-    if (clerkLoaded) {
-      setLocalIsAuthenticated(!!(user && isSignedIn));
-      setLocalUser(user);
-    }
-  }, [user, isSignedIn, clerkLoaded]);
+  }, [clerkLoaded, isSignedIn, user, storeUser]);
 
   const handleSignOut = async () => {
     try {
@@ -88,6 +67,8 @@ export const useClerkAuth = () => {
       
       await clerkSignOut();
       logout();
+      
+      // Clear local state
       setLocalIsAuthenticated(false);
       setLocalUser(null);
       
@@ -121,10 +102,14 @@ export const useClerkAuth = () => {
     return user && !user.passwordEnabled && (user.externalAccounts?.length > 0 || false);
   };
 
-  // Use local state for immediate UI updates
+  // Use a combination of Clerk state and local state to prevent flashing
+  // Prioritize Clerk state when available, fallback to local state
+  const finalUser = clerkLoaded ? (user || localUser) : localUser;
+  const finalIsAuthenticated = clerkLoaded ? (isSignedIn || localIsAuthenticated) : localIsAuthenticated;
+
   return {
-    user: localUser || user,
-    isAuthenticated: localIsAuthenticated || isSignedIn,
+    user: finalUser,
+    isAuthenticated: finalIsAuthenticated,
     isLoaded: clerkLoaded,
     signOut: handleSignOut,
     getToken: getAuthToken,

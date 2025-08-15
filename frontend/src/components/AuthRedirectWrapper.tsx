@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuthRedirect } from '../hooks/useAuthRedirect';
 
 interface AuthRedirectWrapperProps {
   children: React.ReactNode;
@@ -8,19 +7,18 @@ interface AuthRedirectWrapperProps {
 
 /**
  * Wrapper component that ensures authentication redirects respect the current page
- * This prevents unwanted redirects to home page when users reject sign-in
+ * Simplified for Clerk v5 compatibility
  */
 export const AuthRedirectWrapper: React.FC<AuthRedirectWrapperProps> = ({ children }) => {
   const location = useLocation();
-  const { getCurrentPath } = useAuthRedirect();
 
   // Store the current path in sessionStorage for Clerk to use
-  useEffect(() => {
-    const currentPath = getCurrentPath();
+  React.useEffect(() => {
+    const currentPath = location.pathname;
     if (currentPath && currentPath !== '/login' && currentPath !== '/register') {
       sessionStorage.setItem('clerk-redirect-url', currentPath);
     }
-  }, [location.pathname, getCurrentPath]);
+  }, [location.pathname]);
 
   return <>{children}</>;
 };

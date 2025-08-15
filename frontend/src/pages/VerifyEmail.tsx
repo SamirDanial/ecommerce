@@ -72,7 +72,7 @@ const VerifyEmail: React.FC = () => {
   }
 
   // If user is already signed in and email is verified, redirect to home
-  if (user && user.primaryEmailAddress?.verification?.status === 'verified') {
+  if (user && user.emailAddresses?.[0]?.verification?.status === 'verified') {
     navigateToReturnUrl();
     return null;
   }

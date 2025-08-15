@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore, defaultCurrencies, defaultLanguages, shippingCosts } from '../stores/cartStore';
+import { useCartStore, shippingCosts } from '../stores/cartStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { getSavedAddresses, SavedAddress, createAddress, updateAddress, deleteAddress, CreateAddressRequest } from '../services/addressService';
 import { loadStripe } from '@stripe/stripe-js';
@@ -8,6 +8,8 @@ import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentForm from '../components/StripePaymentForm';
 import AddressSelector from '../components/AddressSelector';
 import AddressFormSidebar from '../components/AddressFormSidebar';
+import { CurrencySelector } from '../components/CurrencySelector';
+import { LanguageSelector } from '../components/LanguageSelector';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -59,8 +61,20 @@ const Checkout: React.FC = () => {
     getTotalItems,
     selectedLanguage,
     setLanguage,
-    clearCart
+    clearCart,
+    availableCurrencies,
+    availableLanguages,
+    isLoadingCurrencies,
+    isLoadingLanguages,
+    fetchCurrencies,
+    fetchLanguages
   } = useCartStore();
+
+  // Load currencies and languages on component mount
+  useEffect(() => {
+    fetchCurrencies();
+    fetchLanguages();
+  }, [fetchCurrencies, fetchLanguages]);
 
   // Load saved addresses only once when component mounts and user is authenticated
   useEffect(() => {
@@ -337,43 +351,21 @@ const Checkout: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="currency">Currency</Label>
-                    <select
-                      id="currency"
-                      value={selectedCurrency.code}
-                      onChange={(e) => {
-                        const currency = defaultCurrencies.find(c => c.code === e.target.value);
-                        if (currency) setCurrency(currency);
-                      }}
-                      className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                    >
-                      {defaultCurrencies.map(currency => (
-                        <option key={currency.code} value={currency.code}>
-                          {currency.symbol} {currency.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <CurrencySelector
+                    currencies={availableCurrencies}
+                    selectedCurrency={selectedCurrency}
+                    onCurrencyChange={setCurrency}
+                    isLoading={isLoadingCurrencies}
+                    disabled={isLoadingCurrencies}
+                  />
                   
-                  <div>
-                    <Label htmlFor="language">Language</Label>
-                    <select
-                      id="language"
-                      value={selectedLanguage.code}
-                      onChange={(e) => {
-                        const language = defaultLanguages.find(l => l.code === e.target.value);
-                        if (language) setLanguage(language);
-                      }}
-                      className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                    >
-                      {defaultLanguages.map(language => (
-                        <option key={language.code} value={language.code}>
-                          {language.nativeName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <LanguageSelector
+                    languages={availableLanguages}
+                    selectedLanguage={selectedLanguage}
+                    onLanguageChange={setLanguage}
+                    isLoading={isLoadingLanguages}
+                    disabled={isLoadingLanguages}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -524,8 +516,8 @@ const Checkout: React.FC = () => {
                     {paymentMethod === 'stripe' && (
                       <Elements stripe={stripePromise}>
                         <StripePaymentForm
-                          amount={getTotal() * 100} // Convert to cents
-                          currency={selectedCurrency.code.toLowerCase()} // Use currency code (e.g., 'usd') not symbol (e.g., '$')
+                          amount={getTotal()}
+                          currency={selectedCurrency.code.toLowerCase()}
                           customerName={shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}` : 'Customer'}
                           shippingAddress={{
                             firstName: shippingAddress?.firstName || '',
@@ -544,7 +536,19 @@ const Checkout: React.FC = () => {
                               quantity: item.quantity,
                               price: item.price,
                               image: item.image || undefined
-                            }))
+                            })),
+                            discount: appliedDiscount ? {
+                              code: appliedDiscount.code,
+                              amount: getDiscountAmount(),
+                              type: appliedDiscount.type,
+                              value: appliedDiscount.value,
+                              calculatedAmount: getDiscountAmount() // Use exact UI value
+                            } : null,
+                            subtotal: getSubtotal(),
+                            total: getTotal(),
+                            shippingMethod: shippingMethod,
+                            shippingCost: getShippingCost(),
+                            tax: getTaxAmount() // Add exact UI tax value
                           }}
                           onPaymentSuccess={(paymentIntent) => {
                             // Payment completed successfully - clear cart and redirect to success

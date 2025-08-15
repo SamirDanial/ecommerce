@@ -26,6 +26,18 @@ interface StripePaymentFormProps {
       quantity: number;
       price: number;
     }>;
+    discount?: {
+      code: string;
+      amount: number;
+      type: string;
+      value: number;
+      calculatedAmount?: number;
+    } | null;
+    subtotal: number;
+    total: number;
+    shippingMethod?: string;
+    shippingCost?: number;
+    tax?: number; // Add tax field for UI values
   };
   onPaymentSuccess: (paymentIntent: any) => void;
   onPaymentError: (error: string) => void;

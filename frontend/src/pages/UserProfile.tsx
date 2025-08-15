@@ -32,7 +32,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from '../components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import OrderTrackingModal from '../components/OrderTrackingModal';
-import { trackingService } from '../services/trackingService';
 import AdminOrderManager from '../components/AdminOrderManager';
 
 const UserProfile: React.FC = () => {

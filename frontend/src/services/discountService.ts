@@ -3,7 +3,7 @@ import api from '../lib/axios';
 export interface DiscountCode {
   id: string;
   code: string;
-  type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  type: 'PERCENTAGE' | 'FIXED';
   value: number;
   minAmount?: number;
   maxDiscount?: number;
@@ -14,11 +14,13 @@ export interface DiscountCode {
   expiresAt?: string;
   createdAt: string;
   updatedAt: string;
+  calculatedAmount?: number;
 }
 
 export interface DiscountValidationResponse {
   isValid: boolean;
   discount?: DiscountCode;
+  discountAmount?: number;
   message?: string;
 }
 

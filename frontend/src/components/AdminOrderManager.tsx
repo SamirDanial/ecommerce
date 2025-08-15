@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -38,11 +38,7 @@ const AdminOrderManager: React.FC = () => {
     notes: ''
   });
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const token = await getToken();
@@ -70,7 +66,11 @@ const AdminOrderManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const updateOrderStatus = async () => {
     try {
@@ -97,7 +97,6 @@ const AdminOrderManager: React.FC = () => {
         throw new Error('Failed to update order status');
       }
 
-      const data = await response.json();
       toast.success('Order status updated successfully');
       
       // Reset form and refresh orders

@@ -298,7 +298,7 @@ const Header: React.FC = () => {
                             )}
                             <div className="flex-1">
                               <p className="font-medium text-foreground">{`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'}</p>
-                              <p className="text-sm text-muted-foreground">{user.primaryEmailAddress?.emailAddress || 'No email'}</p>
+                              <p className="text-sm text-muted-foreground">{user.emailAddresses?.[0]?.emailAddress || 'No email'}</p>
                             </div>
                           </div>
                           

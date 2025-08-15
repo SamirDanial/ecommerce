@@ -15,6 +15,8 @@ import discountRoutes from './routes/discountRoutes';
 import trackingRoutes from './routes/trackingRoutes';
 import adminRoutes from './routes/adminRoutes';
 import reviewRoutes from './routes/reviewRoutes';
+import currencyRoutes from './routes/currencyRoutes';
+import languageRoutes from './routes/languageRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -82,6 +84,8 @@ app.use('/api/discounts', discountRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/currencies', currencyRoutes);
+app.use('/api/languages', languageRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

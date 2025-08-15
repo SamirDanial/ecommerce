@@ -5,6 +5,8 @@ import { Toaster } from 'sonner';
 import Header from './components/Header';
 import ThemeProvider from './components/ThemeProvider';
 import ClerkProvider from './components/ClerkProvider';
+import ClerkSessionManager from './components/ClerkSessionManager';
+import SessionRecovery from './components/SessionRecovery';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalWishlistLoader from './components/GlobalWishlistLoader';
 import { StoreResetButtons } from './components/StoreResetButtons';
@@ -42,6 +44,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ClerkProvider>
+        <ClerkSessionManager />
+        <SessionRecovery />
         <ThemeProvider>
           <Router>
             <AuthRedirectWrapper>

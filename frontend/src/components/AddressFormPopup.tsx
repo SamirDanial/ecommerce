@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { MapPin, Save, X, User, Phone, Home, MapPinIcon, Globe } from 'lucide-react';
-import { ShippingAddress } from '../stores/cartStore';
-import { CreateAddressRequest } from '../services/addressService';
+import { X, Save, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CreateAddressRequest } from '@/services/addressService';
+import { ShippingAddress } from '@/stores/cartStore';
 
 interface AddressFormPopupProps {
   isOpen: boolean;

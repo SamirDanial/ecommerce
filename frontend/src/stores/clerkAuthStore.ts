@@ -38,40 +38,56 @@ interface ClerkAuthState {
 
 export const useClerkAuthStore = create<ClerkAuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoaded: false,
 
       setUser: (user) => {
-        set({ 
-          user, 
-          isAuthenticated: !!user 
-        });
+        const currentUser = get().user;
+        // Only update if user actually changed
+        if (currentUser?.id !== user?.id) {
+          set({ 
+            user, 
+            isAuthenticated: !!user 
+          });
+        }
       },
 
       setAuthenticated: (authenticated) => {
-        set({ isAuthenticated: authenticated });
+        const currentAuth = get().isAuthenticated;
+        // Only update if authentication state actually changed
+        if (currentAuth !== authenticated) {
+          set({ isAuthenticated: authenticated });
+        }
       },
 
       setLoaded: (loaded) => {
-        set({ isLoaded: loaded });
+        const currentLoaded = get().isLoaded;
+        // Only update if loaded state actually changed
+        if (currentLoaded !== loaded) {
+          set({ isLoaded: loaded });
+        }
       },
 
       logout: () => {
         set({ 
           user: null, 
-          isAuthenticated: false 
+          isAuthenticated: false,
+          isLoaded: false
         });
       }
     }),
     {
       name: 'clerk-auth-store',
+      // Persist all state to prevent session loss
       partialize: (state) => ({ 
         user: state.user, 
         isAuthenticated: state.isAuthenticated,
         isLoaded: state.isLoaded
-      })
+      }),
+      // Add version to handle schema changes
+      version: 1
     }
   )
 );

@@ -72,3 +72,4 @@ const RatingDisplay: React.FC<RatingDisplayProps> = ({
 };
 
 export default RatingDisplay;
+

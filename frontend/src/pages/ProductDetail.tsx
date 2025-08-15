@@ -29,7 +29,6 @@ import {
   Flag,
   Check,
   Trash2,
-  Clock,
   Edit
 } from 'lucide-react';
 import ProductImageGallery from '../components/ProductImageGallery';
@@ -44,6 +43,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from 'sonner';
 import { reviewService } from '../services/reviewService';
 import UserAvatar from '../components/UserAvatar';
+
 
 const ProductDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -92,15 +92,14 @@ const ProductDetail: React.FC = () => {
   const [hoverRating, setHoverRating] = useState(0);
   
   // User's pending submissions (only visible to them)
-  const [userPendingReviews, setUserPendingReviews] = useState<any[]>([]);
-  const [userPendingQuestions, setUserPendingQuestions] = useState<any[]>([]);
+
   
   // Reviews state for authenticated users (includes pending + approved)
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsPage, setReviewsPage] = useState(1);
   const [reviewsTotal, setReviewsTotal] = useState(0);
-  const [reviewsTotalPages, setReviewsTotalPages] = useState(0);
+
   const [hasMoreReviews, setHasMoreReviews] = useState(true);
   const [reviewsLoadingMore, setReviewsLoadingMore] = useState(false);
   
@@ -138,9 +137,9 @@ const ProductDetail: React.FC = () => {
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsPage, setQuestionsPage] = useState(1);
   const [questionsTotal, setQuestionsTotal] = useState(0);
-  const [questionsTotalPages, setQuestionsTotalPages] = useState(0);
+
   const [hasMoreQuestions, setHasMoreQuestions] = useState(true);
-  const [questionsLoadingMore, setQuestionsLoadingMore] = useState(false);
+  const [questionsLoadingMore] = useState(false);
   
   // Question count state for eager loading
   const [questionCount, setQuestionCount] = useState(0);
@@ -159,8 +158,10 @@ const ProductDetail: React.FC = () => {
   const [questionReplyToDelete, setQuestionReplyToDelete] = useState<number | null>(null);
   
   const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
-  const { isAuthenticated, getToken, user } = useClerkAuth();
+  const { isAuthenticated, getToken } = useClerkAuth();
   const { addToCart, removeFromCart, isInCart, getItemQuantity, updateQuantity, isProductInCart: isProductInCartAnyVariant } = useCartStore();
+
+
 
   // Utility function to format dates
   const formatDate = (dateString: string | Date): string => {
@@ -310,7 +311,7 @@ const ProductDetail: React.FC = () => {
         }
         
         setQuestionsTotal(response.total);
-        setQuestionsTotalPages(response.totalPages);
+
         setHasMoreQuestions(response.totalPages > page);
         setQuestionsPage(page);
 
@@ -368,12 +369,11 @@ const ProductDetail: React.FC = () => {
           setReviews(response.reviews);
         }
         setReviewsTotal(response.total);
-        setReviewsTotalPages(response.totalPages);
+
         setReviewsPage(response.page);
         setHasMoreReviews(page < response.totalPages);
         
-        // Also set pending reviews for backward compatibility
-        setUserPendingReviews(response.reviews.filter((r: any) => r.status === 'PENDING'));
+
         
         // Check if current user has already reviewed this product
         if (currentUserDbId) {
@@ -561,39 +561,9 @@ const ProductDetail: React.FC = () => {
 
 
 
-  // Function to refetch pending items (for backward compatibility)
-  const refetchPendingItems = useCallback(async () => {
-    if (isAuthenticated && product) {
-      try {
-        const token = await getToken();
-        if (token) {
-          const response = await reviewService.getProductPendingItems(product.id, token);
-          if (response.success) {
-            setUserPendingQuestions(response.pendingQuestions);
-            // Refresh questions if Q&A tab is active
-            if (qaTabClicked) {
-              await fetchQuestions(1);
-            }
-            // Refresh question count
-            await fetchQuestionCount();
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load pending items:', error);
-      }
-    }
-  }, [isAuthenticated, product, getToken]);
 
-  // Function to refresh questions after updates
-  const refreshQuestions = useCallback(async () => {
-    if (qaTabClicked && product) {
-      await fetchQuestions(1);
-    }
-    // Also refresh the question count
-    if (product) {
-      await fetchQuestionCount();
-    }
-  }, [qaTabClicked, product, fetchQuestions, fetchQuestionCount]);
+
+
 
   // Function to fetch replies for a question
   const fetchQuestionReplies = useCallback(async (questionId: number) => {
@@ -757,7 +727,7 @@ const ProductDetail: React.FC = () => {
       console.error('Error updating reply:', error);
       toast.error('Failed to update reply. Please try again.');
     }
-  }, [editQuestionReplyForm, getToken]);
+  }, [editQuestionReplyForm, getToken, qaTabClicked, fetchQuestions, fetchQuestionCount]);
 
   // Function to show delete confirmation dialog
   const showDeleteQuestionReplyDialog = useCallback((replyId: number) => {
@@ -832,7 +802,7 @@ const ProductDetail: React.FC = () => {
       console.error('Error deleting reply:', error);
       toast.error('Failed to delete reply. Please try again.');
     }
-  }, [getToken, editingQuestionReplyId]);
+  }, [getToken, editingQuestionReplyId, qaTabClicked, fetchQuestions, fetchQuestionCount]);
 
 
 
@@ -3092,93 +3062,8 @@ const ProductDetail: React.FC = () => {
                     </ul>
                   </div>
 
-                  {/* User's Pending Questions - Only show if not already displayed in main questions list */}
-                  {isAuthenticated && userPendingQuestions.length > 0 && !qaTabClicked && (
-                    <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="font-medium text-blue-800 mb-4 flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Your Pending Questions
-                      </h4>
-                      <div className="space-y-4">
-                        {userPendingQuestions.map((pendingQuestion) => (
-                          <div key={pendingQuestion.id} className="p-3 bg-white border border-blue-300 rounded-lg">
-                            {editingQuestionId === pendingQuestion.id ? (
-                              // Edit Mode
-                              <div className="space-y-3">
-                                <Textarea
-                                  value={editQuestionForm.question}
-                                  onChange={(e) => setEditQuestionForm(prev => ({ ...prev, question: e.target.value }))}
-                                  placeholder="Your question"
-                                  rows={3}
-                                  className="text-sm"
-                                />
-                                <div className="flex items-center gap-2">
-                                  <Button size="sm" onClick={saveQuestionEdit}>
-                                    Save
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={cancelEdit}>
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              // Display Mode
-                              <>
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    {pendingQuestion.user?.avatar ? (
-                                      <img 
-                                        src={pendingQuestion.user.avatar} 
-                                        alt={pendingQuestion.user.name || 'User'} 
-                                        className="w-8 h-8 rounded-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                                        <span className="text-sm font-medium text-primary">
-                                          {pendingQuestion.user?.name?.charAt(0) || 'U'}
-                                        </span>
-                                      </div>
-                                    )}
-                                    <div>
-                                      <p className="font-medium text-sm">{pendingQuestion.user?.name || 'Anonymous'}</p>
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatDate(pendingQuestion.createdAt)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
-                                      Pending Approval
-                                    </Badge>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => startEditingQuestion(pendingQuestion)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteQuestion(pendingQuestion.id)}
-                                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{pendingQuestion.question}</p>
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-blue-700 mt-3">
-                        Your questions will be visible to other customers after approval by our team.
-                      </p>
-                    </div>
-                  )}
+
+                    
                 </CardContent>
               </Card>
             </TabsContent>
