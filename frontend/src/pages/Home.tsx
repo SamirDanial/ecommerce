@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Product, Category, FlashSale } from '../types';
 import { productService, flashSaleService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ShoppingBag, Heart, ArrowRight, Zap, TrendingUp, Gift, Star } from 'lucide-react';
+import { ShoppingBag, Heart, ArrowRight, Zap, TrendingUp, Gift, Star, Grid3X3, List } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import WishlistButton from '../components/WishlistButton';
@@ -20,6 +20,17 @@ const Home: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
   const [loading, setLoading] = useState(true);
+  // Responsive default view mode - Grid on desktop, List on mobile
+  const getDefaultViewMode = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768 ? 'grid' : 'list';
+    }
+    return 'list'; // Default fallback
+  }, []);
+
+  const [trendingViewMode, setTrendingViewMode] = useState<'grid' | 'list'>(getDefaultViewMode);
+  const [categoriesViewMode, setCategoriesViewMode] = useState<'grid' | 'list'>(getDefaultViewMode);
+  const [featuredViewMode, setFeaturedViewMode] = useState<'grid' | 'list'>(getDefaultViewMode);
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
@@ -66,6 +77,27 @@ const Home: React.FC = () => {
       data: { path: '/', name: 'Home' }
     });
   }, [addInteraction]);
+
+  // Handle responsive view mode changes
+  useEffect(() => {
+    const handleResize = () => {
+      const isDesktop = window.innerWidth >= 768;
+      const newViewMode = isDesktop ? 'grid' : 'list';
+      
+      setTrendingViewMode(newViewMode);
+      setCategoriesViewMode(newViewMode);
+      setFeaturedViewMode(newViewMode);
+    };
+
+    // Set initial view mode
+    handleResize();
+
+    // Add event listener for window resize
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -206,21 +238,63 @@ const Home: React.FC = () => {
       {/* Trending Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-12">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12 gap-4">
             <div className="flex items-center">
-              <TrendingUp className="h-8 w-8 text-primary mr-3" />
-              <h2 className="text-3xl font-bold">Trending Now</h2>
+              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary mr-2 sm:mr-3" />
+              <h2 className="text-2xl sm:text-3xl font-bold">Trending Now</h2>
             </div>
-            <Button asChild variant="outline">
-              <Link to="/products">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle - Mobile First Design */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 shadow-sm">
+                <button
+                  onClick={() => setTrendingViewMode('grid')}
+                  className={`p-2 rounded-md transition-all duration-200 ${
+                    trendingViewMode === 'grid'
+                      ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  aria-label="Grid view"
+                  title="Grid view"
+                >
+                  <Grid3X3 className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setTrendingViewMode('list')}
+                  className={`p-2 rounded-md transition-all duration-200 ${
+                    trendingViewMode === 'list'
+                      ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  aria-label="List view"
+                  title="List view"
+                >
+                  <List className="h-5 w-5" />
+                </button>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {trendingViewMode === 'grid' ? 'Grid' : 'List'} view
+              </span>
+              <span className="text-xs text-muted-foreground sm:hidden">
+                {trendingViewMode === 'grid' ? 'Grid' : 'List'}
+              </span>
+              <Button asChild variant="outline">
+                <Link to="/products">
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className={trendingViewMode === 'grid' 
+            ? 'grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6' 
+            : 'space-y-4'
+          }>
             {trendingProducts.map((product) => (
-              <Card key={product.id} className="group overflow-hidden transition-all hover:shadow-lg hover:scale-105">
+              <Card key={product.id} className={`group overflow-hidden transition-all hover:shadow-lg ${
+                trendingViewMode === 'grid' 
+                  ? 'hover:scale-105' 
+                  : 'w-full'
+              }`}>
                 <Link to={`/products/${product.slug}`} onClick={() => {
                   addToRecentlyViewed(product);
                   addInteraction({
@@ -230,44 +304,91 @@ const Home: React.FC = () => {
                     data: { slug: product.slug, name: product.name }
                   });
                 }}>
-                  <div className="relative aspect-square overflow-hidden">
-                    <ImageWithPlaceholder
-                      src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
-                      alt={product.name}
-                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                      placeholderClassName="w-full h-64"
-                    />
-                    {product.isOnSale && (
-                      <Badge className="absolute top-2 left-2 bg-red-500">
-                        Sale
-                      </Badge>
-                    )}
-                    <div className="absolute top-2 right-2">
-                      <WishlistButton product={product} size="sm" />
-                    </div>
-                  </div>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                    <RatingDisplay
-                      rating={product.averageRating}
-                      reviewCount={product.reviewCount}
-                      size="md"
-                    />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-bold text-primary">
-                          ${product.salePrice || product.price}
-                        </span>
-                        {product.comparePrice && product.comparePrice > product.price && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            ${product.comparePrice}
-                          </span>
+                  {trendingViewMode === 'grid' ? (
+                    // Grid View Layout
+                    <>
+                      <div className="relative aspect-square overflow-hidden">
+                        <ImageWithPlaceholder
+                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          alt={product.name}
+                          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                          placeholderClassName="w-full h-64"
+                        />
+                        {product.isOnSale && (
+                          <Badge className="absolute top-2 left-2 bg-red-500">
+                            Sale
+                          </Badge>
                         )}
+                        <div className="absolute top-2 right-2">
+                          <WishlistButton product={product} size="sm" />
+                        </div>
+                      </div>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
+                        <RatingDisplay
+                          rating={product.averageRating}
+                          reviewCount={product.reviewCount}
+                          size="md"
+                        />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-bold text-primary">
+                              ${product.salePrice || product.price}
+                            </span>
+                            {product.comparePrice && product.comparePrice > product.price && (
+                              <span className="text-sm text-muted-foreground line-through">
+                                ${product.comparePrice}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </>
+                  ) : (
+                    // List View Layout
+                    <div className="flex w-full">
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 flex-shrink-0 overflow-hidden">
+                        <ImageWithPlaceholder
+                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          placeholderClassName="w-full h-full"
+                        />
+                        {product.isOnSale && (
+                          <Badge className="absolute top-1 left-1 bg-red-500 text-xs">
+                            Sale
+                          </Badge>
+                        )}
+                        <div className="absolute top-1 right-1">
+                          <WishlistButton product={product} size="sm" />
+                        </div>
+                      </div>
+                      <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between min-w-0">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base sm:text-lg line-clamp-2 mb-2">{product.name}</CardTitle>
+                          <RatingDisplay
+                            rating={product.averageRating}
+                            reviewCount={product.reviewCount}
+                            size="sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base sm:text-lg font-bold text-primary">
+                              ${product.salePrice || product.price}
+                            </span>
+                            {product.comparePrice && product.comparePrice > product.price && (
+                              <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                                ${product.comparePrice}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
+                  )}
                 </Link>
               </Card>
             ))}
@@ -325,10 +446,54 @@ const Home: React.FC = () => {
       {/* Categories Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Shop by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-8 sm:mb-12 gap-4">
+            <h2 className="text-2xl sm:text-3xl font-bold">Shop by Category</h2>
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle - Mobile First Design */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 shadow-sm">
+                <button
+                  onClick={() => setCategoriesViewMode('grid')}
+                  className={`p-2 rounded-md transition-all duration-200 ${
+                    categoriesViewMode === 'grid'
+                      ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  aria-label="Grid view"
+                  title="Grid view"
+                >
+                  <Grid3X3 className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setCategoriesViewMode('list')}
+                  className={`p-2 rounded-md transition-all duration-200 ${
+                    categoriesViewMode === 'list'
+                      ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  aria-label="List view"
+                  title="List view"
+                >
+                  <List className="h-5 w-5" />
+                </button>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {categoriesViewMode === 'grid' ? 'Grid' : 'List'} view
+              </span>
+              <span className="text-xs text-muted-foreground sm:hidden">
+                {categoriesViewMode === 'grid' ? 'Grid' : 'List'}
+              </span>
+            </div>
+          </div>
+          <div className={categoriesViewMode === 'grid' 
+            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6' 
+            : 'space-y-3 sm:space-y-4'
+          }>
             {categories.map((category) => (
-              <Card key={category.id} className="hover:shadow-lg transition-shadow cursor-pointer group">
+              <Card key={category.id} className={`hover:shadow-lg transition-all duration-200 cursor-pointer group ${
+                categoriesViewMode === 'list' 
+                  ? 'w-full hover:bg-gray-50 dark:hover:bg-gray-800/50' 
+                  : 'hover:scale-105'
+              }`}>
                 <Link to={`/categories/${category.slug}`} onClick={() => {
                   addInteraction({
                     type: 'category_view',
@@ -337,14 +502,34 @@ const Home: React.FC = () => {
                     data: { slug: category.slug, name: category.name }
                   });
                 }}>
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-lg group-hover:text-primary transition-colors">{category.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground text-center">
-                      {category.description}
-                    </p>
-                  </CardContent>
+                  {categoriesViewMode === 'grid' ? (
+                    // Grid View Layout
+                    <>
+                      <CardHeader className="text-center">
+                        <CardTitle className="text-lg group-hover:text-primary transition-colors">{category.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground text-center line-clamp-3">
+                          {category.description}
+                        </p>
+                      </CardContent>
+                    </>
+                  ) : (
+                                         // List View Layout
+                     <div className="flex w-full items-center">
+                       <div className="flex-1 p-4 flex flex-col justify-center">
+                         <div className="min-w-0">
+                           <CardTitle className="text-lg group-hover:text-primary transition-colors mb-2">{category.name}</CardTitle>
+                           <p className="text-sm text-muted-foreground line-clamp-2">
+                             {category.description}
+                           </p>
+                         </div>
+                       </div>
+                       <div className="flex items-center justify-center p-4">
+                         <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1 transition-transform duration-200" />
+                       </div>
+                     </div>
+                  )}
                 </Link>
               </Card>
             ))}
@@ -355,18 +540,60 @@ const Home: React.FC = () => {
       {/* Featured Products Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-12">
-            <h2 className="text-3xl font-bold">Featured T-Shirts</h2>
-            <Button asChild variant="outline">
-              <Link to="/products">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12 gap-4">
+            <h2 className="text-2xl sm:text-3xl font-bold">Featured T-Shirts</h2>
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle - Mobile First Design */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 shadow-sm">
+                <button
+                  onClick={() => setFeaturedViewMode('grid')}
+                  className={`p-2 rounded-md transition-all duration-200 ${
+                    featuredViewMode === 'grid'
+                      ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  aria-label="Grid view"
+                  title="Grid view"
+                >
+                  <Grid3X3 className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setFeaturedViewMode('list')}
+                  className={`p-2 rounded-md transition-all duration-200 ${
+                    featuredViewMode === 'list'
+                      ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  aria-label="List view"
+                  title="List view"
+                >
+                  <List className="h-5 w-5" />
+                </button>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {featuredViewMode === 'grid' ? 'Grid' : 'List'} view
+              </span>
+              <span className="text-xs text-muted-foreground sm:hidden">
+                {featuredViewMode === 'grid' ? 'Grid' : 'List'}
+              </span>
+              <Button asChild variant="outline">
+                <Link to="/products">
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className={featuredViewMode === 'grid' 
+            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6' 
+            : 'space-y-3 sm:space-y-4'
+          }>
             {featuredProducts.map((product) => (
-              <Card key={product.id} className="group overflow-hidden transition-all hover:shadow-lg hover:scale-105">
+              <Card key={product.id} className={`group overflow-hidden transition-all hover:shadow-lg ${
+                featuredViewMode === 'grid' 
+                  ? 'hover:scale-105' 
+                  : 'w-full hover:bg-gray-50 dark:hover:bg-gray-800/50'
+              }`}>
                 <Link to={`/products/${product.slug}`} onClick={() => {
                   addToRecentlyViewed(product);
                   addInteraction({
@@ -376,58 +603,121 @@ const Home: React.FC = () => {
                     data: { slug: product.slug, name: product.name }
                   });
                 }}>
-                  <div className="relative aspect-square overflow-hidden">
-                    <ImageWithPlaceholder
-                      src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
-                      alt={product.name}
-                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                      placeholderClassName="w-full h-64"
-                    />
-                    {product.isOnSale && (
-                      <Badge className="absolute top-2 left-2 bg-red-500">
-                        Sale
-                      </Badge>
-                    )}
-                    <div className="absolute top-2 right-2">
-                      <WishlistButton product={product} size="sm" />
-                    </div>
-                  </div>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                    <RatingDisplay
-                      rating={product.averageRating}
-                      reviewCount={product.reviewCount}
-                      size="md"
-                    />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-bold">
-                          ${product.salePrice || product.price}
-                        </span>
-                        {product.comparePrice && product.comparePrice > product.price && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            ${product.comparePrice}
-                          </span>
+                  {featuredViewMode === 'grid' ? (
+                    // Grid View Layout
+                    <>
+                      <div className="relative aspect-square overflow-hidden">
+                        <ImageWithPlaceholder
+                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          alt={product.name}
+                          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                          placeholderClassName="w-full h-64"
+                        />
+                        {product.isOnSale && (
+                          <Badge className="absolute top-2 left-2 bg-red-500">
+                            Sale
+                          </Badge>
                         )}
+                        <div className="absolute top-2 right-2">
+                          <WishlistButton product={product} size="sm" />
+                        </div>
                       </div>
-                      <Button size="sm" onClick={(e) => {
-                        e.stopPropagation(); // Prevent card hover effect
-                        addToCart(product, 1);
-                        addInteraction({
-                          type: 'cart_add',
-                          targetId: product.id.toString(),
-                          targetType: 'product',
-                          data: { slug: product.slug, name: product.name }
-                        });
-                        // Success indication (no alert)
-                      }}>
-                        <ShoppingBag className="h-4 w-4 mr-2" />
-                        Add to Cart
-                      </Button>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
+                        <RatingDisplay
+                          rating={product.averageRating}
+                          reviewCount={product.reviewCount}
+                          size="md"
+                        />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-bold">
+                              ${product.salePrice || product.price}
+                            </span>
+                            {product.comparePrice && product.comparePrice > product.price && (
+                              <span className="text-sm text-muted-foreground line-through">
+                                ${product.comparePrice}
+                              </span>
+                            )}
+                          </div>
+                          <Button size="sm" onClick={(e) => {
+                            e.preventDefault(); // Prevent link navigation
+                            e.stopPropagation(); // Prevent card hover effect
+                            addToCart(product, 1);
+                            addInteraction({
+                              type: 'cart_add',
+                              targetId: product.id.toString(),
+                              targetType: 'product',
+                              data: { slug: product.slug, name: product.name }
+                            });
+                            // Success indication (no alert)
+                          }}>
+                            <ShoppingBag className="h-4 w-4 mr-2" />
+                            Add to Cart
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </>
+                  ) : (
+                    // List View Layout
+                    <div className="flex w-full items-center">
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 flex-shrink-0 overflow-hidden">
+                        <ImageWithPlaceholder
+                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          placeholderClassName="w-full h-full"
+                        />
+                        {product.isOnSale && (
+                          <Badge className="absolute top-1 left-1 bg-red-500 text-xs">
+                            Sale
+                          </Badge>
+                        )}
+                        <div className="absolute top-1 right-1">
+                          <WishlistButton product={product} size="sm" />
+                        </div>
+                      </div>
+                      <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between min-w-0">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base sm:text-lg line-clamp-2 mb-2">{product.name}</CardTitle>
+                          <RatingDisplay
+                            rating={product.averageRating}
+                            reviewCount={product.reviewCount}
+                            size="sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base sm:text-lg font-bold text-primary">
+                              ${product.salePrice || product.price}
+                            </span>
+                            {product.comparePrice && product.comparePrice > product.price && (
+                              <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                                ${product.comparePrice}
+                              </span>
+                            )}
+                          </div>
+                          <Button size="sm" onClick={(e) => {
+                            e.preventDefault(); // Prevent link navigation
+                            e.stopPropagation(); // Prevent card hover effect
+                            addToCart(product, 1);
+                            addInteraction({
+                              type: 'cart_add',
+                              targetId: product.id.toString(),
+                              targetType: 'product',
+                              data: { slug: product.slug, name: product.name }
+                            });
+                            // Success indication (no alert)
+                          }}>
+                            <ShoppingBag className="h-4 w-4 mr-2" />
+                            Add to Cart
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
+                  )}
                 </Link>
               </Card>
             ))}

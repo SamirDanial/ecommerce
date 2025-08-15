@@ -146,6 +146,7 @@ const ProductDetail: React.FC = () => {
   
   // Question replies state
   const [expandedQuestionReplies, setExpandedQuestionReplies] = useState<{[key: number]: boolean}>({});
+  const [showReplyForm, setShowReplyForm] = useState<{[key: number]: boolean}>({});
   const [questionReplies, setQuestionReplies] = useState<{[key: number]: any[]}>({});
   const [questionRepliesLoading, setQuestionRepliesLoading] = useState<{[key: number]: boolean}>({});
   const [questionReplyForm, setQuestionReplyForm] = useState<{[key: number]: string}>({});
@@ -156,6 +157,10 @@ const ProductDetail: React.FC = () => {
   // Delete confirmation dialog state
   const [showQuestionReplyDeleteDialog, setShowQuestionReplyDeleteDialog] = useState(false);
   const [questionReplyToDelete, setQuestionReplyToDelete] = useState<number | null>(null);
+  const [showQuestionDeleteDialog, setShowQuestionDeleteDialog] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
+  const [expandedQuestions, setExpandedQuestions] = useState<{[key: number]: boolean}>({});
+  const [expandedReplyTexts, setExpandedReplyTexts] = useState<{[key: number]: boolean}>({});
   
   const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
   const { isAuthenticated, getToken } = useClerkAuth();
@@ -616,6 +621,13 @@ const ProductDetail: React.FC = () => {
         // Clear the reply form
         setQuestionReplyForm(prev => ({ ...prev, [questionId]: '' }));
         
+        // Hide the reply form after successful submission
+        setShowReplyForm(prev => {
+          const newState = { ...prev };
+          delete newState[questionId];
+          return newState;
+        });
+        
         // Update the local questions state to reflect the reply count change
         setQuestions(prev => prev.map(question => {
           if (question.id === questionId && question._count?.replies !== undefined) {
@@ -661,6 +673,14 @@ const ProductDetail: React.FC = () => {
       return newState;
     });
   }, [questionReplies, fetchQuestionReplies]);
+
+  // Function to toggle reply form visibility
+  const toggleReplyForm = useCallback((questionId: number) => {
+    setShowReplyForm(prev => {
+      const newState = { ...prev, [questionId]: !prev[questionId] };
+      return newState;
+    });
+  }, []);
 
   // Function to start editing a question reply
   const startEditingQuestionReply = useCallback((replyId: number, currentText: string) => {
@@ -733,6 +753,28 @@ const ProductDetail: React.FC = () => {
   const showDeleteQuestionReplyDialog = useCallback((replyId: number) => {
     setQuestionReplyToDelete(replyId);
     setShowQuestionReplyDeleteDialog(true);
+  }, []);
+
+  // Function to show question delete confirmation dialog
+  const showDeleteQuestionDialog = useCallback((questionId: number) => {
+    setQuestionToDelete(questionId);
+    setShowQuestionDeleteDialog(true);
+  }, []);
+
+  // Function to toggle question expansion
+  const toggleQuestionExpansion = useCallback((questionId: number) => {
+    setExpandedQuestions(prev => ({
+      ...prev,
+      [questionId]: !prev[questionId]
+    }));
+  }, []);
+
+  // Function to toggle reply text expansion
+  const toggleReplyTextExpansion = useCallback((replyId: number) => {
+    setExpandedReplyTexts(prev => ({
+      ...prev,
+      [replyId]: !prev[replyId]
+    }));
   }, []);
 
   // Function to delete a question reply
@@ -1375,7 +1417,7 @@ const ProductDetail: React.FC = () => {
   };
 
   const handleDeleteQuestion = async (questionId: number) => {
-    if (!window.confirm('Are you sure you want to delete this question?')) {
+    if (!questionToDelete) {
       return;
     }
 
@@ -1631,18 +1673,18 @@ const ProductDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-24 w-24 sm:h-32 sm:w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive mb-4">Product Not Found</h2>
-          <p className="text-muted-foreground mb-4">{error || 'The product you are looking for does not exist.'}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-destructive mb-4">Product Not Found</h2>
+          <p className="text-muted-foreground mb-4 text-sm sm:text-base">{error || 'The product you are looking for does not exist.'}</p>
           <Button asChild>
             <Link to="/products">Back to Products</Link>
           </Button>
@@ -1661,18 +1703,18 @@ const ProductDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Breadcrumb */}
-      <div className="container mx-auto px-4 py-4">
-        <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <Link to="/" className="hover:text-foreground">Home</Link>
-          <ChevronRight className="h-4 w-4" />
-          <Link to="/products" className="hover:text-foreground">Products</Link>
-          <ChevronRight className="h-4 w-4" />
-          <span className="text-foreground">{product.name}</span>
+      <div className="container mx-auto px-4 py-2 sm:py-4">
+        <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-foreground truncate">Home</Link>
+          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <Link to="/products" className="hover:text-foreground truncate">Products</Link>
+          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="text-foreground truncate max-w-[120px] sm:max-w-none">{product.name}</span>
         </nav>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
           {/* Product Images */}
           <div className="space-y-4">
             <ProductImageGallery
@@ -1682,26 +1724,28 @@ const ProductDetail: React.FC = () => {
           </div>
 
           {/* Product Info */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Product Header */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold">{product.name}</h1>
-                  {isProductInCart && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                      <ShoppingCart className="h-3 w-3 mr-1" />
-                      In Cart ({cartItemQuantity})
-                    </Badge>
-                  )}
-                  {!isProductInCart && isProductInCartAnyVariantCheck && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                      <ShoppingCart className="h-3 w-3 mr-1" />
-                      In Cart (No Variants)
-                    </Badge>
-                  )}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <h1 className="text-2xl sm:text-3xl font-bold leading-tight">{product.name}</h1>
+                  <div className="flex flex-wrap gap-2">
+                    {isProductInCart && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 text-xs">
+                        <ShoppingCart className="h-3 w-3 mr-1" />
+                        In Cart ({cartItemQuantity})
+                      </Badge>
+                    )}
+                    {!isProductInCart && isProductInCartAnyVariantCheck && (
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                        <ShoppingCart className="h-3 w-3 mr-1" />
+                        In Cart (No Variants)
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <WishlistButton product={product} size="icon" />
                   <Button size="sm" variant="outline" onClick={handleShare}>
                     <Share2 className="h-4 w-4" />
@@ -1724,17 +1768,19 @@ const ProductDetail: React.FC = () => {
               </div>
 
               {/* Price */}
-              <div className="flex items-center space-x-4 mb-4">
-                <span className="text-3xl font-bold text-primary">
-                  ${product.salePrice || product.price}
-                </span>
-                {product.comparePrice && product.comparePrice > product.price && (
-                  <span className="text-xl text-muted-foreground line-through">
-                    ${product.comparePrice}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4">
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <span className="text-2xl sm:text-3xl font-bold text-primary">
+                    ${product.salePrice || product.price}
                   </span>
-                )}
+                  {product.comparePrice && product.comparePrice > product.price && (
+                    <span className="text-lg sm:text-xl text-muted-foreground line-through">
+                      ${product.comparePrice}
+                    </span>
+                  )}
+                </div>
                 {product.isOnSale && (
-                  <Badge className="bg-red-500">
+                  <Badge className="bg-red-500 w-fit">
                     {Math.round(((product.comparePrice || 0) - (product.salePrice || product.price)) / (product.comparePrice || 1) * 100)}% OFF
                   </Badge>
                 )}
@@ -1744,16 +1790,16 @@ const ProductDetail: React.FC = () => {
             {/* Size Selection */}
             {availableSizes.length > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <h3 className="text-sm font-medium">Size: {selectedSize}</h3>
                   <SizeChart />
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
                   {availableSizes.map((size) => (
                     <button
                       key={size}
                       onClick={() => handleSizeChange(size)}
-                      className={`px-4 py-2 border rounded-md transition-all ${
+                      className={`px-3 py-2 border rounded-md transition-all text-sm ${
                         selectedSize === size
                           ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-border hover:border-primary/50'
@@ -1769,8 +1815,8 @@ const ProductDetail: React.FC = () => {
             {/* Color Selection */}
             {product.variants && product.variants.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-2">Color: {selectedColor}</h3>
-                <div className="flex flex-wrap gap-2">
+                <h3 className="text-sm font-medium mb-3">Color: {selectedColor}</h3>
+                <div className="grid grid-cols-6 sm:flex sm:flex-wrap gap-3">
                   {Array.from(new Set(product.variants.map(v => v.color))).map((colorName) => {
                     const variant = product.variants?.find(v => v.color === colorName);
                     const inStock = variant ? variant.stock > 0 : false;
@@ -1780,7 +1826,7 @@ const ProductDetail: React.FC = () => {
                         onClick={() => handleColorChange(colorName)}
                         disabled={!inStock}
                         className={`
-                          w-8 h-8 rounded-full border-2 transition-all relative
+                          w-10 h-10 sm:w-8 sm:h-8 rounded-full border-2 transition-all relative
                           ${!inStock ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-110'}
                           ${selectedColor === colorName 
                             ? 'border-primary scale-110' 
@@ -1823,26 +1869,26 @@ const ProductDetail: React.FC = () => {
                   </p>
                 </div>
               )}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-3">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => handleQuantityChange(-1)}
                   disabled={quantity <= 1}
-                  className="h-10 w-10 p-0"
+                  className="h-12 w-12 sm:h-10 sm:w-10 p-0"
                 >
-                  <Minus className="h-4 w-4" />
+                  <Minus className="h-5 w-5 sm:h-4 sm:w-4" />
                 </Button>
-                <span className="w-16 text-center text-lg font-semibold px-3 py-2 bg-muted rounded-md">
+                <span className="w-20 sm:w-16 text-center text-lg font-semibold px-3 py-2 bg-muted rounded-md">
                   {quantity}
                 </span>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => handleQuantityChange(1)}
-                  className="h-10 w-10 p-0"
+                  className="h-12 w-12 sm:h-10 sm:w-10 p-0"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-5 w-5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -1854,10 +1900,10 @@ const ProductDetail: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-3">
               <Button 
                 size="lg" 
-                className={`flex-1 ${
+                className={`w-full h-14 sm:h-12 ${
                   showAddedToCart 
                     ? 'bg-green-600 hover:bg-green-700' 
                     : isProductInCart 
@@ -1869,27 +1915,27 @@ const ProductDetail: React.FC = () => {
               >
                 {showAddedToCart ? (
                   <>
-                    <Check className="h-4 w-4 mr-2" />
+                    <Check className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                     {isProductInCart ? 'Cart Updated!' : 'Added to Cart!'}
                   </>
                 ) : isProductInCart ? (
                   <>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                     Update Cart
                   </>
                 ) : isProductInCartAnyVariantCheck ? (
                   <>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                     Add with Variants
                   </>
                 ) : (
                   <>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                     Add to Cart
                   </>
                 )}
               </Button>
-              <Button size="lg" variant="outline" className="flex-1">
+              <Button size="lg" variant="outline" className="w-full h-14 sm:h-12">
                 Buy Now
               </Button>
             </div>
@@ -1955,8 +2001,8 @@ const ProductDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Product Details Tabs */}
-        <div className="mt-16">
+        {/* Product Details Tabs - Clean & Simple Design */}
+        <div className="mt-12 sm:mt-16">
           <Tabs value={activeTab} onValueChange={(value) => {
             setActiveTab(value);
             if (value === 'reviews') {
@@ -1965,34 +2011,70 @@ const ProductDetail: React.FC = () => {
               handleQATabClick();
             }
           }}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="description">Description</TabsTrigger>
-              <TabsTrigger value="reviews">
-                Reviews {product.reviewCount && product.reviewCount > 0 ? `(${product.reviewCount})` : '(No reviews yet)'}
+            <TabsList className="flex w-full bg-gradient-to-br from-slate-50 via-white to-slate-50 p-1.5 rounded-xl shadow-md border border-slate-200/50 gap-1">
+              <TabsTrigger 
+                value="description" 
+                className="h-10 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-slate-100 text-center relative overflow-hidden group"
+              >
+                Description
               </TabsTrigger>
-              <TabsTrigger value="qa">
-                Q&A {questionCount > 0 ? `(${questionCount})` : '(No questions yet)'}
+              
+              <TabsTrigger 
+                value="reviews" 
+                className="h-10 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-slate-100 text-center relative overflow-hidden group"
+              >
+                Reviews {product.reviewCount && product.reviewCount > 0 ? `(${product.reviewCount})` : ''}
               </TabsTrigger>
-              <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
+              
+              <TabsTrigger 
+                value="qa" 
+                className="h-10 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-slate-100 text-center relative overflow-hidden group"
+              >
+                Q&A {questionCount > 0 ? `(${questionCount})` : ''}
+              </TabsTrigger>
+              
+              <TabsTrigger 
+                value="shipping" 
+                className="h-10 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-slate-100 text-center relative overflow-hidden group"
+              >
+                Shipping
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="description" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Product Description</CardTitle>
+            <TabsContent value="description" className="mt-4 sm:mt-6">
+              <Card className="border-0 shadow-sm bg-gradient-to-br from-white to-slate-50/30">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-center sm:text-left bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                    Product Description
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {product.description}
-                  </p>
+                <CardContent className="space-y-4 sm:space-y-6">
+                  <div className="bg-white/60 p-4 sm:p-6 rounded-xl border border-slate-200/50 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-slate-600 uppercase tracking-wide">About This Product</span>
+                    </div>
+                    <p className="text-slate-700 leading-relaxed text-base sm:text-lg font-medium">
+                      {product.description}
+                    </p>
+                  </div>
                   
                   {product.tags && product.tags.length > 0 && (
-                    <div className="mt-6">
-                      <h4 className="font-medium mb-2">Tags</h4>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="bg-white/60 p-4 sm:p-6 rounded-xl border border-slate-200/50 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <h4 className="font-semibold text-lg sm:text-xl text-slate-800">
+                          Product Tags
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap justify-center sm:justify-start gap-3">
                         {product.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
-                            {tag}
+                          <Badge 
+                            key={tag} 
+                            variant="secondary" 
+                            className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 shadow-sm"
+                          >
+                            #{tag}
                           </Badge>
                         ))}
                       </div>
@@ -2005,155 +2087,161 @@ const ProductDetail: React.FC = () => {
             <TabsContent value="reviews" className="mt-6">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        Customer Reviews
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div className="flex-1">
+                      <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                        <span>Customer Reviews</span>
                         {product.reviewCount && product.reviewCount > 0 && (
-                          <Badge variant="secondary" className="text-sm">
+                          <Badge variant="secondary" className="text-sm w-fit">
                             {product.reviewCount} reviews
                           </Badge>
                         )}
                       </CardTitle>
-                      <div className="mt-2">
-                        <RatingDisplay
-                          rating={product.averageRating}
-                          reviewCount={product.reviewCount}
-                          size="md"
-                          showCount={false}
-                        />
-                        <div className="flex items-center gap-2 mt-1">
-                          {product.averageRating ? (
-                            <>
-                              <span className="text-lg font-semibold text-primary">
-                                {product.averageRating.toFixed(1)}
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                out of 5
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              No rating yet
-                            </span>
-                          )}
-                        </div>
-                      </div>
                       
-                      {/* Rating Distribution Chart */}
-                      {product.reviews && product.reviews.length > 0 && (
-                        <div className="mt-4 p-3 bg-muted/30 rounded-lg">
-                          <h4 className="text-sm font-medium mb-3">Rating Distribution</h4>
-                          <div className="space-y-2">
-                            {[5, 4, 3, 2, 1].map((rating) => {
-                              const count = product.reviews?.filter(r => r.rating === rating).length || 0;
-                              const percentage = product.reviewCount ? (count / product.reviewCount) * 100 : 0;
-                              return (
-                                <div key={rating} className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1 w-8">
-                                    <span className="text-xs text-muted-foreground">{rating}</span>
-                                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
+                        <div className="flex flex-col items-center sm:items-start">
+                          <RatingDisplay
+                            rating={product.averageRating}
+                            reviewCount={product.reviewCount}
+                            size="md"
+                            showCount={false}
+                          />
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 mt-1 text-center sm:text-left">
+                            {product.averageRating ? (
+                              <>
+                                <span className="text-xl sm:text-lg font-semibold text-primary">
+                                  {product.averageRating.toFixed(1)}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  out of 5
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                No rating yet
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Rating Distribution Chart - Mobile Optimized */}
+                        {product.reviews && product.reviews.length > 0 && (
+                          <div className="flex-1 max-w-xs sm:max-w-none">
+                            <h4 className="text-sm font-medium mb-3 text-center sm:text-left">Rating Distribution</h4>
+                            <div className="space-y-2">
+                              {[5, 4, 3, 2, 1].map((rating) => {
+                                const count = product.reviews?.filter(r => r.rating === rating).length || 0;
+                                const percentage = product.reviewCount ? (count / product.reviewCount) * 100 : 0;
+                                return (
+                                  <div key={rating} className="flex items-center gap-2 sm:gap-3">
+                                    <div className="flex items-center gap-1 w-6 sm:w-8">
+                                      <span className="text-xs text-muted-foreground">{rating}</span>
+                                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                    </div>
+                                    <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                                      <div 
+                                        className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${percentage}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-muted-foreground w-6 sm:w-8 text-right">
+                                      {count}
+                                    </span>
                                   </div>
-                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div 
-                                      className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
-                                      style={{ width: `${percentage}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-xs text-muted-foreground w-8 text-right">
-                                    {count}
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {!userHasReviewed && (
+                        <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                              <Star className="h-4 w-4 mr-2" />
+                              Write a Review
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Write a Review</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              {/* Rating Selection */}
+                              <div>
+                                <Label htmlFor="rating">Rating</Label>
+                                <div className="flex items-center gap-2 mt-2">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onMouseEnter={() => setHoverRating(star)}
+                                      onMouseLeave={() => setHoverRating(0)}
+                                      onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
+                                      className={`p-1 rounded transition-colors ${
+                                        (hoverRating >= star || reviewForm.rating >= star)
+                                          ? 'text-yellow-400' 
+                                          : 'text-gray-300'
+                                      }`}
+                                    >
+                                      <Star className="h-5 w-5 fill-current" />
+                                    </button>
+                                  ))}
+                                  <span className="ml-2 text-sm text-muted-foreground">
+                                    {hoverRating > 0 ? hoverRating : reviewForm.rating} out of 5
                                   </span>
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+
+                              {/* Review Title */}
+                              <div>
+                                <Label htmlFor="title">Title</Label>
+                                <Input
+                                  id="title"
+                                  value={reviewForm.title}
+                                  onChange={(e) => setReviewForm(prev => ({ ...prev, title: e.target.value }))}
+                                  placeholder="Summarize your experience"
+                                  className="mt-1"
+                                />
+                              </div>
+
+                              {/* Review Comment */}
+                              <div>
+                                <Label htmlFor="comment">Review</Label>
+                                <Textarea
+                                  id="comment"
+                                  value={reviewForm.comment}
+                                  onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                                  placeholder="Share your thoughts about this product..."
+                                  rows={4}
+                                  className="mt-1"
+                                />
+                              </div>
+
+                              {/* Submit Button */}
+                              <Button 
+                                onClick={handleReviewSubmit}
+                                disabled={submittingReview}
+                                className="w-full"
+                              >
+                                {submittingReview ? 'Submitting...' : 'Submit Review'}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                      
+                      {/* Show message when user has already reviewed */}
+                      {userHasReviewed && (
+                        <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground text-center sm:text-left">
+                          <Star className="h-4 w-4 text-green-600" />
+                          <span>You have already reviewed this product</span>
                         </div>
                       )}
                     </div>
-                    {!userHasReviewed && (
-                      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Star className="h-4 w-4 mr-2" />
-                            Write a Review
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Write a Review</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            {/* Rating Selection */}
-                            <div>
-                              <Label htmlFor="rating">Rating</Label>
-                              <div className="flex items-center gap-2 mt-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onMouseEnter={() => setHoverRating(star)}
-                                    onMouseLeave={() => setHoverRating(0)}
-                                    onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
-                                    className={`p-1 rounded transition-colors ${
-                                      (hoverRating >= star || reviewForm.rating >= star)
-                                        ? 'text-yellow-400' 
-                                        : 'text-gray-300'
-                                    }`}
-                                  >
-                                    <Star className="h-5 w-5 fill-current" />
-                                  </button>
-                                ))}
-                                <span className="ml-2 text-sm text-muted-foreground">
-                                  {hoverRating > 0 ? hoverRating : reviewForm.rating} out of 5
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Review Title */}
-                            <div>
-                              <Label htmlFor="title">Title</Label>
-                              <Input
-                                id="title"
-                                value={reviewForm.title}
-                                onChange={(e) => setReviewForm(prev => ({ ...prev, title: e.target.value }))}
-                                placeholder="Summarize your experience"
-                                className="mt-1"
-                              />
-                            </div>
-
-                            {/* Review Comment */}
-                            <div>
-                              <Label htmlFor="comment">Review</Label>
-                              <Textarea
-                                id="comment"
-                                value={reviewForm.comment}
-                                onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
-                                placeholder="Share your thoughts about this product..."
-                                rows={4}
-                                className="mt-1"
-                              />
-                            </div>
-
-                            {/* Submit Button */}
-                            <Button 
-                              onClick={handleReviewSubmit}
-                              disabled={submittingReview}
-                              className="w-full"
-                            >
-                              {submittingReview ? 'Submitting...' : 'Submit Review'}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                    
-                    {/* Show message when user has already reviewed */}
-                    {userHasReviewed && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Star className="h-4 w-4 text-green-600" />
-                        You have already reviewed this product
-                      </div>
-                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -2164,130 +2252,156 @@ const ProductDetail: React.FC = () => {
                     </div>
                   ) : reviews && reviews.length > 0 ? (
                     <div className="space-y-6">
-                      {/* Review Filters */}
-                      <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
-                        <span className="text-sm font-medium">Filter by:</span>
-                          <div className="flex items-center gap-2">
+                      {/* Review Filters - Mobile Optimized */}
+                      <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                        {/* Rating Filter */}
+                        <div className="space-y-2">
+                          <span className="text-sm font-medium block">Filter by Rating:</span>
+                          <div className="grid grid-cols-5 gap-2">
                             {[5, 4, 3, 2, 1].map((rating) => (
                               <Button
                                 key={rating}
                                 variant={selectedRating === rating ? "default" : "outline"}
                                 size="sm"
-                                className="h-8 px-3 text-xs"
+                                className="h-10 px-2 text-xs"
                                 onClick={() => handleRatingFilter(selectedRating === rating ? null : rating)}
                               >
                                 {rating}★
                               </Button>
                             ))}
                           </div>
-                          <Separator orientation="vertical" className="h-6" />
-                          <Button 
-                            variant={sortBy === 'recent' ? "default" : "outline"}
-                            size="sm" 
-                            className="h-8 px-3 text-xs"
-                            onClick={() => handleSortChange('recent')}
-                          >
-                            Most Recent
-                          </Button>
-                          <Button 
-                            variant={sortBy === 'helpful' ? "default" : "outline"}
-                            size="sm" 
-                            className="h-8 px-3 text-xs"
-                            onClick={() => handleSortChange('helpful')}
-                          >
-                            Only Helpful
-                          </Button>
-                          {(selectedRating !== null || sortBy !== 'recent') && (
+                        </div>
+                        
+                        {/* Sort Options */}
+                        <div className="space-y-2">
+                          <span className="text-sm font-medium block">Sort by:</span>
+                          <div className="flex flex-wrap gap-2">
+                            <Button 
+                              variant={sortBy === 'recent' ? "default" : "outline"}
+                              size="sm" 
+                              className="h-10 px-3 text-xs flex-1 sm:flex-none"
+                              onClick={() => handleSortChange('recent')}
+                            >
+                              Most Recent
+                            </Button>
+                            <Button 
+                              variant={sortBy === 'helpful' ? "default" : "outline"}
+                              size="sm" 
+                              className="h-10 px-3 text-xs flex-1 sm:flex-none"
+                              onClick={() => handleSortChange('helpful')}
+                            >
+                              Only Helpful
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {/* Clear Filters */}
+                        {(selectedRating !== null || sortBy !== 'recent') && (
+                          <div className="pt-2 border-t">
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="h-8 px-3 text-xs text-red-600 hover:text-red-800"
+                              className="w-full h-10 text-red-600 hover:text-red-800"
                               onClick={resetFilters}
                             >
-                              Clear Filters
+                              Clear All Filters
                             </Button>
-                          )}
-                        </div>
+                          </div>
+                        )}
+                      </div>
 
                       {/* Filter Description */}
-                      <div className="text-xs text-muted-foreground px-3">
+                      <div className="text-xs text-muted-foreground px-3 text-center sm:text-left">
                         <span className="font-medium">Helpful Filter:</span> Shows only reviews that have been marked as helpful by other users
                       </div>
 
-                      {/* Filter Summary */}
+                      {/* Filter Summary - Mobile Optimized */}
                       {(selectedRating !== null || sortBy !== 'recent') && (
-                        <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                          <span className="text-sm font-medium text-blue-800">Active Filters:</span>
-                          {selectedRating && (
-                            <Badge variant="secondary" className="text-xs">
-                              {selectedRating}★ Rating
-                            </Badge>
-                          )}
-                          {sortBy === 'helpful' && (
-                            <Badge variant="secondary" className="text-xs">
-                              Only Helpful Reviews
-                            </Badge>
-                          )}
-                          <span className="text-sm text-blue-600">
-                            {filtersLoading ? 'Updating...' : `${reviewsTotal} reviews found`}
-                          </span>
-                          {sortBy === 'helpful' && !filtersLoading && (
-                            <span className="text-xs text-blue-600">
-                              ({reviews.filter((r: any) => r.helpfulCount > 0).length} with helpful votes)
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                            <span className="text-sm font-medium text-blue-800 text-center sm:text-left">Active Filters:</span>
+                            <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                              {selectedRating && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {selectedRating}★ Rating
+                                </Badge>
+                              )}
+                              {sortBy === 'helpful' && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Only Helpful Reviews
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-center sm:text-left">
+                            <span className="text-sm text-blue-600">
+                              {filtersLoading ? 'Updating...' : `${reviewsTotal} reviews found`}
                             </span>
-                          )}
-                          {filtersLoading && (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                          )}
+                            {sortBy === 'helpful' && !filtersLoading && (
+                              <span className="text-xs text-blue-600">
+                                ({reviews.filter((r: any) => r.helpfulCount > 0).length} with helpful votes)
+                              </span>
+                            )}
+                            {filtersLoading && (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto sm:mx-0"></div>
+                            )}
+                          </div>
                         </div>
                       )}
 
-                      {/* Reviews List */}
+                      {/* Reviews List - Mobile Optimized */}
                       {reviews.map((review) => (
                         <div key={review.id} data-review-item className="border-b pb-6 last:border-b-0">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-start space-x-3">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                            <div className="flex items-start gap-3">
                               <UserAvatar user={review.user} size="md" />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium">{review.user?.name || 'Anonymous'}</p>
-                                  {review.status === 'PENDING' && (
-                                    <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">
-                                      Pending Approval
-                                    </Badge>
-                                  )}
-                                  {review.isVerified && review.status === 'APPROVED' && (
-                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      ✓ Verified Purchase
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="flex items-center">
-                                    {[...Array(5)].map((_, i) => (
-                                      <Star
-                                        key={i}
-                                        className={`h-3 w-3 ${
-                                          i < review.rating
-                                            ? 'fill-yellow-400 text-yellow-400'
-                                            : 'text-gray-300'
-                                        }`}
-                                      />
-                                    ))}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                  <p className="font-medium text-base">{review.user?.name || 'Anonymous'}</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {review.status === 'PENDING' && (
+                                      <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">
+                                        Pending Approval
+                                      </Badge>
+                                    )}
+                                    {review.isVerified && review.status === 'APPROVED' && (
+                                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        ✓ Verified Purchase
+                                      </Badge>
+                                    )}
                                   </div>
-                                  <span className="text-sm text-muted-foreground">
-                                    {review.rating}.0
-                                  </span>
+                                </div>
+                                
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center">
+                                      {[...Array(5)].map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`h-4 w-4 sm:h-3 sm:w-3 ${
+                                            i < review.rating
+                                              ? 'fill-yellow-400 text-yellow-400'
+                                              : 'text-gray-300'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-sm text-muted-foreground font-medium">
+                                      {review.rating}.0
+                                    </span>
+                                  </div>
                                   {review.helpfulCount > 0 && (
                                     <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
                                       ✓ {review.helpfulCount} helpful
                                     </span>
                                   )}
                                 </div>
+                                
                                 {review.title && (
                                   <h4 className="font-medium mb-2 text-base">{review.title}</h4>
                                 )}
-                                <p className="text-muted-foreground leading-relaxed">{review.comment}</p>
+                                <p className="text-muted-foreground leading-relaxed text-sm sm:text-base">{review.comment}</p>
                                 
                                 {/* Display Replies */}
                                 {review.status === 'APPROVED' && (
@@ -2528,11 +2642,11 @@ const ProductDetail: React.FC = () => {
                             </div>
                           )}
                           
-                          {/* Review Actions */}
+                          {/* Review Actions - Horizontal & Left-Aligned */}
                           {editingReviewId !== review.id && replyingToReview !== review.id && (
-                            <div className="flex items-center gap-4 ml-13">
+                            <div className="mt-4">
                               {review.status === 'APPROVED' ? (
-                                <>
+                                <div className="flex items-center gap-3">
                                   <Button 
                                     variant="ghost" 
                                     size="sm" 
@@ -2583,31 +2697,31 @@ const ProductDetail: React.FC = () => {
                                     }`} />
                                     {reportInteractions[review.id]?.isReported ? 'Remove Report' : 'Report'}
                                   </Button>
-                                </>
-                                                          ) : review.status === 'PENDING' && isAuthenticated ? (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => startEditingReview(review)}
-                                  className="h-6 px-2 text-xs"
-                                  disabled={replyingToReview === review.id}
-                                >
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteReview(review.id)}
-                                  className="h-6 px-2 text-xs text-red-500 hover:text-red-700"
-                                  disabled={replyingToReview === review.id}
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" />
-                                  Delete
-                                </Button>
-                              </div>
-                            ) : null}
+                                </div>
+                              ) : review.status === 'PENDING' && isAuthenticated ? (
+                                <div className="flex items-center gap-3">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => startEditingReview(review)}
+                                    className="h-8 px-3 text-xs"
+                                    disabled={replyingToReview === review.id}
+                                  >
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteReview(review.id)}
+                                    className="h-8 px-3 text-xs text-red-500 hover:text-red-700"
+                                    disabled={replyingToReview === review.id}
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              ) : null}
                             </div>
                           )}
                         </div>
@@ -2674,19 +2788,21 @@ const ProductDetail: React.FC = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="qa" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      Questions & Answers
-                      <Badge variant="secondary" className="text-sm">
+            <TabsContent value="qa" className="mt-4 sm:mt-6">
+              <Card className="border-0 shadow-sm bg-gradient-to-br from-white to-slate-50/30">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="text-center sm:text-left">
+                      <CardTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                        Questions & Answers
+                      </CardTitle>
+                      <Badge variant="secondary" className="text-sm bg-blue-100 text-blue-700 border-blue-200">
                         {qaTabClicked && questionsTotal > 0 ? questionsTotal : '0'} questions
                       </Badge>
-                    </CardTitle>
+                    </div>
                     <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" className="w-full sm:w-auto h-10 sm:h-9">
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Ask a Question
                         </Button>
@@ -2722,57 +2838,57 @@ const ProductDetail: React.FC = () => {
                 <CardContent>
                   {!qaTabClicked ? (
                     // Show placeholder when Q&A tab hasn't been clicked yet
-                    <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                    <div className="text-center py-6 sm:py-8">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-200/50">
+                        <MessageSquare className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                       </div>
-                      <h3 className="text-lg font-medium mb-2">Click to load Q&A</h3>
-                      <p className="text-muted-foreground mb-4">
+                      <h3 className="text-base sm:text-lg font-semibold mb-2 text-slate-800">Click to load Q&A</h3>
+                      <p className="text-sm sm:text-base text-slate-600 mb-4 px-4">
                         Click on the Q&A tab to load questions and answers for this product
                       </p>
                     </div>
                   ) : questionsLoading ? (
                     // Show loading state
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <span className="text-sm text-muted-foreground">Loading questions...</span>
+                    <div className="text-center py-6 sm:py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <span className="text-sm sm:text-base text-slate-600">Loading questions...</span>
                     </div>
                   ) : questions.length > 0 ? (
                     // Show loaded questions
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {questions.map((question) => (
-                        <div key={question.id} className={`p-4 border rounded-lg ${
-                          question.status === 'PENDING' ? 'border-blue-300 bg-blue-50' : 
-                          question.status === 'ANSWERED' ? 'border-purple-300 bg-purple-50' :
-                          question.status === 'REJECTED' ? 'border-red-300 bg-red-50' :
-                          'border-muted'
+                        <div key={question.id} className={`p-4 sm:p-6 border rounded-xl shadow-sm ${
+                          question.status === 'PENDING' ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100/50' : 
+                          question.status === 'ANSWERED' ? 'border-purple-300 bg-gradient-to-br from-purple-50 to-purple-100/50' :
+                          question.status === 'REJECTED' ? 'border-red-300 bg-gradient-to-br from-red-50 to-red-100/50' :
+                          'border-slate-200 bg-gradient-to-br from-white to-slate-50/50'
                         }`} data-question-item>
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
                               {question.user?.avatar ? (
                                 <img 
                                   src={question.user.avatar} 
                                   alt={question.user.name || 'User'} 
-                                  className="w-8 h-8 rounded-full object-cover"
+                                  className="w-10 h-10 sm:w-8 sm:h-8 rounded-full object-cover"
                                 />
                               ) : (
-                                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <div className="w-10 h-10 sm:w-8 sm:h-8 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
                                   <span className="text-sm font-medium text-primary">
                                     {question.user?.name?.charAt(0) || 'U'}
                                   </span>
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-sm">{question.user?.name || 'Anonymous'}</p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="font-semibold text-base sm:text-sm text-slate-800">{question.user?.name || 'Anonymous'}</p>
+                                <p className="text-xs text-slate-600">
                                   {formatDate(question.createdAt)}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {/* Only show status badge for non-approved questions */}
                               {question.status !== 'APPROVED' && (
-                                <Badge variant="outline" className={`text-xs ${
+                                <Badge variant="outline" className={`text-xs px-2 py-1 ${
                                   question.status === 'PENDING' ? 'bg-blue-100 text-blue-700 border-blue-300' : 
                                   question.status === 'ANSWERED' ? 'bg-purple-100 text-purple-700 border-purple-300' :
                                   question.status === 'REJECTED' ? 'bg-gray-100 text-gray-700 border-gray-300' :
@@ -2785,29 +2901,29 @@ const ProductDetail: React.FC = () => {
                               )}
                               {/* Show edit/delete buttons only for pending questions owned by current user */}
                               {question.status === 'PENDING' && isAuthenticated && currentUserDbId === question.userId && (
-                                <>
+                                <div className="flex items-center gap-1">
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => startEditingQuestion(question)}
-                                    className="h-6 w-6 p-0"
+                                    className="h-8 w-8 sm:h-6 sm:w-6 p-0"
                                   >
-                                    <Edit className="h-3 w-3" />
+                                    <Edit className="h-4 w-4 sm:h-3 sm:w-3" />
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleDeleteQuestion(question.id)}
-                                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                    onClick={() => showDeleteQuestionDialog(question.id)}
+                                    className="h-8 w-8 sm:h-6 sm:w-6 p-0 text-red-500 hover:text-red-700"
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
                                   </Button>
-                                </>
+                                </div>
                               )}
                             </div>
                           </div>
                           
-                          <div className="mb-3">
+                          <div className="mb-4">
                             {editingQuestionId === question.id ? (
                               // Edit Mode
                               <div className="space-y-3">
@@ -2816,13 +2932,23 @@ const ProductDetail: React.FC = () => {
                                   onChange={(e) => setEditQuestionForm(prev => ({ ...prev, question: e.target.value }))}
                                   placeholder="Your question"
                                   rows={3}
-                                  className="text-sm"
+                                  className="text-sm border-slate-200 focus:border-blue-500 resize-none"
                                 />
-                                <div className="flex items-center gap-2">
-                                  <Button size="sm" onClick={saveQuestionEdit}>
+                                <div className="flex items-center gap-3">
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost"
+                                    onClick={saveQuestionEdit} 
+                                    className="h-8 px-3 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium"
+                                  >
                                     Save
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={cancelEdit}>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost"
+                                    onClick={cancelEdit} 
+                                    className="h-8 px-3 text-sm text-slate-600 hover:text-slate-700 hover:bg-slate-50 font-medium"
+                                  >
                                     Cancel
                                   </Button>
                                 </div>
@@ -2830,7 +2956,37 @@ const ProductDetail: React.FC = () => {
                             ) : (
                               // Display Mode
                               <>
-                                <p className="text-sm font-medium mb-2">{question.question}</p>
+                                <div className="mb-3">
+                                  <p 
+                                    className={`text-base sm:text-sm font-medium text-slate-800 leading-relaxed transition-all duration-300 ${
+                                      expandedQuestions[question.id] ? '' : 'line-clamp-[3]'
+                                    }`}
+                                  >
+                                    {question.question}
+                                  </p>
+                                  {question.question.length > 100 && (
+                                    <button
+                                      onClick={() => toggleQuestionExpansion(question.id)}
+                                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                                    >
+                                      {expandedQuestions[question.id] ? (
+                                        <>
+                                          <span>Show less</span>
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                          </svg>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>Show more</span>
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                          </svg>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
                                 {question.answer && (
                                   <div className="pl-4 border-l-2 border-primary/20">
                                     <p className="text-sm text-muted-foreground mb-1">
@@ -2844,18 +3000,75 @@ const ProductDetail: React.FC = () => {
                           </div>
 
                           {/* Question Replies Section */}
-                          {/* Question Replies Section */}
-                          <div className="mt-4 flex items-center gap-2">
-                            {/* Reply Button - Always visible for authenticated users */}
-                            {isAuthenticated && (
+                          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                            {/* Reply Button - Only visible when NOT showing reply form AND question is approved */}
+                            {isAuthenticated && !showReplyForm[question.id] && question.status === 'APPROVED' && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => toggleQuestionReplies(question.id)}
-                                className="text-xs"
+                                onClick={() => toggleReplyForm(question.id)}
+                                className="w-full sm:w-auto h-10 sm:h-8 text-sm font-medium border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
                               >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
                                 Reply
                               </Button>
+                            )}
+
+                            {/* Reply Form - Shows in place of Reply button when active AND question is approved */}
+                            {isAuthenticated && showReplyForm[question.id] && question.status === 'APPROVED' && (
+                              <div className="w-full sm:w-auto">
+                                <div className="space-y-3">
+                                                                      <Textarea
+                                      placeholder="Write a reply..."
+                                      value={questionReplyForm[question.id] || ''}
+                                      onChange={(e) => setQuestionReplyForm(prev => ({ 
+                                        ...prev, 
+                                        [question.id]: e.target.value 
+                                      }))}
+                                      className="w-full text-sm sm:text-base border-blue-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
+                                      rows={3}
+                                      disabled={submittingQuestionReply[question.id]}
+                                    />
+                                  <div className="flex items-center gap-3">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleSubmitQuestionReply(question.id)}
+                                      disabled={submittingQuestionReply[question.id] || !questionReplyForm[question.id]?.trim()}
+                                      className="h-8 px-3 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium"
+                                    >
+                                      {submittingQuestionReply[question.id] ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                          Sending...
+                                        </>
+                                      ) : (
+                                        'Submit'
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => toggleReplyForm(question.id)}
+                                      className="h-8 px-3 text-sm text-slate-600 hover:text-slate-700 hover:bg-slate-50 font-medium"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Pending Question Message - Shows when question is pending */}
+                            {question.status === 'PENDING' && (
+                              <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Question pending approval - replies will be enabled once approved</span>
+                              </div>
                             )}
 
                             {/* Show Replies Button - Only visible if there are replies */}
@@ -2864,137 +3077,152 @@ const ProductDetail: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => toggleQuestionReplies(question.id)}
-                                className="text-xs text-muted-foreground hover:text-foreground"
+                                className="w-full sm:w-auto h-10 sm:h-8 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100"
                               >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
                                 {expandedQuestionReplies[question.id] ? 'Hide' : 'Show'} Replies
-                                <span className="ml-1 text-xs bg-muted px-2 py-1 rounded-full">
+                                <span className="ml-2 text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-full font-medium">
                                   {question._count.replies}
                                 </span>
                               </Button>
                             )}
                           </div>
 
-                          {/* Replies Display and Reply Form */}
+                                                    {/* Replies Display */}
                           {expandedQuestionReplies[question.id] && (
                             <div className="mt-4 space-y-3">
-                              {/* Reply Form - Always shown when expanded */}
-                              {isAuthenticated && (
-                                <div className="p-3 bg-muted/30 rounded-lg">
-                                  <div className="flex gap-2">
-                                    <Textarea
-                                      placeholder="Write a reply..."
-                                      value={questionReplyForm[question.id] || ''}
-                                      onChange={(e) => setQuestionReplyForm(prev => ({ 
-                                        ...prev, 
-                                        [question.id]: e.target.value 
-                                      }))}
-                                      className="flex-1 text-sm"
-                                      rows={2}
-                                      disabled={submittingQuestionReply[question.id]}
-                                    />
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleSubmitQuestionReply(question.id)}
-                                      disabled={submittingQuestionReply[question.id] || !questionReplyForm[question.id]?.trim()}
-                                      className="self-end"
-                                    >
-                                      {submittingQuestionReply[question.id] ? 'Sending...' : 'Submit Reply'}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-
                               {/* Replies Display */}
                               {question._count?.replies > 0 && (
                                 <div>
                                   {questionRepliesLoading[question.id] ? (
-                                    <div className="text-center py-2">
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto"></div>
+                                    <div className="text-center py-4">
+                                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                      <span className="text-sm text-slate-600">Loading replies...</span>
                                     </div>
                                   ) : questionReplies[question.id]?.length > 0 ? (
-                                    <div className="space-y-3 pl-4 border-l-2 border-muted">
-                                                                          {questionReplies[question.id].map((reply) => (
-                                      <div key={reply.id} className="py-2">
-                                        <div className="flex items-start gap-2 mb-2">
-                                          {reply.user?.avatar ? (
-                                            <img 
-                                              src={reply.user.avatar} 
-                                              alt={reply.user.name || 'User'} 
-                                              className="w-6 h-6 rounded-full object-cover"
-                                            />
-                                          ) : (
-                                            <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                                              <span className="text-xs font-medium text-primary">
-                                                {reply.user?.name?.charAt(0) || 'U'}
-                                              </span>
-                                            </div>
-                                          )}
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                              <span className="text-sm font-medium">{reply.user?.name || 'Anonymous'}</span>
-                                              {reply.user?.role === 'ADMIN' && (
-                                                <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
-                                                  Author
-                                                </Badge>
-                                              )}
-                                              <span className="text-xs text-muted-foreground">
-                                                {formatDate(reply.createdAt)}
-                                              </span>
-                                            </div>
+                                                                        <div className="max-h-96 overflow-y-auto space-y-4 pl-4 sm:pl-6 border-l-2 border-blue-200 pr-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 hover:scrollbar-thumb-slate-400 relative">
+                                      {/* Scroll indicator overlay */}
+                                      <div className="absolute top-0 right-0 w-2 h-8 bg-gradient-to-b from-slate-200/50 to-transparent pointer-events-none rounded-l-full"></div>
+                                      <div className="absolute bottom-0 right-0 w-2 h-8 bg-gradient-to-t from-slate-200/50 to-transparent pointer-events-none rounded-l-full"></div>
+                                      {questionReplies[question.id].map((reply) => (
+                                        <div key={reply.id} className="py-3 px-4 bg-white/60 rounded-lg border border-slate-200/50 shadow-sm">
+                                          <div className="flex items-start gap-3 mb-3">
+                                            {reply.user?.avatar ? (
+                                              <img 
+                                                src={reply.user.avatar} 
+                                                alt={reply.user.name || 'User'} 
+                                                className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover"
+                                              />
+                                            ) : (
+                                              <div className="w-8 h-8 sm:w-6 sm:h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                                                <span className="text-sm sm:text-xs font-medium text-white">
+                                                  {reply.user?.name?.charAt(0) || 'U'}
+                                                </span>
+                                              </div>
+                                            )}
+                                            <div className="flex-1">
+                                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                                <span className="text-base sm:text-sm font-semibold text-slate-800">{reply.user?.name || 'Anonymous'}</span>
+                                                {reply.user?.role === 'ADMIN' && (
+                                                  <Badge variant="secondary" className="w-fit text-xs bg-purple-100 text-purple-700 border-purple-300">
+                                                    Author
+                                                  </Badge>
+                                                )}
+                                                <span className="text-xs text-slate-600">
+                                                  {formatDate(reply.createdAt)}
+                                                </span>
+                                              </div>
                                             
                                             {/* Reply Content - Edit Mode or Display Mode */}
                                             {editingQuestionReplyId === reply.id ? (
-                                              <div className="mt-2">
+                                              <div className="mt-3">
                                                 <Textarea
                                                   value={editQuestionReplyForm[reply.id] || ''}
                                                   onChange={(e) => setEditQuestionReplyForm(prev => ({ 
                                                     ...prev, 
                                                     [reply.id]: e.target.value 
                                                   }))}
-                                                  className="text-sm mb-2"
-                                                  rows={2}
+                                                  className="text-sm sm:text-base mb-3 border-slate-200 focus:border-blue-500 resize-none"
+                                                  rows={3}
                                                 />
-                                                <div className="flex gap-2">
+                                                <div className="flex items-center gap-3">
                                                   <Button
                                                     size="sm"
+                                                    variant="ghost"
                                                     onClick={() => handleSubmitEditedQuestionReply(reply.id)}
-                                                    className="text-xs"
+                                                    className="h-8 px-3 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium"
                                                   >
                                                     Save
                                                   </Button>
                                                   <Button
                                                     size="sm"
-                                                    variant="outline"
+                                                    variant="ghost"
                                                     onClick={cancelEditingQuestionReply}
-                                                    className="text-xs"
+                                                    className="h-8 px-3 text-sm text-slate-600 hover:text-slate-700 hover:bg-slate-50 font-medium"
                                                   >
                                                     Cancel
                                                   </Button>
                                                 </div>
                                               </div>
                                             ) : (
-                                              <p className="text-sm text-muted-foreground">{reply.reply}</p>
+                                              <div>
+                                                <p 
+                                                  className={`text-sm sm:text-base text-slate-700 leading-relaxed transition-all duration-300 ${
+                                                    expandedReplyTexts[reply.id] ? '' : 'line-clamp-[3]'
+                                                  }`}
+                                                >
+                                                  {reply.reply}
+                                                </p>
+                                                {reply.reply.length > 80 && (
+                                                  <button
+                                                    onClick={() => toggleReplyTextExpansion(reply.id)}
+                                                    className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                                                  >
+                                                    {expandedReplyTexts[reply.id] ? (
+                                                      <>
+                                                        <span>Show less</span>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                        </svg>
+                                                      </>
+                                                    ) : (
+                                                      <>
+                                                        <span>Show more</span>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                      </>
+                                                    )}
+                                                  </button>
+                                                )}
+                                              </div>
                                             )}
                                             
-                                            {/* Action Buttons - Only show for the reply author */}
-                                            {isAuthenticated && currentUserDbId && reply.user?.id === currentUserDbId && (
-                                              <div className="flex gap-2 mt-2">
+                                            {/* Action Buttons - Only show for the reply author when NOT editing */}
+                                            {isAuthenticated && currentUserDbId && reply.user?.id === currentUserDbId && editingQuestionReplyId !== reply.id && (
+                                              <div className="flex items-center gap-2 mt-3">
                                                 <Button
                                                   size="sm"
                                                   variant="ghost"
                                                   onClick={() => startEditingQuestionReply(reply.id, reply.reply)}
-                                                  className="text-xs h-6 px-2"
-                                                  disabled={editingQuestionReplyId !== null}
+                                                  className="h-8 sm:h-6 px-3 sm:px-2 text-xs sm:text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-100"
                                                 >
+                                                  <svg className="w-3 h-3 sm:w-3 sm:h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                  </svg>
                                                   Edit
                                                 </Button>
                                                 <Button
                                                   size="sm"
                                                   variant="ghost"
                                                   onClick={() => showDeleteQuestionReplyDialog(reply.id)}
-                                                  className="text-xs h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                  disabled={editingQuestionReplyId !== null}
+                                                  className="h-8 sm:h-6 px-3 sm:px-2 text-xs sm:text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                                                 >
+                                                  <svg className="w-3 h-3 sm:w-3 sm:h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                  </svg>
                                                   Delete
                                                 </Button>
                                               </div>
@@ -3005,8 +3233,14 @@ const ProductDetail: React.FC = () => {
                                     ))}
                                     </div>
                                   ) : (
-                                    <div className="text-center py-2 text-sm text-muted-foreground">
-                                      No replies yet
+                                    <div className="text-center py-6 px-4">
+                                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                        </svg>
+                                      </div>
+                                      <p className="text-sm text-slate-600 font-medium">No replies yet</p>
+                                      <p className="text-xs text-slate-500 mt-1">Be the first to share your thoughts!</p>
                                     </div>
                                   )}
                                 </div>
@@ -3068,32 +3302,94 @@ const ProductDetail: React.FC = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="shipping" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Shipping & Returns</CardTitle>
+            <TabsContent value="shipping" className="mt-4 sm:mt-6">
+              <Card className="border-0 shadow-sm bg-gradient-to-br from-white to-slate-50/30">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-center sm:text-left bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                    Shipping & Returns
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Shipping Information</h4>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Free shipping on orders over $50</li>
-                        <li>• Standard delivery: 3-5 business days</li>
-                        <li>• Express delivery: 1-2 business days</li>
-                        <li>• International shipping available</li>
-                      </ul>
+                <CardContent className="space-y-6 sm:space-y-8">
+                  <div className="bg-white/60 p-4 sm:p-6 rounded-xl border border-slate-200/50 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-lg sm:text-xl text-slate-800">Shipping Information</h4>
                     </div>
-                    <Separator />
-                    <div>
-                      <h4 className="font-medium mb-2">Return Policy</h4>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• 30-day return window</li>
-                        <li>• Free returns for defective items</li>
-                        <li>• Return shipping label provided</li>
-                        <li>• Full refund or exchange available</li>
-                      </ul>
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-blue-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">Free shipping on orders over $50</span>
+                          <p className="text-xs text-slate-500 mt-1">No hidden fees or additional charges</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-blue-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">Standard delivery: 3-5 business days</span>
+                          <p className="text-xs text-slate-500 mt-1">Most popular shipping option</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-blue-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">Express delivery: 1-2 business days</span>
+                          <p className="text-xs text-slate-500 mt-1">Priority handling and faster delivery</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-blue-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">International shipping available</span>
+                          <p className="text-xs text-slate-500 mt-1">Worldwide delivery to most countries</p>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white/60 p-4 sm:p-6 rounded-xl border border-slate-200/50 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-lg sm:text-xl text-slate-800">Return Policy</h4>
                     </div>
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-green-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">30-day return window</span>
+                          <p className="text-xs text-slate-500 mt-1">Plenty of time to decide if it's right for you</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-green-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">Free returns for defective items</span>
+                          <p className="text-xs text-slate-500 mt-1">We cover all return shipping costs</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-green-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">Return shipping label provided</span>
+                          <p className="text-xs text-slate-500 mt-1">Pre-paid label for easy returns</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3 p-2 rounded-lg hover:bg-green-50/50 transition-colors">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <span className="text-sm sm:text-base text-slate-700 font-medium">Full refund or exchange available</span>
+                          <p className="text-xs text-slate-500 mt-1">Your choice - money back or different item</p>
+                        </div>
+                      </li>
+                    </ul>
                   </div>
                 </CardContent>
               </Card>
@@ -3295,7 +3591,7 @@ const ProductDetail: React.FC = () => {
         </Dialog>
 
         {/* Frequently Bought Together */}
-        <div className="mt-16">
+        <div className="mt-8 sm:mt-16">
           <FrequentlyBoughtTogether 
             currentProduct={product}
             relatedProducts={relatedProducts}
@@ -3303,12 +3599,12 @@ const ProductDetail: React.FC = () => {
         </div>
 
         {/* Recently Viewed Products */}
-        <div className="mt-16">
+        <div className="mt-8 sm:mt-16">
           <RecentlyViewedProducts />
         </div>
 
         {/* Related Products */}
-        <div className="mt-16">
+        <div className="mt-8 sm:mt-16">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -3320,7 +3616,7 @@ const ProductDetail: React.FC = () => {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {relatedProducts.slice(0, 8).map((product) => (
                   <Card 
                     key={product.id} 
@@ -3395,6 +3691,53 @@ const ProductDetail: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Delete Question Confirmation Dialog */}
+      <Dialog open={showQuestionDeleteDialog} onOpenChange={setShowQuestionDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Delete Question
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this question? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                This question and all its replies will be permanently removed.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowQuestionDeleteDialog(false);
+                  setQuestionToDelete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (questionToDelete) {
+                    await handleDeleteQuestion(questionToDelete);
+                    setShowQuestionDeleteDialog(false);
+                    setQuestionToDelete(null);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Question
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Question Reply Confirmation Dialog */}
       <Dialog open={showQuestionReplyDeleteDialog} onOpenChange={setShowQuestionReplyDeleteDialog}>

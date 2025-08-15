@@ -8,7 +8,6 @@ import {
   ShoppingCart, 
   Heart, 
   User, 
-  Settings, 
   LogOut, 
   Menu 
 } from 'lucide-react';
@@ -311,15 +310,7 @@ const Header: React.FC = () => {
                             <User className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
                             <span className="transition-all duration-300 group-hover:font-medium">View Profile</span>
                           </Link>
-                          <Link
-                            to="/settings"
-                            onClick={handleMenuClick}
-                            className="group block text-sm hover:text-primary transition-all duration-300 hover:translate-x-2 hover:scale-105 p-2 rounded-lg hover:bg-primary/5"
-                            style={{ animationDelay: "900ms" }}
-                          >
-                            <Settings className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
-                            <span className="transition-all duration-300 group-hover:font-medium">Settings</span>
-                          </Link>
+
                           <button
                             onClick={() => {
                               handleLogout();

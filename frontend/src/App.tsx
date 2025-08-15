@@ -9,7 +9,7 @@ import ClerkSessionManager from './components/ClerkSessionManager';
 import SessionRecovery from './components/SessionRecovery';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalWishlistLoader from './components/GlobalWishlistLoader';
-import { StoreResetButtons } from './components/StoreResetButtons';
+
 import { AuthRedirectWrapper } from './components/AuthRedirectWrapper';
 import Home from './pages/Home';
 import Products from './pages/Products';
@@ -82,7 +82,6 @@ function App() {
                   </Routes>
                 </main>
                 <Toaster position="top-right" richColors />
-                <StoreResetButtons />
               </div>
             </AuthRedirectWrapper>
           </Router>

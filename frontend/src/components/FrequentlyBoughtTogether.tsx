@@ -140,22 +140,24 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Package className="h-5 w-5 text-blue-600" />
-          Frequently Bought Together
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 text-lg text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <Package className="h-5 w-5 text-blue-600" />
+            <span>Frequently Bought Together</span>
+          </div>
           {selectedCount > 0 && (
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="w-fit mx-auto sm:mx-0 sm:ml-2">
               {selectedCount} selected
             </Badge>
           )}
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground text-center sm:text-left">
           Customers who bought this also purchased these items
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Bundle Items */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-3">
           {bundleItems.map((item) => (
             <Card 
               key={item.product.id} 
@@ -166,85 +168,87 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
               }`}
               onClick={() => handleItemToggle(item.product.id)}
             >
-              <div className="relative">
-                <ImageWithPlaceholder
-                  src={item.product.images && item.product.images.length > 0 ? item.product.images[0].url : ''}
-                  alt={item.product.name}
-                  className="w-full h-32 object-cover rounded-t-lg"
-                />
-                {selectedItems.has(item.product.id) && (
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
-                    <Check className="h-4 w-4" />
-                  </div>
-                )}
-                {item.product.comparePrice && item.product.comparePrice > item.product.price && (
-                  <Badge variant="destructive" className="absolute top-2 left-2">
-                    -{Math.round(((item.product.comparePrice - item.product.price) / item.product.comparePrice) * 100)}%
-                  </Badge>
-                )}
-              </div>
-              
-              <CardContent className="p-3">
-                <h4 className="font-medium text-sm line-clamp-2 mb-2">
-                  {item.product.name}
-                </h4>
-                
-                <RatingDisplay
-                  rating={item.product.averageRating}
-                  reviewCount={item.product.reviewCount}
-                  size="sm"
-                  className="mb-2"
-                />
-
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                                    {item.product.comparePrice && item.product.comparePrice > item.product.price ? (
-                  <>
-                    <span className="font-semibold text-primary">
-                      ${item.product.price.toFixed(2)}
-                    </span>
-                    <span className="text-sm text-muted-foreground line-through">
-                      ${item.product.comparePrice.toFixed(2)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="font-semibold text-primary">
-                    ${item.product.price.toFixed(2)}
-                  </span>
-                )}
-                  </div>
+              <div className="flex flex-col sm:flex-row">
+                <div className="relative flex-shrink-0 mb-3 sm:mb-0">
+                  <ImageWithPlaceholder
+                    src={item.product.images && item.product.images.length > 0 ? item.product.images[0].url : ''}
+                    alt={item.product.name}
+                    className="w-full h-48 sm:w-24 sm:h-24 lg:w-32 lg:h-32 object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
+                  />
+                  {selectedItems.has(item.product.id) && (
+                    <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
+                      <Check className="h-4 w-4" />
+                    </div>
+                  )}
+                  {item.product.comparePrice && item.product.comparePrice > item.product.price && (
+                    <Badge variant="destructive" className="absolute top-2 left-2">
+                      -{Math.round(((item.product.comparePrice - item.product.price) / item.product.comparePrice) * 100)}%
+                    </Badge>
+                  )}
                 </div>
+                
+                <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-medium text-base sm:text-lg line-clamp-2 mb-2">
+                      {item.product.name}
+                    </h4>
+                    
+                    <RatingDisplay
+                      rating={item.product.averageRating}
+                      reviewCount={item.product.reviewCount}
+                      size="sm"
+                      className="mb-2"
+                    />
 
-                {selectedItems.has(item.product.id) && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuantityChange(item.product.id, item.quantity - 1);
-                      }}
-                    >
-                      -
-                    </Button>
-                    <span className="text-sm font-medium min-w-[2rem] text-center">
-                      {item.quantity}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuantityChange(item.product.id, item.quantity + 1);
-                      }}
-                    >
-                      +
-                    </Button>
+                    <div className="flex items-center gap-2 mb-2">
+                      {item.product.comparePrice && item.product.comparePrice > item.product.price ? (
+                        <>
+                          <span className="font-semibold text-primary text-base sm:text-lg">
+                            ${item.product.price.toFixed(2)}
+                          </span>
+                          <span className="text-sm text-muted-foreground line-through">
+                            ${item.product.comparePrice.toFixed(2)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-semibold text-primary text-base sm:text-lg">
+                          ${item.product.price.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
-              </CardContent>
+
+                  {selectedItems.has(item.product.id) && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuantityChange(item.product.id, item.quantity - 1);
+                        }}
+                      >
+                        -
+                      </Button>
+                      <span className="text-sm font-medium min-w-[2rem] text-center">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuantityChange(item.product.id, item.quantity + 1);
+                        }}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </Card>
           ))}
         </div>
@@ -253,10 +257,10 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
         {selectedCount > 0 && (
           <>
             <Separator />
-            <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">Bundle Summary</h4>
-                <Badge variant="outline" className="text-green-600 border-green-600">
+            <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                <h4 className="font-semibold text-center sm:text-left">Bundle Summary</h4>
+                <Badge variant="outline" className="text-green-600 border-green-600 w-fit mx-auto sm:mx-0">
                   Save ${savings.toFixed(2)}
                 </Badge>
               </div>
@@ -265,16 +269,16 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                 {bundleItems
                   .filter(item => selectedItems.has(item.product.id))
                   .map(item => (
-                    <div key={item.product.id} className="flex items-center justify-between text-sm">
+                    <div key={item.product.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-0">
                       <span className="flex items-center gap-2">
-                        <span>{item.product.name}</span>
+                        <span className="truncate">{item.product.name}</span>
                         {item.quantity > 1 && (
                           <Badge variant="secondary" className="text-xs">
                             x{item.quantity}
                           </Badge>
                         )}
                       </span>
-                      <span className="font-medium">
+                      <span className="font-medium text-right sm:text-left">
                         ${(item.product.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
@@ -283,27 +287,28 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
               </div>
 
               <div className="border-t pt-3">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold">Bundle Total:</span>
-                  <span className="font-semibold text-lg text-primary">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                  <span className="font-semibold text-center sm:text-left">Bundle Total:</span>
+                  <span className="font-semibold text-lg text-primary text-center sm:text-right">
                     ${bundlePrice.toFixed(2)}
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
                   <Zap className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-600 font-medium">
+                  <span className="text-sm text-green-600 font-medium text-center sm:text-left">
                     Get {discount}% off when you buy together!
                   </span>
                 </div>
 
                 <Button 
                   onClick={handleAddBundleToCart}
-                  className="w-full"
+                  className="w-full h-12 sm:h-10"
                   size="lg"
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add Bundle to Cart - Save ${savings.toFixed(2)}
+                  <span className="hidden sm:inline">Add Bundle to Cart - Save ${savings.toFixed(2)}</span>
+                  <span className="sm:hidden">Add Bundle - Save ${savings.toFixed(2)}</span>
                 </Button>
               </div>
             </div>

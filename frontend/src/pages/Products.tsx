@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Product, Category } from "../types";
 import { productService } from "../services/api";
 import ProductCard from "../components/ProductCard";
@@ -66,7 +66,15 @@ const Products: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  // Responsive default view mode - Grid on desktop, List on mobile
+  const getDefaultViewMode = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768 ? 'grid' : 'list';
+    }
+    return 'grid'; // Default fallback
+  }, []);
+
+  const [viewMode, setViewMode] = useState<"grid" | "list">(getDefaultViewMode);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
@@ -135,6 +143,25 @@ const Products: React.FC = () => {
 
     fetchData();
   }, []); // Only run on component mount
+
+  // Handle responsive view mode changes
+  useEffect(() => {
+    const handleResize = () => {
+      const isDesktop = window.innerWidth >= 768;
+      const newViewMode = isDesktop ? 'grid' : 'list';
+      
+      setViewMode(newViewMode);
+    };
+
+    // Set initial view mode
+    handleResize();
+
+    // Add event listener for window resize
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleFilterChange = (
     key: keyof FilterState,
@@ -317,27 +344,39 @@ const Products: React.FC = () => {
           </div>
           
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={(e) => {
-                e.preventDefault();
-                setViewMode('grid');
-              }}
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={(e) => {
-                e.preventDefault();
-                setViewMode('list');
-              }}
-            >
-              <List className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-all duration-200 ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+                aria-label="Grid view"
+                title="Grid view"
+              >
+                <Grid3X3 className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-all duration-200 ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+                aria-label="List view"
+                title="List view"
+              >
+                <List className="h-5 w-5" />
+              </button>
+            </div>
+            <span className="text-sm text-muted-foreground hidden sm:block">
+              {viewMode === 'grid' ? 'Grid' : 'List'} view
+            </span>
+            <span className="text-sm text-muted-foreground sm:hidden">
+              {viewMode === 'grid' ? 'Grid' : 'List'}
+            </span>
           </div>
         </div>
 
@@ -725,8 +764,8 @@ const Products: React.FC = () => {
         <div
           className={
             viewMode === "grid"
-              ? "grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "space-y-4"
+              ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+              : "space-y-3 sm:space-y-4"
           }
         >
           {products.map((product) => (
