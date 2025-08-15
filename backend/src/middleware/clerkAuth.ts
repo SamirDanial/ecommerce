@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { ClerkService } from '../services/clerkService';
 import { JWTService } from '../services/jwtService';
 
+// Rate limiting for failed authentication attempts
+const failedAuthAttempts = new Map<string, { count: number; lastAttempt: number; blockedUntil?: number }>();
+
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
@@ -17,83 +20,115 @@ declare global {
   }
 }
 
-export const authenticateClerkToken = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const authenticateClerkToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-    if (!token) {
-      return res.status(401).json({ message: 'Access token required' });
-    }
-
-    // Verify JWT token with Clerk
-    const payload = await JWTService.verifyToken(token);
+    // Rate limiting check
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
     
-    if (!payload) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    // Check if token is expired
-    if (JWTService.isTokenExpired(payload)) {
-      return res.status(401).json({ message: 'Token expired' });
-    }
-
-    // Extract user ID from token
-    const clerkUserId = payload.sub;
-    
-    if (!clerkUserId) {
-      return res.status(401).json({ message: 'Invalid token payload' });
-    }
-
-    // Get user from database using Clerk ID
-    let user = await ClerkService.getUserByClerkId(clerkUserId);
-
-    if (!user) {
-      // User doesn't exist in database, try to sync from Clerk
-      try {
-        console.log(`User ${clerkUserId} not found in database, attempting to sync from Clerk...`);
-        
-        // Get user data from Clerk using the JWT payload
-        const clerkUserData = {
-          id: clerkUserId,
-          email_addresses: [{ 
-            email_address: payload.email || '', 
-            id: 'temp', 
-            verification: { status: 'verified' } 
-          }],
-          first_name: payload.given_name || '',
-          last_name: payload.family_name || '',
-          image_url: payload.picture || '',
-          created_at: Date.now(),
-          updated_at: Date.now()
-        };
-
-        // Sync user data
-        user = await ClerkService.syncUser(clerkUserData);
-        console.log(`Successfully synced user ${clerkUserId} from Clerk`);
-      } catch (syncError) {
-        console.error('Failed to sync user from Clerk:', syncError);
-        return res.status(401).json({ message: 'User not found and sync failed' });
+    if (failedAuthAttempts.has(clientIP)) {
+      const { count, lastAttempt } = failedAuthAttempts.get(clientIP)!;
+      const timeWindow = 15 * 60 * 1000; // 15 minutes
+      
+      if (lastAttempt && now - lastAttempt < timeWindow) {
+        if (count >= 5) {
+          const remainingTime = Math.ceil((timeWindow - (now - lastAttempt)) / 1000);
+          return res.status(429).json({ 
+            message: `Too many failed authentication attempts. Try again in ${remainingTime} seconds.`,
+            retryAfter: remainingTime 
+          });
+        }
+      } else {
+        // Reset if outside time window
+        failedAuthAttempts.delete(clientIP);
       }
     }
 
-    // Add user info to request
-    req.user = {
-      id: user.id,
-      clerkId: user.clerkId || '',
-      email: user.email,
-      role: user.role,
-      isEmailVerified: user.isEmailVerified
-    };
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+      attempts.count++;
+      attempts.lastAttempt = now;
+      failedAuthAttempts.set(clientIP, attempts);
+      return res.status(401).json({ message: 'No valid authorization header' });
+    }
 
-    next();
-  } catch (error) {
-    console.error('Clerk authentication error:', error);
-    return res.status(500).json({ message: 'Authentication error' });
+    const token = authHeader.substring(7);
+    
+    try {
+      // Verify JWT token
+      const payload = await JWTService.verifyToken(token);
+      
+      if (!payload) {
+        const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+        attempts.count++;
+        attempts.lastAttempt = now;
+        failedAuthAttempts.set(clientIP, attempts);
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      // Get user data from Clerk API
+      let clerkUserEmail: string | undefined;
+      
+      try {
+        const clerkUser = await ClerkService.getUserByClerkId(payload.sub);
+        if (clerkUser && clerkUser.email) {
+          clerkUserEmail = clerkUser.email;
+        }
+      } catch (clerkError) {
+        // Continue without Clerk API data if there's an error
+      }
+
+      // Extract clerk user ID
+      const clerkUserId = payload.sub;
+      if (!clerkUserId) {
+        const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+        attempts.count++;
+        attempts.lastAttempt = now;
+        failedAuthAttempts.set(clientIP, attempts);
+        return res.status(401).json({ message: 'Invalid token payload' });
+      }
+
+      // Look up user in database
+      let user = await ClerkService.getUserByClerkId(clerkUserId);
+      
+      if (!user) {
+        // User doesn't exist in database - we'll continue without creating them for now
+        // The user will need to be created through the Clerk webhook or registration flow
+        console.log('User not found in database:', clerkUserId);
+        const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+        attempts.count++;
+        attempts.lastAttempt = now;
+        failedAuthAttempts.set(clientIP, attempts);
+        return res.status(401).json({ message: 'User account not found. Please complete registration first.' });
+      }
+
+      // Create user object for request
+      const userObject = {
+        id: user.id, // user is guaranteed to exist at this point
+        clerkId: clerkUserId,
+        email: clerkUserEmail || payload.email || user.email,
+        role: user.role || 'USER',
+        isEmailVerified: user.isEmailVerified || false
+      };
+
+      // Set user in request
+      (req as any).user = userObject;
+      
+      // Clear failed attempts on success
+      failedAuthAttempts.delete(clientIP);
+      
+      next();
+    } catch (jwtError: any) {
+      const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+      attempts.count++;
+      attempts.lastAttempt = now;
+      failedAuthAttempts.set(clientIP, attempts);
+      return res.status(401).json({ message: 'Token verification failed' });
+    }
+  } catch (error: any) {
+    console.error('Authentication middleware error:', error);
+    return res.status(500).json({ message: 'Authentication failed' });
   }
 };
 

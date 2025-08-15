@@ -190,7 +190,14 @@ export class ClerkService {
   static async getUserByClerkId(clerkId: string) {
     try {
       const user = await prisma.user.findUnique({
-        where: { clerkId }
+        where: { clerkId },
+        select: {
+          id: true,
+          clerkId: true,
+          email: true,
+          role: true,
+          isEmailVerified: true
+        }
       });
 
       return user;

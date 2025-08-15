@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
+import { Card, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Star } from 'lucide-react';
@@ -15,7 +15,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToRecentlyViewed } = useUserInteractionStore();
-  
+
   // Get the primary image or first image - handle cases where images might not be an array
   const images = Array.isArray(product.images) ? product.images : [];
   const primaryImage = images.find(img => img.isPrimary) || images[0];
@@ -65,11 +65,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </span>
           </div>
         </CardHeader>
-        <CardContent className="pb-2">
-          <p className="text-muted-foreground text-sm line-clamp-2">
-            {product.shortDescription || product.description}
-          </p>
-        </CardContent>
         <CardFooter className="flex justify-between items-center pt-2">
           <div className="flex flex-col">
             <div className="flex items-center gap-2">

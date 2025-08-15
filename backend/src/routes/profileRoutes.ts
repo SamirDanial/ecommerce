@@ -2,6 +2,11 @@ import express from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateClerkToken, requireRole } from '../middleware/clerkAuth';
 
+// Declare global type for request counting
+declare global {
+  var requestCounts: Map<string, { count: number; firstRequest: number }> | undefined;
+}
+
 const router = express.Router();
 
 // Apply Clerk authentication to all routes
@@ -26,7 +31,6 @@ router.get('/', async (req, res) => {
           take: 10,
           include: {
             items: true,
-            shippingAddress: true,
             billingAddress: true
           }
         },
@@ -211,6 +215,36 @@ router.get('/preferences', async (req, res) => {
 // Get user addresses
 router.get('/addresses', async (req, res) => {
   try {
+    // Simple circuit breaker to prevent infinite loops
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const requestKey = `addresses_${clientIP}`;
+    
+    // Check if this IP has made too many requests recently
+    if (!global.requestCounts) {
+      global.requestCounts = new Map();
+    }
+    
+    const requestData = global.requestCounts.get(requestKey) || { count: 0, firstRequest: Date.now() };
+    const now = Date.now();
+    
+    // Reset counter if more than 1 minute has passed
+    if (now - requestData.firstRequest > 60000) {
+      requestData.count = 0;
+      requestData.firstRequest = now;
+    }
+    
+    requestData.count++;
+    global.requestCounts.set(requestKey, requestData);
+    
+    // If more than 20 requests in 1 minute, block temporarily
+    if (requestData.count > 20) {
+      console.warn(`Rate limit exceeded for ${clientIP} on /addresses endpoint`);
+      return res.status(429).json({ 
+        message: 'Too many requests. Please wait before trying again.',
+        retryAfter: 60
+      });
+    }
+
     const userId = req.user!.id;
 
     const addresses = await prisma.address.findMany({
@@ -571,15 +605,28 @@ router.get('/orders', async (req, res) => {
                   name: true,
                   price: true,
                   images: {
-                    select: { url: true },
-                    take: 1
+                    select: { 
+                      id: true,
+                      url: true,
+                      alt: true,
+                      isPrimary: true 
+                    },
+                    take: 1,
+                    orderBy: { isPrimary: 'desc' }
                   }
                 }
               }
             }
           },
-          shippingAddress: true,
-          billingAddress: true
+
+          // Remove non-existent relations and select address fields directly
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
         },
         orderBy: { createdAt: 'desc' },
         skip: offset,
@@ -625,7 +672,6 @@ router.get('/orders/:id', async (req, res) => {
             }
           }
         },
-        shippingAddress: true,
         billingAddress: true,
         payments: true
       }

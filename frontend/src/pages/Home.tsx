@@ -69,11 +69,13 @@ const Home: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Home: Fetching data...');
         const [productsData, categoriesData, flashSalesData] = await Promise.all([
           productService.getFeatured(),
           categoryService.getAll(),
           flashSaleService.getActive()
         ]);
+        console.log('Home: Data received:', { productsData, categoriesData, flashSalesData });
         setFeaturedProducts(productsData);
         setCategories(categoriesData);
         setFlashSales(flashSalesData);
@@ -82,14 +84,32 @@ const Home: React.FC = () => {
         // In a real app, you'd have a separate API endpoint for trending products
         setTrendingProducts(productsData.slice(0, 4));
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Home: Error fetching data:', error);
+        // Set empty arrays on error to prevent infinite loading
+        setFeaturedProducts([]);
+        setCategories([]);
+        setFlashSales([]);
+        setTrendingProducts([]);
       } finally {
+        console.log('Home: Setting loading to false');
         setLoading(false);
       }
     };
 
     fetchData();
   }, []);
+
+  // Force loading to false after 5 seconds to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.log('Home: Force setting loading to false after timeout');
+        setLoading(false);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   if (loading) {
     return (

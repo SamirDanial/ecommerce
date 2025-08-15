@@ -9,6 +9,12 @@ import productRoutes from './routes/productRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import searchRoutes from './routes/searchRoutes';
 import wishlistRoutes from './routes/wishlistRoutes';
+import contactRoutes from './routes/contactRoutes';
+import stripeRoutes from './routes/stripeRoutes';
+import discountRoutes from './routes/discountRoutes';
+import trackingRoutes from './routes/trackingRoutes';
+import adminRoutes from './routes/adminRoutes';
+import reviewRoutes from './routes/reviewRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -17,9 +23,31 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Body parsing middleware - exclude Stripe webhook from JSON parsing
+app.use((req, res, next) => {
+  if (req.path === '/api/stripe/webhook') {
+    // Skip JSON parsing for Stripe webhook - it needs raw body
+    next();
+  } else {
+    // Parse JSON for all other routes
+    express.json()(req, res, next);
+  }
+});
+
 app.use(express.urlencoded({ extended: true }));
+
+// Log all requests for debugging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
 
 // Test database connection
 async function testDatabaseConnection() {
@@ -48,6 +76,12 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/stripe', stripeRoutes);
+app.use('/api/discounts', discountRoutes);
+app.use('/api/tracking', trackingRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

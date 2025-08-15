@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Star, ShoppingBag, Grid, List, Package } from 'lucide-react';
+import { Grid, List, Package } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useQuery } from '@tanstack/react-query';
 import { categoryService } from '../services/api';
-import { toast } from 'sonner';
 
 const Categories: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
+  const { addInteraction } = useUserInteractionStore();
 
   // Fetch categories using React Query
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
@@ -21,13 +20,7 @@ const Categories: React.FC = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Fetch products for selected category using React Query
-  const { data: products = [] } = useQuery({
-    queryKey: ['products', 'category', selectedCategory],
-    queryFn: () => selectedCategory ? categoryService.getProducts(selectedCategory, 12) : Promise.resolve([]),
-    enabled: !!selectedCategory,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
+
 
   // Track page view
   useEffect(() => {
@@ -39,34 +32,17 @@ const Categories: React.FC = () => {
   }, [addInteraction]);
 
   const handleCategorySelect = (categorySlug: string) => {
-    setSelectedCategory(categorySlug);
     addInteraction({
       type: 'category_view',
       targetId: categorySlug,
       targetType: 'category',
       data: { slug: categorySlug }
     });
+    // Navigate to category detail page
+    navigate(`/categories/${categorySlug}`);
   };
 
-  const handleProductClick = (product: any) => {
-    addToRecentlyViewed(product);
-    addInteraction({
-      type: 'product_view',
-      targetId: product.id.toString(),
-      targetType: 'product',
-      data: { slug: product.slug, name: product.name }
-    });
-  };
 
-  const handleAddToCart = (product: any) => {
-    addInteraction({
-      type: 'cart_add',
-      targetId: product.id.toString(),
-      targetType: 'product',
-      data: { slug: product.slug, name: product.name }
-    });
-    toast.success(`${product.name} added to cart`);
-  };
 
   if (categoriesLoading) {
     return (
@@ -165,11 +141,7 @@ const Categories: React.FC = () => {
                     Browse Category
                   </Button>
                   
-                  {viewMode === 'list' && (
-                    <span className="text-sm text-muted-foreground">
-                      {products.length} products available
-                    </span>
-                  )}
+
                 </div>
               </CardContent>
             </Card>
@@ -185,95 +157,7 @@ const Categories: React.FC = () => {
         </div>
       )}
 
-      {/* Featured Products Section */}
-      {products.length > 0 && (
-        <>
-          {/* Separator component was removed, so this section is now empty */}
-          
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Featured Products</h2>
-            <p className="text-muted-foreground">
-              Check out some of our most popular products across all categories
-            </p>
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.slice(0, 8).map((product) => (
-              <Card key={product.id} className="group cursor-pointer transition-all hover:shadow-lg">
-                <div className="relative overflow-hidden">
-                  <ImageWithPlaceholder
-                    src={product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
-                    alt={product.name}
-                    className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  {product.isOnSale && product.salePrice && (
-                    <Badge variant="destructive" className="absolute top-2 left-2">
-                      Sale
-                    </Badge>
-                  )}
-                  <div className="absolute top-2 right-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 bg-background/80 hover:bg-background"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(product);
-                      }}
-                    >
-                      <ShoppingBag className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <CardContent className="p-4">
-                  <div 
-                    className="cursor-pointer"
-                    onClick={() => handleProductClick(product)}
-                  >
-                    <h4 className="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
-                      {product.name}
-                    </h4>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {product.comparePrice && product.comparePrice > product.price ? (
-                          <>
-                            <span className="font-semibold text-primary">
-                              ${product.price.toFixed(2)}
-                            </span>
-                            <span className="text-sm text-muted-foreground line-through">
-                              ${product.comparePrice.toFixed(2)}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-semibold text-primary">
-                            ${product.price.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-                      {product.averageRating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-xs text-muted-foreground">
-                            {product.averageRating.toFixed(1)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-                    onClick={() => handleProductClick(product)}
-                  >
-                    View Product
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 };

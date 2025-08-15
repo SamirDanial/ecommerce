@@ -101,7 +101,7 @@ const WishlistButton: React.FC<WishlistButtonProps> = ({
         size={size}
         className={`transition-all duration-200 hover:scale-105 ${
           isInWishlist 
-            ? 'bg-red-500 hover:bg-red-600 text-white border-red-500' 
+            ? 'bg-white hover:bg-gray-50 border-red-500 shadow-md' 
             : ''
         } ${className}`}
         onClick={handleWishlistToggle}
@@ -110,8 +110,8 @@ const WishlistButton: React.FC<WishlistButtonProps> = ({
         <Heart 
           className={`h-4 w-4 transition-all duration-200 ${
             isInWishlist 
-              ? 'fill-current' 
-              : ''
+              ? 'fill-current text-red-500' 
+              : 'text-gray-600'
           }`}
         />
       </Button>

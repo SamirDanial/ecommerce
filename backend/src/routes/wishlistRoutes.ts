@@ -21,7 +21,12 @@ router.get('/', authenticateClerkToken, async (req: any, res) => {
           include: {
             images: true,
             category: true,
-            reviews: true
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
           }
         }
       },
@@ -74,7 +79,12 @@ router.post('/', authenticateClerkToken, async (req: any, res) => {
           include: {
             images: true,
             category: true,
-            reviews: true
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
           }
         }
       }

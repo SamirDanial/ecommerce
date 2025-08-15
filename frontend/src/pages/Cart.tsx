@@ -108,7 +108,12 @@ const Cart: React.FC = () => {
   };
 
   const handleCheckout = () => {
+    console.log('Checkout button clicked!');
+    console.log('isLoggedIn:', isLoggedIn);
+    console.log('items count:', items.length);
+    
     if (!isLoggedIn) {
+      console.log('User not logged in, redirecting to login...');
       // Track interaction for sign-in attempt
       addInteraction({
         type: 'page_view',
@@ -121,6 +126,7 @@ const Cart: React.FC = () => {
       return;
     }
 
+    console.log('User logged in, navigating to checkout...');
     // Track interaction for checkout
     addInteraction({
       type: 'page_view',
@@ -128,8 +134,8 @@ const Cart: React.FC = () => {
       data: { action: 'checkout_initiated', itemsCount: items.length, total: getTotal() }
     });
     
-    // Checkout functionality will be available once login is implemented
-    // navigate('/checkout');
+    // Navigate to checkout page
+    navigate('/checkout');
   };
 
   const formatDate = (timestamp: number) => {
@@ -314,6 +320,19 @@ const Cart: React.FC = () => {
                 {isLoggedIn ? 'Proceed to Checkout' : 'Sign In to Checkout'}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
+
+              {/* Direct Checkout Button (for unauthenticated users) */}
+              {!isLoggedIn && (
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="w-full mb-4"
+                  onClick={() => navigate('/checkout')}
+                >
+                  Continue as Guest
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              )}
 
               {/* Sign In Button (when not logged in) */}
               {!isLoggedIn && (

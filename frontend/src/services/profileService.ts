@@ -1,19 +1,80 @@
 import api, { createAuthHeaders } from '../lib/axios';
 
 export interface Order {
-  id: string;
+  id: number;
   orderNumber: string;
   createdAt: string;
   status: string;
+  currentStatus: string;
+  statusHistory?: Array<{
+    status: string;
+    timestamp: string;
+    notes?: string;
+    updatedBy?: string;
+  }>;
+  lastStatusUpdate: string;
+  estimatedDelivery?: string;
   total: number;
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  discount: number;
+  currency: string;
+  trackingNumber?: string;
+  
+  // Address fields stored directly in Order
+  shippingFirstName?: string;
+  shippingLastName?: string;
+  shippingCompany?: string;
+  shippingAddress1?: string;
+  shippingAddress2?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPostalCode?: string;
+  shippingCountry?: string;
+  shippingPhone?: string;
+  
+  // User information
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  
+  // Order items
   items: OrderItem[];
+  
+  // Payment information
+  paymentStatus: string;
+  paymentMethodId?: number;
+  
+  // Order notes
+  notes?: string;
 }
 
 export interface OrderItem {
-  id: string;
+  id: number;
+  orderId: number;
+  productId: number;
+  variantId?: number;
   productName: string;
-  price: number;
+  productSku?: string;
+  size?: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'XXXL';
+  color?: string;
   quantity: number;
+  price: number;
+  total: number;
+  createdAt: string;
+  product?: {
+    id: number;
+    name: string;
+    images?: Array<{
+      id: number;
+      url: string;
+      alt?: string;
+      isPrimary?: boolean;
+    }>;
+  };
 }
 
 export interface Address {

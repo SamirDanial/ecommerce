@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { 
   User, 
   Settings, 
@@ -23,17 +24,37 @@ import {
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useProfile } from '../hooks/useProfile';
 import { toast } from 'sonner';
-import { Address, Order, OrderItem } from '../types';
-import { PaymentMethod, UserPreferences, UserSession } from '../services/profileService';
+import { Address } from '../types';
+import { Order, OrderItem, PaymentMethod, UserPreferences, UserSession } from '../services/profileService';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Checkbox } from '../components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import OrderTrackingModal from '../components/OrderTrackingModal';
+import { trackingService } from '../services/trackingService';
+import AdminOrderManager from '../components/AdminOrderManager';
 
 const UserProfile: React.FC = () => {
   const { isAuthenticated } = useClerkAuth();
   const [activeTab, setActiveTab] = useState<string>('orders');
+  
+  // Order detail view state
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
+  
+  // Tracking modal state
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState<number | null>(null);
+  const [trackingOrderNumber, setTrackingOrderNumber] = useState<string>('');
+  
+  // Utility function to safely convert Decimal values to numbers
+  const toNumber = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return parseFloat(value) || 0;
+    if (value && typeof value === 'object' && 'toNumber' in value) return value.toNumber();
+    return 0;
+  };
   
   // Address form state
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -96,6 +117,30 @@ const UserProfile: React.FC = () => {
       }
     }
   }, [preferences]);
+
+  // Handle opening order detail view
+  const handleViewOrderDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setIsOrderDetailOpen(true);
+  };
+
+  // Handle closing order detail view
+  const handleCloseOrderDetails = () => {
+    setIsOrderDetailOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleOpenTracking = (orderId: number, orderNumber: string) => {
+    setTrackingOrderId(orderId);
+    setTrackingOrderNumber(orderNumber);
+    setIsTrackingModalOpen(true);
+  };
+
+  const handleCloseTracking = () => {
+    setIsTrackingModalOpen(false);
+    setTrackingOrderId(null);
+    setTrackingOrderNumber('');
+  };
 
   const resetAddressForm = () => {
     setAddressForm({
@@ -320,7 +365,7 @@ const UserProfile: React.FC = () => {
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-6 mb-8">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" />
               Orders
@@ -341,6 +386,10 @@ const UserProfile: React.FC = () => {
               <Shield className="h-4 w-4" />
               Security
             </TabsTrigger>
+            <TabsTrigger value="admin" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Admin
+            </TabsTrigger>
           </TabsList>
 
           {/* Orders Tab */}
@@ -357,34 +406,112 @@ const UserProfile: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Start shopping to see your order history</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {orders.map((order: Order) => (
-                      <div key={order.id} className="border rounded-lg p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold">{order.orderNumber}</h4>
+                      <div key={order.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-semibold text-lg">{order.orderNumber}</h4>
+                              {getStatusBadge(order.status)}
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                              {new Date(order.createdAt).toLocaleDateString()}
+                              {new Date(order.createdAt).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold">${order.total.toFixed(2)}</p>
-                            {getStatusBadge(order.status)}
+                            <p className="font-bold text-xl">${toNumber(order.total).toFixed(2)}</p>
+                            <p className="text-sm text-muted-foreground">{order.currency}</p>
                           </div>
                         </div>
-                        <hr className="my-2" />
-                        <div className="space-y-2">
-                          {order.items?.map((item: OrderItem) => (
-                            <div key={item.id} className="flex justify-between text-sm">
-                              <span>{item.productName} x{item.quantity}</span>
-                              <span>${item.price.toFixed(2)}</span>
-                            </div>
-                          ))}
+                        
+                        {/* Quick Order Summary */}
+                        <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Items</p>
+                            <p className="font-medium">{order.items?.length || 0} products</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Shipping</p>
+                            <p className="font-medium">${toNumber(order.shipping).toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Payment</p>
+                            <p className="font-medium">{order.paymentStatus}</p>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">View Details</Button>
-                          <Button variant="outline" size="sm">Track Order</Button>
-                          <Button variant="outline" size="sm">Reorder</Button>
+                        
+                        {/* Order Items Preview */}
+                        <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium text-muted-foreground">Order Items</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {order.items?.slice(0, 3).map((item: OrderItem) => (
+                              <div key={item.id} className="flex items-center gap-2 text-sm">
+                                {item.product?.images?.[0]?.url ? (
+                                  <ImageWithPlaceholder
+                                    src={item.product.images[0].url}
+                                    alt={item.productName}
+                                    className="w-6 h-6 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center">
+                                    <Package className="h-3 w-3 text-gray-400" />
+                                  </div>
+                                )}
+                                <span className="text-xs">{item.productName} x{item.quantity}</span>
+                              </div>
+                            ))}
+                            {order.items && order.items.length > 3 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{order.items.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Shipping Address Preview */}
+                        {order.shippingFirstName && (
+                          <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-muted-foreground">Shipping Address</span>
+                            </div>
+                            <p className="text-sm">
+                              {order.shippingFirstName} {order.shippingLastName}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.shippingCity}, {order.shippingState} {order.shippingPostalCode}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewOrderDetails(order)}
+                            className="flex-1"
+                          >
+                            <Package className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleOpenTracking(order.id, order.orderNumber)}
+                            className="flex-1"
+                          >
+                            <Truck className="h-4 w-4 mr-2" />
+                            Track Order
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -393,6 +520,183 @@ const UserProfile: React.FC = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Order Detail Modal */}
+          <Dialog open={isOrderDetailOpen} onOpenChange={setIsOrderDetailOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Order Details - {selectedOrder?.orderNumber}
+                </DialogTitle>
+              </DialogHeader>
+              
+              {selectedOrder && (
+                <div className="space-y-6">
+                  {/* Order Header */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Order Date</p>
+                        <p className="font-medium">
+                          {new Date(selectedOrder.createdAt).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <div className="mt-1">{getStatusBadge(selectedOrder.status)}</div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Payment Status</p>
+                        <p className="font-medium">{selectedOrder.paymentStatus}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Tracking Number</p>
+                        <p className="font-medium font-mono text-sm">
+                          {selectedOrder.trackingNumber || 'Not available'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Breakdown */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold mb-3">Price Breakdown</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>${toNumber(selectedOrder.subtotal).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax</span>
+                        <span>${toNumber(selectedOrder.tax).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Shipping</span>
+                        <span>${toNumber(selectedOrder.shipping).toFixed(2)}</span>
+                      </div>
+                      {toNumber(selectedOrder.discount) > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Discount</span>
+                          <span>-${toNumber(selectedOrder.discount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <hr className="my-2" />
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total</span>
+                        <span>${toNumber(selectedOrder.total).toFixed(2)} {selectedOrder.currency}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold mb-3">Order Items</h3>
+                    <div className="space-y-3">
+                      {selectedOrder.items?.map((item: OrderItem) => (
+                        <div key={item.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-lg overflow-hidden">
+                              {item.product?.images?.[0]?.url ? (
+                                <ImageWithPlaceholder
+                                  src={item.product.images[0].url}
+                                  alt={item.productName}
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                                  <Package className="h-8 w-8 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">{item.productName}</p>
+                              <div className="flex gap-2 text-sm text-muted-foreground">
+                                {item.size && <span>Size: {item.size}</span>}
+                                {item.color && <span>Color: {item.color}</span>}
+                                {item.productSku && <span>SKU: {item.productSku}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">${toNumber(item.price).toFixed(2)}</p>
+                            <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                            <p className="font-medium text-blue-600">
+                              ${toNumber(item.total).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Shipping Address */}
+                  {selectedOrder.shippingFirstName && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <MapPin className="h-5 w-5" />
+                        Shipping Address
+                      </h3>
+                      <div className="bg-white p-3 rounded-lg border">
+                        <p className="font-medium">
+                          {selectedOrder.shippingFirstName} {selectedOrder.shippingLastName}
+                          {selectedOrder.shippingCompany && (
+                            <span className="text-muted-foreground"> ({selectedOrder.shippingCompany})</span>
+                          )}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedOrder.shippingAddress1}
+                          {selectedOrder.shippingAddress2 && `, ${selectedOrder.shippingAddress2}`}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedOrder.shippingCity}, {selectedOrder.shippingState} {selectedOrder.shippingPostalCode}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedOrder.shippingCountry}
+                          {selectedOrder.shippingPhone && ` • ${selectedOrder.shippingPhone}`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Order Notes */}
+                  {selectedOrder.notes && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-semibold mb-3">Order Notes</h3>
+                      <p className="text-muted-foreground">{selectedOrder.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCloseOrderDetails}
+                      className="flex-1"
+                    >
+                      Close
+                    </Button>
+                    {selectedOrder.trackingNumber && (
+                      <Button className="flex-1">
+                        <Truck className="h-4 w-4 mr-2" />
+                        Track Order
+                      </Button>
+                    )}
+                    <Button variant="outline" className="flex-1">
+                      <Package className="h-4 w-4 mr-2" />
+                      Reorder
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-6">
@@ -856,6 +1160,11 @@ const UserProfile: React.FC = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Admin Tab */}
+          <TabsContent value="admin" className="space-y-6">
+            <AdminOrderManager />
+          </TabsContent>
         </Tabs>
 
         {/* Quick Stats */}
@@ -1080,6 +1389,16 @@ const UserProfile: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Order Tracking Modal */}
+      {trackingOrderId && (
+        <OrderTrackingModal
+          isOpen={isTrackingModalOpen}
+          onClose={handleCloseTracking}
+          orderId={trackingOrderId}
+          orderNumber={trackingOrderNumber}
+        />
+      )}
     </div>
   );
 };

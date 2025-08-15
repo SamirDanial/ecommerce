@@ -3,9 +3,9 @@ import { persist } from 'zustand/middleware';
 
 export interface UserInteraction {
   id: string;
-  type: 'product_view' | 'category_view' | 'cart_add' | 'cart_remove' | 'page_view';
+  type: 'product_view' | 'category_view' | 'cart_add' | 'cart_remove' | 'page_view' | 'contact_form_submit' | 'review_submit' | 'question_submit';
   targetId?: string;
-  targetType?: 'product' | 'category' | 'page';
+  targetType?: 'product' | 'category' | 'page' | 'form';
   data?: any;
   timestamp: number;
   sessionId: string;

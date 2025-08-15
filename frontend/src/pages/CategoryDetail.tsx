@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Separator } from '../components/ui/separator';
-import { Star, Filter, Grid, List, ArrowUpDown, Heart, ShoppingCart, Package } from 'lucide-react';
+import { Star, Filter, Grid, List, ArrowUpDown, Package } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { useCartStore } from '../stores/cartStore';
+import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useWishlistStore } from '../stores/wishlistStore';
 import { useQuery } from '@tanstack/react-query';
 import { categoryService } from '../services/api';
 import SearchBar from '../components/SearchBar';
+import WishlistButton from '../components/WishlistButton';
 
 interface Product {
   id: number;
@@ -41,6 +43,7 @@ interface Category {
 
 const CategoryDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const [category, setCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -50,7 +53,8 @@ const CategoryDetail: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   const { addInteraction } = useUserInteractionStore();
-  const { addToCart } = useCartStore();
+  const { loadWishlistFromDatabase } = useWishlistStore();
+  const { isAuthenticated, getToken } = useClerkAuth();
 
   const { data: fetchedCategory, isLoading: isCategoryLoading } = useQuery<Category>({
     queryKey: ['category', slug],
@@ -72,6 +76,24 @@ const CategoryDetail: React.FC = () => {
       setProducts(fetchedProducts);
     }
   }, [fetchedCategory, fetchedProducts]);
+
+  // Load wishlist data when component mounts
+  useEffect(() => {
+    const loadWishlist = async () => {
+      if (isAuthenticated) {
+        try {
+          const token = await getToken();
+          if (token) {
+            await loadWishlistFromDatabase(token);
+          }
+        } catch (error) {
+          console.error('Failed to load wishlist:', error);
+        }
+      }
+    };
+
+    loadWishlist();
+  }, [isAuthenticated, getToken, loadWishlistFromDatabase]);
 
   const filteredProducts = products.filter(product => {
     const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
@@ -96,6 +118,17 @@ const CategoryDetail: React.FC = () => {
   });
 
   const allTags = Array.from(new Set(products.flatMap(p => p.tags)));
+
+  const handleProductClick = (product: Product) => {
+    addInteraction({
+      type: 'product_view',
+      targetId: product.id.toString(),
+      targetType: 'product',
+      data: { slug: product.slug, name: product.name }
+    });
+    // Navigate to product detail page
+    navigate(`/products/${product.slug}`);
+  };
 
   if (isCategoryLoading || isProductsLoading) {
     return (
@@ -270,7 +303,11 @@ const CategoryDetail: React.FC = () => {
               : 'grid-cols-1'
           }`}>
             {sortedProducts.map((product) => (
-              <Card key={product.id} className="group cursor-pointer transition-all hover:shadow-lg">
+              <Card 
+                key={product.id} 
+                className="group cursor-pointer transition-all hover:shadow-lg"
+                onClick={() => handleProductClick(product)}
+              >
                 <div className="relative overflow-hidden">
                   <ImageWithPlaceholder
                     src={product.images && product.images.length > 0 ? product.images[0].url : ''}
@@ -292,9 +329,12 @@ const CategoryDetail: React.FC = () => {
                   
                   {/* Quick Actions */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white/90 hover:bg-white">
-                      <Heart className="h-4 w-4" />
-                    </Button>
+                    <WishlistButton 
+                      product={product}
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                    />
                   </div>
                 </div>
 
@@ -333,22 +373,15 @@ const CategoryDetail: React.FC = () => {
 
                   <div className="flex items-center gap-2">
                     <Button 
+                      variant="outline"
                       size="sm" 
                       className="flex-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        addToCart(product, 1);
-                        addInteraction({
-                          type: 'cart_add',
-                          targetId: product.id.toString(),
-                          targetType: 'product',
-                          data: { slug: product.slug, name: product.name }
-                        });
-                        // Success indication (no alert)
+                        handleProductClick(product);
                       }}
                     >
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart
+                      View Details
                     </Button>
                   </div>
                 </CardContent>

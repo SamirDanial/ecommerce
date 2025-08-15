@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { useClerkAuthStore } from '../stores/clerkAuthStore';
 import { useWishlistStore } from '../stores/wishlistStore';
@@ -100,7 +100,7 @@ export const useClerkAuth = () => {
     }
   };
 
-  const getAuthToken = async () => {
+  const getAuthToken = useCallback(async () => {
     try {
       // Get JWT token from Clerk for backend authentication
       const token = await getToken({ template: 'e-commerce' });
@@ -109,7 +109,7 @@ export const useClerkAuth = () => {
       console.error('Error getting auth token:', error);
       return null;
     }
-  };
+  }, [getToken]);
 
   // Helper function to check if user can change password
   const canChangePassword = () => {

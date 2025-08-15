@@ -18,6 +18,7 @@ import { useClerkAuth } from '../hooks/useClerkAuth';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
 import WishlistHoverOverlay from './WishlistHoverOverlay';
+import CartHoverSheet from './CartHoverSheet';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -110,19 +111,21 @@ const Header: React.FC = () => {
                 </Link>
               </WishlistHoverOverlay>
 
-              <Link to="/cart" className="relative">
-                <Button variant="ghost" size="sm">
-                  <ShoppingCart className="h-4 w-4" />
-                  {getTotalItems() > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
-                    >
-                      {getTotalItems()}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
+              <CartHoverSheet>
+                <div className="relative">
+                  <Button variant="ghost" size="sm">
+                    <ShoppingCart className="h-4 w-4" />
+                    {getTotalItems() > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
+                      >
+                        {getTotalItems()}
+                      </Badge>
+                    )}
+                  </Button>
+                </div>
+              </CartHoverSheet>
 
               {isAuthenticated && user ? (
                 <div className="flex items-center space-x-2">
@@ -184,19 +187,21 @@ const Header: React.FC = () => {
                 </Link>
               </WishlistHoverOverlay>
 
-              <Link to="/cart" className="relative">
-                <Button variant="ghost" size="sm">
-                  <ShoppingCart className="h-4 w-4" />
-                  {getTotalItems() > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
-                    >
-                      {getTotalItems()}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
+              <CartHoverSheet>
+                <div className="relative">
+                  <Button variant="ghost" size="sm">
+                    <ShoppingCart className="h-4 w-4" />
+                    {getTotalItems() > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs font-medium flex items-center justify-center rounded-full min-w-0 z-10"
+                      >
+                        {getTotalItems()}
+                      </Badge>
+                    )}
+                  </Button>
+                </div>
+              </CartHoverSheet>
 
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>

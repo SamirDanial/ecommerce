@@ -140,6 +140,10 @@ router.get('/', async (req, res) => {
         variants: true,
         images: true,
         reviews: {
+          where: {
+            status: 'APPROVED',
+            isActive: true
+          },
           include: {
             user: {
               select: { name: true, avatar: true }
@@ -147,7 +151,14 @@ router.get('/', async (req, res) => {
           }
         },
         _count: {
-          select: { reviews: true }
+          select: { 
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
+          }
         }
       },
       orderBy,
@@ -196,9 +207,21 @@ router.get('/featured', async (req, res) => {
         category: true,
         variants: true,
         images: true,
-        reviews: true,
+        reviews: {
+          where: {
+            status: 'APPROVED',
+            isActive: true
+          }
+        },
         _count: {
-          select: { reviews: true }
+          select: { 
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
+          }
         }
       },
       take: 8
@@ -252,9 +275,21 @@ router.get('/:id/related', async (req, res) => {
         category: true,
         variants: true,
         images: true,
-        reviews: true,
+        reviews: {
+          where: {
+            status: 'APPROVED',
+            isActive: true
+          }
+        },
         _count: {
-          select: { reviews: true }
+          select: { 
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
+          }
         }
       },
       take: 3,
@@ -290,6 +325,10 @@ router.get('/:id', async (req, res) => {
         variants: true,
         images: true,
         reviews: {
+          where: {
+            status: 'APPROVED',
+            isActive: true
+          },
           include: {
             user: {
               select: { name: true, avatar: true }
@@ -298,7 +337,14 @@ router.get('/:id', async (req, res) => {
           orderBy: { createdAt: 'desc' }
         },
         _count: {
-          select: { reviews: true }
+          select: { 
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
+          }
         }
       }
     });
@@ -335,6 +381,10 @@ router.get('/slug/:slug', async (req, res) => {
         variants: true,
         images: true,
         reviews: {
+          where: {
+            status: 'APPROVED',
+            isActive: true
+          },
           include: {
             user: {
               select: { name: true, avatar: true }
@@ -343,7 +393,14 @@ router.get('/slug/:slug', async (req, res) => {
           orderBy: { createdAt: 'desc' }
         },
         _count: {
-          select: { reviews: true }
+          select: { 
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
+          }
         }
       }
     });

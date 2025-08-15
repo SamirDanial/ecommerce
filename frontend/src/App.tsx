@@ -16,6 +16,9 @@ import Categories from './pages/Categories';
 import CategoryDetail from './pages/CategoryDetail';
 import Wishlist from './pages/Wishlist';
 import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import Success from './pages/Success';
+import Cancel from './pages/Cancel';
 import ClerkLogin from './pages/ClerkLogin';
 import ClerkRegister from './pages/ClerkRegister';
 import VerifyEmail from './pages/VerifyEmail';
@@ -58,6 +61,9 @@ function App() {
                       </ProtectedRoute>
                     } />
                     <Route path="/cart" element={<Cart />} />
+                    <Route path="/checkout" element={<Checkout />} />
+                    <Route path="/success" element={<Success />} />
+                    <Route path="/cancel" element={<Cancel />} />
                     <Route path="/login" element={<ClerkLogin />} />
                     <Route path="/login/factor-one" element={<ClerkLogin />} />
                     <Route path="/register" element={<ClerkRegister />} />

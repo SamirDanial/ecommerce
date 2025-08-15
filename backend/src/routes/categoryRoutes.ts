@@ -28,9 +28,21 @@ router.get('/:slug', async (req, res) => {
           include: {
             variants: true,
             images: true,
-            reviews: true,
+            reviews: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            },
             _count: {
-              select: { reviews: true }
+              select: { 
+                reviews: {
+                  where: {
+                    status: 'APPROVED',
+                    isActive: true
+                  }
+                }
+              }
             }
           }
         }

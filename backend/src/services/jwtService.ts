@@ -15,6 +15,8 @@ export interface ClerkJWTPayload {
 export class JWTService {
   private static jwks: any = null;
   private static jwksUrl: string = '';
+  private static lastInitAttempt: number = 0;
+  private static initRetryDelay: number = 5000; // 5 seconds
 
   /**
    * Initialize JWT service with Clerk configuration
@@ -28,8 +30,12 @@ export class JWTService {
       }
 
       this.jwksUrl = `${clerkIssuerUrl}/.well-known/jwks.json`;
-      this.jwks = createRemoteJWKSet(new URL(this.jwksUrl));
+      this.jwks = createRemoteJWKSet(new URL(this.jwksUrl), {
+        timeoutDuration: 10000, // 10 second timeout
+        cooldownDuration: 30000 // 30 second cooldown between retries
+      });
       
+      console.log('JWT service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize JWT service:', error);
       throw error;
@@ -45,11 +51,18 @@ export class JWTService {
         await this.initialize();
       }
 
-      const { payload } = await jwtVerify(token, this.jwks, {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('JWT verification timeout')), 10000); // 10 second timeout
+      });
+
+      const verificationPromise = jwtVerify(token, this.jwks, {
         issuer: process.env.CLERK_ISSUER_URL,
-        // Remove audience validation since Clerk JWT template doesn't include it
         clockTolerance: 10, // 10 seconds tolerance for clock skew
       });
+
+      const result = await Promise.race([verificationPromise, timeoutPromise]);
+      const { payload } = result as { payload: any };
 
       return payload as ClerkJWTPayload;
     } catch (error) {
@@ -84,6 +97,17 @@ export class JWTService {
    */
   static getTokenExpiration(payload: ClerkJWTPayload): Date {
     return new Date(payload.exp * 1000);
+  }
+
+  /**
+   * Get service status
+   */
+  static getStatus() {
+    return {
+      initialized: !!this.jwks,
+      jwksUrl: this.jwksUrl,
+      lastInitAttempt: this.lastInitAttempt
+    };
   }
 }
 

@@ -70,6 +70,21 @@ export interface Review {
   };
 }
 
+export interface ReviewReply {
+  id: number;
+  reviewId: number;
+  userId: number;
+  reply: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: number;
+    name: string;
+    avatar?: string;
+  };
+}
+
 export interface Product {
   id: number;
   name: string;
