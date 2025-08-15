@@ -28,6 +28,7 @@ model User {
   orders                 Order[]
   paymentMethods         PaymentMethod[]
   questions              Question[]
+  questionReplies        QuestionReply[]
   recentlyViewed         RecentlyViewed[]
   reviewReplies          ReviewReply[]
   reviews                Review[]
@@ -317,8 +318,23 @@ model Question {
   updatedAt DateTime       @updatedAt
   product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies   QuestionReply[]
 
   @@map("questions")
+}
+
+model QuestionReply {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  userId     Int
+  reply      String   @db.VarChar(1000)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("question_replies")
 }
 
 model DiscountCode {

@@ -44,6 +44,24 @@ export interface Question {
   user: {
     id: number;
     name: string;
+    avatar?: string;
+    role?: string;
+  };
+}
+
+export interface QuestionReply {
+  id: number;
+  questionId: number;
+  userId: number;
+  reply: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: number;
+    name: string;
+    avatar?: string;
+    role?: string;
   };
 }
 
@@ -243,6 +261,26 @@ export const reviewService = {
     return response.data;
   },
 
+  // Get product questions with pending ones for authenticated user
+  async getProductQuestionsWithPending(productId: number, token: string, page: number = 1, limit: number = 10): Promise<{
+    success: boolean;
+    questions: Question[];
+    total: number;
+    page: number;
+    totalPages: number;
+    pendingCount: number;
+  }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    const response = await api.get(`/api/reviews/product/${productId}/questions/with-pending?${params}`, {
+      headers: createAuthHeaders(token)
+    });
+    return response.data;
+  },
+
   // Get current user info (database ID)
   async getCurrentUser(token: string): Promise<{
     success: boolean;
@@ -292,6 +330,60 @@ export const reviewService = {
     isReported: boolean;
   }> {
     const response = await api.get(`/api/reviews/reviews/${reviewId}/interactions`, {
+      headers: createAuthHeaders(token)
+    });
+    return response.data;
+  },
+
+  // ===== QUESTION REPLIES =====
+
+  // Submit a reply to a question
+  async submitQuestionReply(questionId: number, reply: string, token: string): Promise<{
+    success: boolean;
+    message: string;
+    reply: QuestionReply;
+  }> {
+    const response = await api.post(`/api/reviews/questions/${questionId}/replies`, { reply }, {
+      headers: createAuthHeaders(token)
+    });
+    return response.data;
+  },
+
+  // Get replies for a question
+  async getQuestionReplies(questionId: number, page: number = 1, limit: number = 10): Promise<{
+    success: boolean;
+    replies: QuestionReply[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    const response = await api.get(`/api/reviews/questions/${questionId}/replies?${params}`);
+    return response.data;
+  },
+
+  // Update a question reply
+  async updateQuestionReply(replyId: number, reply: string, token: string): Promise<{
+    success: boolean;
+    message: string;
+    reply: QuestionReply;
+  }> {
+    const response = await api.put(`/api/reviews/questions/replies/${replyId}`, { reply }, {
+      headers: createAuthHeaders(token)
+    });
+    return response.data;
+  },
+
+  // Delete a question reply
+  async deleteQuestionReply(replyId: number, token: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const response = await api.delete(`/api/reviews/questions/replies/${replyId}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;

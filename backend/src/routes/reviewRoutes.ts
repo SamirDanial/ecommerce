@@ -476,6 +476,11 @@ router.get('/product/:productId/questions', async (req, res) => {
               name: true,
               avatar: true
             }
+          },
+          _count: {
+            select: {
+              replies: true
+            }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -495,6 +500,96 @@ router.get('/product/:productId/questions', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching product questions:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch questions' 
+    });
+  }
+});
+
+// Get product questions with pending ones for authenticated user
+router.get('/product/:productId/questions/with-pending', authenticateClerkToken, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const userId = req.user!.id;
+
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    
+    // Get approved questions
+    const approvedWhere = {
+      productId: parseInt(productId),
+      status: 'APPROVED' as const,
+      isActive: true
+    };
+
+    // Get pending questions for current user
+    const pendingWhere = {
+      productId: parseInt(productId),
+      userId,
+      status: 'PENDING' as const,
+      isActive: true
+    };
+
+    const [approvedQuestions, pendingQuestions, approvedTotal] = await Promise.all([
+      prisma.question.findMany({
+        where: approvedWhere,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true
+            }
+          },
+          _count: {
+            select: {
+              replies: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit as string)
+      }),
+      prisma.question.findMany({
+        where: pendingWhere,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true
+            }
+          },
+          _count: {
+            select: {
+              replies: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.question.count({ where: approvedWhere })
+    ]);
+
+    // Combine questions: pending first, then approved
+    const allQuestions = [...pendingQuestions, ...approvedQuestions];
+    
+    // Calculate total for pagination (approved + user's pending)
+    const total = approvedTotal + pendingQuestions.length;
+
+    res.json({
+      success: true,
+      questions: allQuestions,
+      total,
+      page: parseInt(page as string),
+      totalPages: Math.ceil(total / parseInt(limit as string)),
+      pendingCount: pendingQuestions.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching product questions with pending:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch questions' 
@@ -1159,6 +1254,223 @@ router.get('/reviews/:reviewId/interactions', authenticateClerkToken, async (req
     res.status(500).json({
       success: false,
       message: 'Failed to fetch review interactions'
+    });
+  }
+});
+
+// ===== QUESTION REPLIES ENDPOINTS =====
+
+// Submit a reply to a question
+router.post('/questions/:questionId/replies', authenticateClerkToken, async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    const { reply } = req.body;
+    const userId = req.user!.id;
+
+    if (!reply || !reply.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reply content is required'
+      });
+    }
+
+    // Check if question exists and is active
+    const question = await prisma.question.findFirst({
+      where: {
+        id: parseInt(questionId),
+        isActive: true
+      }
+    });
+
+    if (!question) {
+      return res.status(404).json({
+        success: false,
+        message: 'Question not found'
+      });
+    }
+
+    // Create new reply
+    const newReply = await prisma.questionReply.create({
+      data: {
+        questionId: parseInt(questionId),
+        userId,
+        reply: reply.trim()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Reply submitted successfully',
+      reply: newReply
+    });
+
+  } catch (error) {
+    console.error('Error submitting reply:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit reply'
+    });
+  }
+});
+
+// Get replies for a question
+router.get('/questions/:questionId/replies', async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    const [replies, total] = await Promise.all([
+      prisma.questionReply.findMany({
+        where: {
+          questionId: parseInt(questionId)
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              role: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take: parseInt(limit as string)
+      }),
+      prisma.questionReply.count({
+        where: {
+          questionId: parseInt(questionId)
+        }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      replies,
+      total,
+      page: parseInt(page as string),
+      totalPages: Math.ceil(total / parseInt(limit as string))
+    });
+
+  } catch (error) {
+    console.error('Error fetching question replies:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch replies'
+    });
+  }
+});
+
+// Update a reply (only by the reply author)
+router.put('/questions/replies/:replyId', authenticateClerkToken, async (req, res) => {
+  try {
+    const { replyId } = req.params;
+    const { reply } = req.body;
+    const userId = req.user!.id;
+
+    if (!reply || !reply.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reply content is required'
+      });
+    }
+
+    // Check if reply exists and belongs to user
+    const existingReply = await prisma.questionReply.findFirst({
+      where: {
+        id: parseInt(replyId),
+        userId,
+        isActive: true
+      }
+    });
+
+    if (!existingReply) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reply not found or not editable'
+      });
+    }
+
+    // Update the reply
+    const updatedReply = await prisma.questionReply.update({
+      where: { id: parseInt(replyId) },
+      data: { reply: reply.trim() },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Reply updated successfully',
+      reply: updatedReply
+    });
+
+  } catch (error) {
+    console.error('Error updating reply:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update reply'
+    });
+  }
+});
+
+// Delete a reply (only by the reply author)
+router.delete('/questions/replies/:replyId', authenticateClerkToken, async (req, res) => {
+  try {
+    const { replyId } = req.params;
+    const userId = req.user!.id;
+
+    // Check if reply exists and belongs to user
+    const existingReply = await prisma.questionReply.findFirst({
+      where: {
+        id: parseInt(replyId),
+        userId
+      }
+    });
+
+    if (!existingReply) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reply not found or not deletable'
+      });
+    }
+
+    // Completely remove the reply from database
+    await prisma.questionReply.delete({
+      where: { id: parseInt(replyId) }
+    });
+
+    res.json({
+      success: true,
+      message: 'Reply deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting reply:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete reply'
     });
   }
 });

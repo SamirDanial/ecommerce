@@ -39,7 +39,7 @@ import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import { Textarea } from '../components/ui/textarea';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { reviewService } from '../services/reviewService';
 import UserAvatar from '../components/UserAvatar';
@@ -128,6 +128,34 @@ const ProductDetail: React.FC = () => {
   
   // State to track if Reviews tab has been clicked (for lazy loading)
   const [reviewsTabClicked, setReviewsTabClicked] = useState(false);
+  
+  // State to track if Q&A tab has been clicked (for lazy loading)
+  const [qaTabClicked, setQaTabClicked] = useState(false);
+  
+  // Questions state for lazy loading
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [questionsPage, setQuestionsPage] = useState(1);
+  const [questionsTotal, setQuestionsTotal] = useState(0);
+  const [questionsTotalPages, setQuestionsTotalPages] = useState(0);
+  const [hasMoreQuestions, setHasMoreQuestions] = useState(true);
+  const [questionsLoadingMore, setQuestionsLoadingMore] = useState(false);
+  
+  // Question count state for eager loading
+  const [questionCount, setQuestionCount] = useState(0);
+  
+  // Question replies state
+  const [expandedQuestionReplies, setExpandedQuestionReplies] = useState<{[key: number]: boolean}>({});
+  const [questionReplies, setQuestionReplies] = useState<{[key: number]: any[]}>({});
+  const [questionRepliesLoading, setQuestionRepliesLoading] = useState<{[key: number]: boolean}>({});
+  const [questionReplyForm, setQuestionReplyForm] = useState<{[key: number]: string}>({});
+  const [submittingQuestionReply, setSubmittingQuestionReply] = useState<{[key: number]: boolean}>({});
+  const [editingQuestionReplyId, setEditingQuestionReplyId] = useState<number | null>(null);
+  const [editQuestionReplyForm, setEditQuestionReplyForm] = useState<{[key: number]: string}>({});
+  
+  // Delete confirmation dialog state
+  const [showQuestionReplyDeleteDialog, setShowQuestionReplyDeleteDialog] = useState(false);
+  const [questionReplyToDelete, setQuestionReplyToDelete] = useState<number | null>(null);
   
   const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
   const { isAuthenticated, getToken, user } = useClerkAuth();
@@ -232,6 +260,69 @@ const ProductDetail: React.FC = () => {
 
 
 
+  // Function to fetch question count eagerly
+  const fetchQuestionCount = useCallback(async () => {
+    if (!product) return;
+    
+    try {
+      const response = await reviewService.getProductQuestions(product.id, 1, 1);
+      if (response.success) {
+        setQuestionCount(response.total);
+      }
+    } catch (error) {
+      console.error('Error fetching question count:', error);
+    }
+  }, [product]);
+
+  // Function to fetch questions (approved + pending for current user)
+  const fetchQuestions = useCallback(async (page: number = 1, append: boolean = false) => {
+    if (!qaTabClicked || !product) return;
+    
+
+    setQuestionsLoading(true);
+    try {
+      let response: any = null;
+      if (isAuthenticated) {
+        const token = await getToken();
+        if (token) {
+          response = await reviewService.getProductQuestionsWithPending(
+            product.id,
+            token,
+            page,
+            10
+          );
+        }
+      } else {
+        response = await reviewService.getProductQuestions(product.id, page);
+      }
+      
+      if (!response) return;
+      
+
+      if (response.success) {
+        if (append) {
+          // Append new questions for infinite scroll
+          setQuestions(prev => [...prev, ...response.questions]);
+        } else {
+          // Replace questions for initial load or page change
+          setQuestions(response.questions);
+        }
+        
+        setQuestionsTotal(response.total);
+        setQuestionsTotalPages(response.totalPages);
+        setHasMoreQuestions(response.totalPages > page);
+        setQuestionsPage(page);
+
+      } else {
+        console.error('Failed to fetch questions');
+      }
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, [qaTabClicked, product, isAuthenticated, getToken]);
+
   // Function to fetch reviews (with pending if authenticated)
   const fetchReviews = useCallback(async (page: number = 1, append: boolean = false) => {
     if (!product) return;
@@ -323,6 +414,13 @@ const ProductDetail: React.FC = () => {
     }
   }, [hasMoreReviews, reviewsLoadingMore, reviewsLoading, reviewsPage, fetchReviews]);
 
+  // Function to load more questions for infinite scroll
+  const loadMoreQuestions = useCallback(async () => {
+    if (hasMoreQuestions && !questionsLoadingMore && !questionsLoading) {
+      await fetchQuestions(questionsPage + 1, true);
+    }
+  }, [hasMoreQuestions, questionsLoadingMore, questionsLoading, questionsPage, fetchQuestions]);
+
   // Handle rating filter change
   const handleRatingFilter = useCallback((rating: number | null) => {
     setSelectedRating(rating);
@@ -365,6 +463,14 @@ const ProductDetail: React.FC = () => {
     }
   }, [reviewsTabClicked, fetchReviews]);
 
+  // Lazy loading: Only load questions when Q&A tab is clicked
+  const handleQATabClick = useCallback(() => {
+    if (!qaTabClicked) {
+      setQaTabClicked(true);
+      fetchQuestions(1);
+    }
+  }, [qaTabClicked, fetchQuestions]);
+
   // Debounced filter effect to prevent rapid API calls (only when tab is clicked)
   useEffect(() => {
     if (!product || !reviewsTabClicked) return;
@@ -375,6 +481,20 @@ const ProductDetail: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [selectedRating, sortBy, product, fetchReviews, reviewsTabClicked]);
+
+  // Effect to fetch question count when product loads
+  useEffect(() => {
+    if (product) {
+      fetchQuestionCount();
+    }
+  }, [product, fetchQuestionCount]);
+
+  // Effect to fetch questions when Q&A tab is clicked
+  useEffect(() => {
+    if (!product || !qaTabClicked) return;
+    
+    fetchQuestions(1);
+  }, [qaTabClicked, product, fetchQuestions]);
 
   // Intersection Observer for infinite scroll (only when Reviews tab is clicked)
   useEffect(() => {
@@ -407,6 +527,37 @@ const ProductDetail: React.FC = () => {
     };
   }, [hasMoreReviews, reviewsLoadingMore, loadMoreReviews, reviews, reviewsTabClicked]);
 
+  // Intersection Observer for questions infinite scroll (only when Q&A tab is clicked)
+  useEffect(() => {
+    if (!hasMoreQuestions || questionsLoadingMore || !qaTabClicked) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            loadMoreQuestions();
+          }
+        });
+      },
+      {
+        rootMargin: '100px', // Start loading when 100px away from bottom
+        threshold: 0.1
+      }
+    );
+
+    // Observe the last question element for infinite scroll
+    const lastQuestionElement = document.querySelector('[data-question-item]:last-child');
+    if (lastQuestionElement) {
+      observer.observe(lastQuestionElement);
+    }
+
+    return () => {
+      if (lastQuestionElement) {
+        observer.unobserve(lastQuestionElement);
+      }
+    };
+  }, [hasMoreQuestions, questionsLoadingMore, loadMoreQuestions, questions, qaTabClicked]);
+
 
 
   // Function to refetch pending items (for backward compatibility)
@@ -418,6 +569,12 @@ const ProductDetail: React.FC = () => {
           const response = await reviewService.getProductPendingItems(product.id, token);
           if (response.success) {
             setUserPendingQuestions(response.pendingQuestions);
+            // Refresh questions if Q&A tab is active
+            if (qaTabClicked) {
+              await fetchQuestions(1);
+            }
+            // Refresh question count
+            await fetchQuestionCount();
           }
         }
       } catch (error) {
@@ -425,6 +582,258 @@ const ProductDetail: React.FC = () => {
       }
     }
   }, [isAuthenticated, product, getToken]);
+
+  // Function to refresh questions after updates
+  const refreshQuestions = useCallback(async () => {
+    if (qaTabClicked && product) {
+      await fetchQuestions(1);
+    }
+    // Also refresh the question count
+    if (product) {
+      await fetchQuestionCount();
+    }
+  }, [qaTabClicked, product, fetchQuestions, fetchQuestionCount]);
+
+  // Function to fetch replies for a question
+  const fetchQuestionReplies = useCallback(async (questionId: number) => {
+    if (!product) return;
+    
+    setQuestionRepliesLoading(prev => ({ ...prev, [questionId]: true }));
+    try {
+      const response = await reviewService.getQuestionReplies(questionId);
+      if (response.success) {
+        // Filter out any replies that might have isActive: false (for backward compatibility)
+        const activeReplies = response.replies.filter((reply: any) => reply.isActive !== false);
+        setQuestionReplies(prev => ({ ...prev, [questionId]: activeReplies }));
+      }
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+    } finally {
+      setQuestionRepliesLoading(prev => ({ ...prev, [questionId]: false }));
+    }
+  }, [product]);
+
+  // Function to submit a reply
+  const handleSubmitQuestionReply = useCallback(async (questionId: number) => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to reply');
+      return;
+    }
+
+    const replyText = questionReplyForm[questionId]?.trim();
+    if (!replyText) {
+      toast.error('Please enter a reply');
+      return;
+    }
+
+    setSubmittingQuestionReply(prev => ({ ...prev, [questionId]: true }));
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const response = await reviewService.submitQuestionReply(questionId, replyText, token);
+      if (response.success) {
+        // Add the new reply to the list
+        setQuestionReplies(prev => ({
+          ...prev,
+          [questionId]: [...(prev[questionId] || []), response.reply]
+        }));
+        
+        // Clear the reply form
+        setQuestionReplyForm(prev => ({ ...prev, [questionId]: '' }));
+        
+        // Update the local questions state to reflect the reply count change
+        setQuestions(prev => prev.map(question => {
+          if (question.id === questionId && question._count?.replies !== undefined) {
+            return {
+              ...question,
+              _count: {
+                ...question._count,
+                replies: question._count.replies + 1
+              }
+            };
+          }
+          return question;
+        }));
+        
+        // Refresh the questions list to update the reply count from backend
+        if (qaTabClicked) {
+          await fetchQuestions(1);
+        }
+        
+        // Also refresh the question count for the tab header
+        await fetchQuestionCount();
+        
+        toast.success('Reply submitted successfully!');
+      } else {
+        toast.error(response.message || 'Failed to submit reply');
+      }
+    } catch (error) {
+      console.error('Error submitting reply:', error);
+      toast.error('Failed to submit reply. Please try again.');
+    } finally {
+      setSubmittingQuestionReply(prev => ({ ...prev, [questionId]: false }));
+    }
+  }, [isAuthenticated, getToken, questionReplyForm]);
+
+  // Function to toggle replies expansion
+  const toggleQuestionReplies = useCallback((questionId: number) => {
+    setExpandedQuestionReplies(prev => {
+      const newState = { ...prev, [questionId]: !prev[questionId] };
+      // If expanding and replies haven't been loaded yet, fetch them
+      if (newState[questionId] && !questionReplies[questionId]) {
+        fetchQuestionReplies(questionId);
+      }
+      return newState;
+    });
+  }, [questionReplies, fetchQuestionReplies]);
+
+  // Function to start editing a question reply
+  const startEditingQuestionReply = useCallback((replyId: number, currentText: string) => {
+    setEditingQuestionReplyId(replyId);
+    setEditQuestionReplyForm(prev => ({ ...prev, [replyId]: currentText }));
+  }, []);
+
+  // Function to cancel editing a question reply
+  const cancelEditingQuestionReply = useCallback(() => {
+    setEditingQuestionReplyId(null);
+    setEditQuestionReplyForm(prev => ({}));
+  }, []);
+
+  // Function to submit edited question reply
+  const handleSubmitEditedQuestionReply = useCallback(async (replyId: number) => {
+    const editedText = editQuestionReplyForm[replyId]?.trim();
+    if (!editedText) {
+      toast.error('Please enter a reply');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const response = await reviewService.updateQuestionReply(replyId, editedText, token);
+      if (response.success) {
+        // Update the reply in the local state
+        setQuestionReplies(prev => {
+          const newState = { ...prev };
+          Object.keys(newState).forEach(questionIdStr => {
+            const questionId = parseInt(questionIdStr);
+            if (newState[questionId]) {
+              newState[questionId] = newState[questionId].map((reply: any) => 
+                reply.id === replyId 
+                  ? { ...reply, reply: editedText, updatedAt: new Date().toISOString() }
+                  : reply
+              );
+            }
+          });
+          return newState;
+        });
+
+        // Clear edit state
+        setEditingQuestionReplyId(null);
+        setEditQuestionReplyForm(prev => ({}));
+        
+        // Refresh the questions list to update the reply count from backend
+        if (qaTabClicked) {
+          await fetchQuestions(1);
+        }
+        
+        // Also refresh the question count for the tab header
+        await fetchQuestionCount();
+        
+        toast.success('Reply updated successfully!');
+      } else {
+        toast.error(response.message || 'Failed to update reply');
+      }
+    } catch (error) {
+      console.error('Error updating reply:', error);
+      toast.error('Failed to update reply. Please try again.');
+    }
+  }, [editQuestionReplyForm, getToken]);
+
+  // Function to show delete confirmation dialog
+  const showDeleteQuestionReplyDialog = useCallback((replyId: number) => {
+    setQuestionReplyToDelete(replyId);
+    setShowQuestionReplyDeleteDialog(true);
+  }, []);
+
+  // Function to delete a question reply
+  const handleDeleteQuestionReply = useCallback(async (replyId: number) => {
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const response = await reviewService.deleteQuestionReply(replyId, token);
+      if (response.success) {
+        // Clear edit state if it was the edited reply
+        if (editingQuestionReplyId === replyId) {
+          setEditingQuestionReplyId(null);
+          setEditQuestionReplyForm(prev => ({}));
+        }
+
+        // Find which question this reply belongs to and update its local state
+        let questionId: number | null = null;
+        setQuestionReplies(prev => {
+          const newState = { ...prev };
+          Object.keys(newState).forEach(qIdStr => {
+            const qId = parseInt(qIdStr);
+            if (newState[qId]) {
+              const replyIndex = newState[qId].findIndex((reply: any) => reply.id === replyId);
+              if (replyIndex !== -1) {
+                questionId = qId;
+                newState[qId] = newState[qId].filter((reply: any) => reply.id !== replyId);
+              }
+            }
+          });
+          return newState;
+        });
+
+        // Update the local questions state to reflect the reply count change
+        if (questionId) {
+          setQuestions(prev => prev.map(question => {
+            if (question.id === questionId && question._count?.replies) {
+              return {
+                ...question,
+                _count: {
+                  ...question._count,
+                  replies: Math.max(0, question._count.replies - 1)
+                }
+              };
+            }
+            return question;
+          }));
+        }
+
+        // Refresh the questions list to update the reply count from backend
+        if (qaTabClicked) {
+          await fetchQuestions(1);
+        }
+        
+        // Also refresh the question count for the tab header
+        await fetchQuestionCount();
+
+        toast.success('Reply deleted successfully!');
+      } else {
+        toast.error(response.message || 'Failed to delete reply');
+      }
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+      toast.error('Failed to delete reply. Please try again.');
+    }
+  }, [getToken, editingQuestionReplyId]);
+
+
 
 
 
@@ -716,8 +1125,13 @@ const ProductDetail: React.FC = () => {
       setReplyForm({ reply: '' });
       setHoverRating(0);
         
-        // Refresh reviews to show the new question immediately
-        await fetchReviews(1);
+        // Refresh questions to show the new question immediately
+        if (qaTabClicked) {
+          await fetchQuestions(1);
+        }
+        
+        // Refresh question count
+        await fetchQuestionCount();
         
         toast.success('Question submitted successfully! It will be visible after approval.');
         
@@ -967,8 +1381,12 @@ const ProductDetail: React.FC = () => {
       }, token);
 
       if (response.success) {
-        // Refresh reviews to show the updated question immediately
-        await fetchReviews(1);
+        // Refresh questions to show the updated question immediately
+        if (qaTabClicked) {
+          await fetchQuestions(1);
+        }
+        // Refresh question count
+        await fetchQuestionCount();
         toast.success('Question updated successfully!');
         // Cancel any active edit or reply
         setEditingReviewId(null);
@@ -1000,8 +1418,12 @@ const ProductDetail: React.FC = () => {
       const response = await reviewService.deleteQuestion(questionId, token);
 
       if (response.success) {
-        // Refresh reviews to show the updated list immediately
-        await fetchReviews(1);
+        // Refresh questions to show the updated list immediately
+        if (qaTabClicked) {
+          await fetchQuestions(1);
+        }
+        // Refresh question count
+        await fetchQuestionCount();
         toast.success('Question deleted successfully!');
       } else {
         toast.error(response.message || 'Failed to delete question');
@@ -1569,13 +1991,22 @@ const ProductDetail: React.FC = () => {
 
         {/* Product Details Tabs */}
         <div className="mt-16">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={(value) => {
+            setActiveTab(value);
+            if (value === 'reviews') {
+              handleReviewsTabClick();
+            } else if (value === 'qa') {
+              handleQATabClick();
+            }
+          }}>
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="description">Description</TabsTrigger>
-              <TabsTrigger value="reviews" onClick={handleReviewsTabClick}>
+              <TabsTrigger value="reviews">
                 Reviews ({product.reviewCount || 0})
               </TabsTrigger>
-              <TabsTrigger value="qa">Q&A</TabsTrigger>
+              <TabsTrigger value="qa">
+                Q&A ({questionCount > 0 ? questionCount : '0'})
+              </TabsTrigger>
               <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
             </TabsList>
 
@@ -2282,7 +2713,7 @@ const ProductDetail: React.FC = () => {
                     <CardTitle className="flex items-center gap-2">
                       Questions & Answers
                       <Badge variant="secondary" className="text-sm">
-                        0 questions
+                        {qaTabClicked && questionsTotal > 0 ? questionsTotal : '0'} questions
                       </Badge>
                     </CardTitle>
                     <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
@@ -2321,19 +2752,336 @@ const ProductDetail: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                  {!qaTabClicked ? (
+                    // Show placeholder when Q&A tab hasn't been clicked yet
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">Click to load Q&A</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Click on the Q&A tab to load questions and answers for this product
+                      </p>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">No questions yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Have a question about this product? Ask and get answers from other customers!
-                    </p>
-                    <Button onClick={() => setShowQuestionDialog(true)}>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Ask the First Question
-                    </Button>
-                  </div>
+                  ) : questionsLoading ? (
+                    // Show loading state
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <span className="text-sm text-muted-foreground">Loading questions...</span>
+                    </div>
+                  ) : questions.length > 0 ? (
+                    // Show loaded questions
+                    <div className="space-y-6">
+                      {questions.map((question) => (
+                        <div key={question.id} className={`p-4 border rounded-lg ${
+                          question.status === 'PENDING' ? 'border-blue-300 bg-blue-50' : 
+                          question.status === 'ANSWERED' ? 'border-purple-300 bg-purple-50' :
+                          question.status === 'REJECTED' ? 'border-red-300 bg-red-50' :
+                          'border-muted'
+                        }`} data-question-item>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              {question.user?.avatar ? (
+                                <img 
+                                  src={question.user.avatar} 
+                                  alt={question.user.name || 'User'} 
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                  <span className="text-sm font-medium text-primary">
+                                    {question.user?.name?.charAt(0) || 'U'}
+                                  </span>
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-medium text-sm">{question.user?.name || 'Anonymous'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDate(question.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* Only show status badge for non-approved questions */}
+                              {question.status !== 'APPROVED' && (
+                                <Badge variant="outline" className={`text-xs ${
+                                  question.status === 'PENDING' ? 'bg-blue-100 text-blue-700 border-blue-300' : 
+                                  question.status === 'ANSWERED' ? 'bg-purple-100 text-purple-700 border-purple-300' :
+                                  question.status === 'REJECTED' ? 'bg-gray-100 text-gray-700 border-gray-300' :
+                                  'bg-gray-100 text-gray-700 border-gray-300'
+                                }`}>
+                                  {question.status === 'PENDING' ? 'Pending' : 
+                                   question.status === 'ANSWERED' ? 'Answered' : 
+                                   question.status === 'REJECTED' ? 'Rejected' : 'Unknown'}
+                                </Badge>
+                              )}
+                              {/* Show edit/delete buttons only for pending questions owned by current user */}
+                              {question.status === 'PENDING' && isAuthenticated && currentUserDbId === question.userId && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => startEditingQuestion(question)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteQuestion(question.id)}
+                                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="mb-3">
+                            {editingQuestionId === question.id ? (
+                              // Edit Mode
+                              <div className="space-y-3">
+                                <Textarea
+                                  value={editQuestionForm.question}
+                                  onChange={(e) => setEditQuestionForm(prev => ({ ...prev, question: e.target.value }))}
+                                  placeholder="Your question"
+                                  rows={3}
+                                  className="text-sm"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <Button size="sm" onClick={saveQuestionEdit}>
+                                    Save
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={cancelEdit}>
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              // Display Mode
+                              <>
+                                <p className="text-sm font-medium mb-2">{question.question}</p>
+                                {question.answer && (
+                                  <div className="pl-4 border-l-2 border-primary/20">
+                                    <p className="text-sm text-muted-foreground mb-1">
+                                      <span className="font-medium text-primary">Answer:</span>
+                                    </p>
+                                    <p className="text-sm">{question.answer}</p>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+
+                          {/* Question Replies Section */}
+                          {/* Question Replies Section */}
+                          <div className="mt-4 flex items-center gap-2">
+                            {/* Reply Button - Always visible for authenticated users */}
+                            {isAuthenticated && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toggleQuestionReplies(question.id)}
+                                className="text-xs"
+                              >
+                                Reply
+                              </Button>
+                            )}
+
+                            {/* Show Replies Button - Only visible if there are replies */}
+                            {question._count?.replies > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleQuestionReplies(question.id)}
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                {expandedQuestionReplies[question.id] ? 'Hide' : 'Show'} Replies
+                                <span className="ml-1 text-xs bg-muted px-2 py-1 rounded-full">
+                                  {question._count.replies}
+                                </span>
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Replies Display and Reply Form */}
+                          {expandedQuestionReplies[question.id] && (
+                            <div className="mt-4 space-y-3">
+                              {/* Reply Form - Always shown when expanded */}
+                              {isAuthenticated && (
+                                <div className="p-3 bg-muted/30 rounded-lg">
+                                  <div className="flex gap-2">
+                                    <Textarea
+                                      placeholder="Write a reply..."
+                                      value={questionReplyForm[question.id] || ''}
+                                      onChange={(e) => setQuestionReplyForm(prev => ({ 
+                                        ...prev, 
+                                        [question.id]: e.target.value 
+                                      }))}
+                                      className="flex-1 text-sm"
+                                      rows={2}
+                                      disabled={submittingQuestionReply[question.id]}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSubmitQuestionReply(question.id)}
+                                      disabled={submittingQuestionReply[question.id] || !questionReplyForm[question.id]?.trim()}
+                                      className="self-end"
+                                    >
+                                      {submittingQuestionReply[question.id] ? 'Sending...' : 'Submit Reply'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Replies Display */}
+                              {question._count?.replies > 0 && (
+                                <div>
+                                  {questionRepliesLoading[question.id] ? (
+                                    <div className="text-center py-2">
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto"></div>
+                                    </div>
+                                  ) : questionReplies[question.id]?.length > 0 ? (
+                                    <div className="space-y-3 pl-4 border-l-2 border-muted">
+                                                                          {questionReplies[question.id].map((reply) => (
+                                      <div key={reply.id} className="py-2">
+                                        <div className="flex items-start gap-2 mb-2">
+                                          {reply.user?.avatar ? (
+                                            <img 
+                                              src={reply.user.avatar} 
+                                              alt={reply.user.name || 'User'} 
+                                              className="w-6 h-6 rounded-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                                              <span className="text-xs font-medium text-primary">
+                                                {reply.user?.name?.charAt(0) || 'U'}
+                                              </span>
+                                            </div>
+                                          )}
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                              <span className="text-sm font-medium">{reply.user?.name || 'Anonymous'}</span>
+                                              {reply.user?.role === 'ADMIN' && (
+                                                <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
+                                                  Author
+                                                </Badge>
+                                              )}
+                                              <span className="text-xs text-muted-foreground">
+                                                {formatDate(reply.createdAt)}
+                                              </span>
+                                            </div>
+                                            
+                                            {/* Reply Content - Edit Mode or Display Mode */}
+                                            {editingQuestionReplyId === reply.id ? (
+                                              <div className="mt-2">
+                                                <Textarea
+                                                  value={editQuestionReplyForm[reply.id] || ''}
+                                                  onChange={(e) => setEditQuestionReplyForm(prev => ({ 
+                                                    ...prev, 
+                                                    [reply.id]: e.target.value 
+                                                  }))}
+                                                  className="text-sm mb-2"
+                                                  rows={2}
+                                                />
+                                                <div className="flex gap-2">
+                                                  <Button
+                                                    size="sm"
+                                                    onClick={() => handleSubmitEditedQuestionReply(reply.id)}
+                                                    className="text-xs"
+                                                  >
+                                                    Save
+                                                  </Button>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={cancelEditingQuestionReply}
+                                                    className="text-xs"
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <p className="text-sm text-muted-foreground">{reply.reply}</p>
+                                            )}
+                                            
+                                            {/* Action Buttons - Only show for the reply author */}
+                                            {isAuthenticated && currentUserDbId && reply.user?.id === currentUserDbId && (
+                                              <div className="flex gap-2 mt-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => startEditingQuestionReply(reply.id, reply.reply)}
+                                                  className="text-xs h-6 px-2"
+                                                  disabled={editingQuestionReplyId !== null}
+                                                >
+                                                  Edit
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => showDeleteQuestionReplyDialog(reply.id)}
+                                                  className="text-xs h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  disabled={editingQuestionReplyId !== null}
+                                                >
+                                                  Delete
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-2 text-sm text-muted-foreground">
+                                      No replies yet
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Infinite Scroll Loading Indicator */}
+                      {questionsLoadingMore && (
+                        <div className="flex items-center justify-center gap-2 mt-6 py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                          <span className="text-sm text-muted-foreground">Loading more questions...</span>
+                        </div>
+                      )}
+                      
+                      {/* End of Questions Message */}
+                      {!hasMoreQuestions && questions.length > 0 && (
+                        <div className="text-center py-6 text-sm text-muted-foreground">
+                          <div className="w-8 h-8 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <MessageSquare className="h-4 w-4" />
+                          </div>
+                          You've reached the end of all questions
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Show no questions message
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No questions yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Have a question about this product? Ask and get answers from other customers!
+                      </p>
+                      <Button onClick={() => setShowQuestionDialog(true)}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Ask the First Question
+                      </Button>
+                    </div>
+                  )}
                   
                   {/* Q&A Search and Filters */}
                   <div className="mt-8 p-4 bg-muted/30 rounded-lg">
@@ -2346,8 +3094,8 @@ const ProductDetail: React.FC = () => {
                     </ul>
                   </div>
 
-                  {/* User's Pending Questions */}
-                  {isAuthenticated && userPendingQuestions.length > 0 && (
+                  {/* User's Pending Questions - Only show if not already displayed in main questions list */}
+                  {isAuthenticated && userPendingQuestions.length > 0 && !qaTabClicked && (
                     <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <h4 className="font-medium text-blue-800 mb-4 flex items-center gap-2">
                         <Clock className="h-4 w-4" />
@@ -2380,14 +3128,30 @@ const ProductDetail: React.FC = () => {
                               <>
                                 <div className="flex items-start justify-between mb-2">
                                   <div className="flex items-center gap-2">
+                                    {pendingQuestion.user?.avatar ? (
+                                      <img 
+                                        src={pendingQuestion.user.avatar} 
+                                        alt={pendingQuestion.user.name || 'User'} 
+                                        className="w-8 h-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                        <span className="text-sm font-medium text-primary">
+                                          {pendingQuestion.user?.name?.charAt(0) || 'U'}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <p className="font-medium text-sm">{pendingQuestion.user?.name || 'Anonymous'}</p>
+                                      <span className="text-xs text-muted-foreground">
+                                        {formatDate(pendingQuestion.createdAt)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
                                     <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
                                       Pending Approval
                                     </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">
-                                      {formatDate(pendingQuestion.createdAt)}
-                                    </span>
                                     <Button
                                       size="sm"
                                       variant="ghost"
@@ -2759,6 +3523,53 @@ const ProductDetail: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Delete Question Reply Confirmation Dialog */}
+      <Dialog open={showQuestionReplyDeleteDialog} onOpenChange={setShowQuestionReplyDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Delete Reply
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this reply? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                This reply will be permanently removed from the question.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowQuestionReplyDeleteDialog(false);
+                  setQuestionReplyToDelete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (questionReplyToDelete) {
+                    await handleDeleteQuestionReply(questionReplyToDelete);
+                    setShowQuestionReplyDeleteDialog(false);
+                    setQuestionReplyToDelete(null);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Reply
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
