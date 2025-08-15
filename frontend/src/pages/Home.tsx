@@ -5,13 +5,14 @@ import { productService, flashSaleService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ShoppingBag, Star, Heart, ArrowRight, Zap, TrendingUp, Gift } from 'lucide-react';
+import { ShoppingBag, Heart, ArrowRight, Zap, TrendingUp, Gift, Star } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import WishlistButton from '../components/WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCartStore } from '../stores/cartStore';
 import { categoryService } from '../services/api';
+import RatingDisplay from '../components/ui/rating-display';
 
 const Home: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -247,23 +248,11 @@ const Home: React.FC = () => {
                   </div>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < Math.floor(product.averageRating || 0)
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        ({product.reviewCount || 0})
-                      </span>
-                    </div>
+                    <RatingDisplay
+                      rating={product.averageRating}
+                      reviewCount={product.reviewCount}
+                      size="md"
+                    />
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between">
@@ -405,23 +394,11 @@ const Home: React.FC = () => {
                   </div>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < Math.floor(product.averageRating || 0)
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        ({product.reviewCount || 0})
-                      </span>
-                    </div>
+                    <RatingDisplay
+                      rating={product.averageRating}
+                      reviewCount={product.reviewCount}
+                      size="md"
+                    />
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between">

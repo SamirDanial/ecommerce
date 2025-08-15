@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Separator } from '../components/ui/separator';
-import { Star, Filter, Grid, List, ArrowUpDown, Package } from 'lucide-react';
+import { Filter, Grid, List, ArrowUpDown, Package } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { categoryService } from '../services/api';
 import SearchBar from '../components/SearchBar';
 import WishlistButton from '../components/WishlistButton';
+import RatingDisplay from '../components/ui/rating-display';
 
 interface Product {
   id: number;
@@ -343,14 +344,12 @@ const CategoryDetail: React.FC = () => {
                     {product.name}
                   </h3>
                   
-                  {product.averageRating && (
-                    <div className="flex items-center gap-1 mb-2">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-xs text-muted-foreground">
-                        {product.averageRating.toFixed(1)} ({product.reviewCount})
-                      </span>
-                    </div>
-                  )}
+                  <RatingDisplay
+                    rating={product.averageRating}
+                    reviewCount={product.reviewCount}
+                    size="sm"
+                    className="mb-2"
+                  />
 
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">

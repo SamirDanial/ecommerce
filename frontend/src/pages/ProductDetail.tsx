@@ -39,6 +39,7 @@ import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import { Textarea } from '../components/ui/textarea';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import RatingDisplay from '../components/ui/rating-display';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { reviewService } from '../services/reviewService';
@@ -1739,21 +1740,16 @@ const ProductDetail: React.FC = () => {
               </div>
 
               {/* Rating */}
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i < Math.floor(product.averageRating || 0)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
+              <div className="mb-4">
+                <RatingDisplay
+                  rating={product.averageRating}
+                  reviewCount={product.reviewCount}
+                  size="md"
+                  showCount={false}
+                />
                 <span className="text-sm text-muted-foreground">
-                  {product.averageRating?.toFixed(1)} ({product.reviewCount || 0} reviews)
+                  {product.averageRating ? `${product.averageRating.toFixed(1)} out of 5` : 'No rating yet'} 
+                  {product.reviewCount && product.reviewCount > 0 ? ` (${product.reviewCount} reviews)` : ''}
                 </span>
               </div>
 
@@ -2002,10 +1998,10 @@ const ProductDetail: React.FC = () => {
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="description">Description</TabsTrigger>
               <TabsTrigger value="reviews">
-                Reviews ({product.reviewCount || 0})
+                Reviews {product.reviewCount && product.reviewCount > 0 ? `(${product.reviewCount})` : '(No reviews yet)'}
               </TabsTrigger>
               <TabsTrigger value="qa">
-                Q&A ({questionCount > 0 ? questionCount : '0'})
+                Q&A {questionCount > 0 ? `(${questionCount})` : '(No questions yet)'}
               </TabsTrigger>
               <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
             </TabsList>
@@ -2049,28 +2045,30 @@ const ProductDetail: React.FC = () => {
                           </Badge>
                         )}
                       </CardTitle>
-                      {product.averageRating && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex items-center">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`h-4 w-4 ${
-                                  i < Math.floor(product.averageRating!)
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-lg font-semibold text-primary">
-                            {product.averageRating.toFixed(1)}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            out of 5
-                          </span>
+                      <div className="mt-2">
+                        <RatingDisplay
+                          rating={product.averageRating}
+                          reviewCount={product.reviewCount}
+                          size="md"
+                          showCount={false}
+                        />
+                        <div className="flex items-center gap-2 mt-1">
+                          {product.averageRating ? (
+                            <>
+                              <span className="text-lg font-semibold text-primary">
+                                {product.averageRating.toFixed(1)}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                out of 5
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              No rating yet
+                            </span>
+                          )}
                         </div>
-                      )}
+                      </div>
                       
                       {/* Rating Distribution Chart */}
                       {product.reviews && product.reviews.length > 0 && (
@@ -3442,7 +3440,7 @@ const ProductDetail: React.FC = () => {
                   <Card 
                     key={product.id} 
                     className="group cursor-pointer transition-all hover:shadow-lg hover:scale-105"
-                    onClick={() => window.location.href = `/product/${product.slug}`}
+                    onClick={() => window.location.href = `/products/${product.slug}`}
                   >
                     <div className="relative overflow-hidden">
                       <ImageWithPlaceholder
@@ -3467,23 +3465,12 @@ const ProductDetail: React.FC = () => {
                         {product.name}
                       </h4>
                       
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-3 w-3 ${
-                                i < Math.floor(product.averageRating || 0) 
-                                  ? 'text-yellow-400 fill-current' 
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          ({product.reviewCount || 0})
-                        </span>
-                      </div>
+                      <RatingDisplay
+                        rating={product.averageRating}
+                        reviewCount={product.reviewCount}
+                        size="sm"
+                        className="mb-2"
+                      />
 
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -3510,7 +3497,7 @@ const ProductDetail: React.FC = () => {
                         className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.location.href = `/product/${product.slug}`;
+                          window.location.href = `/products/${product.slug}`;
                         }}
                       >
                         View Product

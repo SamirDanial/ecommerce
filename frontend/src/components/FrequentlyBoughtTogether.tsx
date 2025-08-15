@@ -4,10 +4,11 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
-import { ShoppingCart, Package, Check, Star, Zap } from 'lucide-react';
+import { ShoppingCart, Package, Check, Zap } from 'lucide-react';
 import { useCartStore } from '../stores/cartStore';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { Product } from '../types';
+import RatingDisplay from './ui/rating-display';
 
 interface FrequentlyBoughtTogetherProps {
   currentProduct: Product;
@@ -188,23 +189,12 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                   {item.product.name}
                 </h4>
                 
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-3 w-3 ${
-                          i < Math.floor(item.product.averageRating || 0) 
-                            ? 'text-yellow-400 fill-current' 
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    ({item.product.reviewCount || 0})
-                  </span>
-                </div>
+                <RatingDisplay
+                  rating={item.product.averageRating}
+                  reviewCount={item.product.reviewCount}
+                  size="sm"
+                  className="mb-2"
+                />
 
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">

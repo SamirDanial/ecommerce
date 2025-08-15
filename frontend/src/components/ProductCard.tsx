@@ -4,10 +4,10 @@ import { Product } from '../types';
 import { Card, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Star } from 'lucide-react';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import WishlistButton from './WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
+import RatingDisplay from './ui/rating-display';
 
 interface ProductCardProps {
   product: Product;
@@ -47,23 +47,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`h-4 w-4 ${
-                    i < Math.floor(product.averageRating || 0)
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-            <span className="text-sm text-muted-foreground">
-              ({product.reviewCount || 0})
-            </span>
-          </div>
+          <RatingDisplay
+            rating={product.averageRating}
+            reviewCount={product.reviewCount}
+            size="md"
+          />
         </CardHeader>
         <CardFooter className="flex justify-between items-center pt-2">
           <div className="flex flex-col">
