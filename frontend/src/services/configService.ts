@@ -26,6 +26,22 @@ export interface CurrencyConfig {
   updatedAt: string;
 }
 
+export interface CountryConfig {
+  id: number;
+  code: string;
+  name: string;
+  flagEmoji: string;
+  phoneCode?: string;
+  isActive: boolean;
+  isDefault: boolean;
+  hasDelivery: boolean;
+  deliveryCost?: number;
+  deliveryDays?: number;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ConfigResponse<T> {
   success: boolean;
   data: T[];
@@ -73,6 +89,39 @@ export const configService = {
       return response.data.data;
     } catch (error) {
       console.error('Error fetching default currency:', error);
+      return null;
+    }
+  },
+
+  // Get all active countries
+  getCountries: async (): Promise<CountryConfig[]> => {
+    try {
+      const response = await api.get<ConfigResponse<CountryConfig>>('/api/countries');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching countries:', error);
+      throw new Error('Failed to fetch countries');
+    }
+  },
+
+  // Get only countries with delivery available
+  getDeliveryCountries: async (): Promise<CountryConfig[]> => {
+    try {
+      const response = await api.get<ConfigResponse<CountryConfig>>('/api/countries/delivery');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching delivery countries:', error);
+      throw new Error('Failed to fetch delivery countries');
+    }
+  },
+
+  // Get country by code
+  getCountryByCode: async (code: string): Promise<CountryConfig | null> => {
+    try {
+      const response = await api.get<{ success: boolean; data: CountryConfig }>(`/api/countries/${code}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching country:', error);
       return null;
     }
   }

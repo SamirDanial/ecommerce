@@ -42,10 +42,32 @@ export const useConfig = () => {
     });
   };
 
+  // Get all active countries
+  const useCountries = () => {
+    return useQuery({
+      queryKey: ['config', 'countries'],
+      queryFn: configService.getCountries,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+  };
+
+  // Get only countries with delivery available
+  const useDeliveryCountries = () => {
+    return useQuery({
+      queryKey: ['config', 'deliveryCountries'],
+      queryFn: configService.getDeliveryCountries,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+  };
+
   return {
     useLanguages,
     useCurrencies,
     useDefaultLanguage,
     useDefaultCurrency,
+    useCountries,
+    useDeliveryCountries,
   };
 };

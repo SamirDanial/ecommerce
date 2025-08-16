@@ -17,6 +17,7 @@ import adminRoutes from './routes/adminRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import currencyRoutes from './routes/currencyRoutes';
 import languageRoutes from './routes/languageRoutes';
+import countryRoutes from './routes/countryRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -86,6 +87,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/languages', languageRoutes);
+app.use('/api/countries', countryRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

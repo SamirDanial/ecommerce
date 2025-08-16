@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { CreditCard, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { CreditCard, Lock, AlertCircle, CheckCircle, Calendar, Shield, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 
@@ -64,20 +64,28 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   const cardElementOptions = {
     style: {
       base: {
-        fontSize: '16px',
-        color: '#424770',
+        fontSize: '16px', // Prevents zoom on iOS
+        color: '#374151',
         '::placeholder': {
-          color: '#aab7c4',
+          color: '#9CA3AF',
         },
-        border: '1px solid #d1d5db',
-        borderRadius: '6px',
-        padding: '12px',
+        border: '1px solid #D1D5DB',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        backgroundColor: '#FFFFFF',
+        lineHeight: '1.5',
+        '&:focus': {
+          borderColor: '#3B82F6',
+          boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)',
+          outline: 'none',
+        },
       },
       invalid: {
-        color: '#9e2146',
-        border: '1px solid #ef4444',
+        color: '#EF4444',
+        borderColor: '#EF4444',
       },
     },
+    hidePostalCode: true, // We handle postal code separately
   };
 
   const handleCardChange = (event: any) => {
@@ -136,10 +144,10 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       
       console.log('Payment intent response:', { client_secret: client_secret ? 'present' : 'missing' });
 
-      // Confirm card payment with Stripe using CardElement
+      // Confirm card payment with Stripe using individual card elements
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
         payment_method: {
-          card: elements.getElement(CardElement)!,
+          card: elements.getElement(CardNumberElement)!,
         },
       });
       
@@ -189,16 +197,79 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Card Element */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Card Details *</label>
-            <div className="p-3 border border-gray-300 rounded-md">
-              <CardElement
-                options={cardElementOptions}
-                onChange={handleCardChange}
-                className="min-h-[40px]"
+          {/* Card Details - Mobile Optimized */}
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-700">Card Details *</label>
+            
+            {/* Card Number */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
+                <CreditCard className="h-3 w-3" />
+                Card Number
+              </label>
+              <div className="relative">
+                <CardNumberElement
+                  options={cardElementOptions}
+                  onChange={handleCardChange}
+                  className="min-h-[48px] w-full"
+                />
+              </div>
+            </div>
+
+            {/* Expiry and CVC Row - Mobile Responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
+                  <Calendar className="h-3 w-3" />
+                  Expiry Date
+                </label>
+                <CardExpiryElement
+                  options={cardElementOptions}
+                  onChange={handleCardChange}
+                  className="min-h-[48px] w-full"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
+                  <Shield className="h-3 w-3" />
+                  CVC
+                </label>
+                <CardCvcElement
+                  options={cardElementOptions}
+                  onChange={handleCardChange}
+                  className="min-h-[48px] w-full"
+                />
+              </div>
+            </div>
+
+            {/* Postal Code */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
+                <MapPin className="h-3 w-3" />
+                Postal Code
+              </label>
+              <input
+                type="text"
+                placeholder="12345"
+                maxLength={5}
+                pattern="[0-9]*"
+                inputMode="numeric"
+                className="w-full min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors text-base"
+                onChange={(e) => {
+                  // Only allow numbers
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  e.target.value = value;
+                }}
+                onKeyPress={(e) => {
+                  // Prevent non-numeric input
+                  if (!/[0-9]/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
               />
             </div>
+
             {error && (
               <p className="text-red-500 text-sm flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />

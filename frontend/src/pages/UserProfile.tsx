@@ -316,6 +316,7 @@ const UserProfile: React.FC = () => {
 
   const {
     useCurrencies,
+    useCountries,
   } = useConfig();
 
   // Data queries
@@ -327,6 +328,7 @@ const UserProfile: React.FC = () => {
   
   // Configuration data queries
   const { data: currencies = [], isLoading: currenciesLoading, error: currenciesError } = useCurrencies();
+  const { data: countries = [], isLoading: countriesLoading, error: countriesError } = useCountries();
   
   // Timezone data
   const timezones = timezoneService.getAvailableTimezones();
@@ -395,6 +397,20 @@ const UserProfile: React.FC = () => {
       toast.success('Preferences loaded successfully!');
     }
   }, [preferences]);
+
+  // Update default country when countries load
+  useEffect(() => {
+    if (countries.length > 0 && !editingAddress) {
+      // Find the default country (US) or use the first available country
+      const defaultCountry = countries.find(c => c.isDefault) || countries[0];
+      if (defaultCountry && addressForm.country !== defaultCountry.code) {
+        setAddressForm(prev => ({
+          ...prev,
+          country: defaultCountry.code
+        }));
+      }
+    }
+  }, [countries, editingAddress]);
   
 
 
@@ -434,7 +450,7 @@ const UserProfile: React.FC = () => {
       city: '',
       state: '',
       postalCode: '',
-      country: 'US',
+      country: countries.length > 0 ? countries[0].code : 'US',
       phone: ''
     });
     setEditingAddress(null);
@@ -2215,79 +2231,31 @@ const UserProfile: React.FC = () => {
                     <Label htmlFor="country" className="text-sm font-medium text-gray-700 mb-2 block">
                       Country *
                     </Label>
-                    <SearchableSelect
-                      options={[
-                        { value: 'US', label: 'United States', icon: '🇺🇸' },
-                        { value: 'CA', label: 'Canada', icon: '🇨🇦' },
-                        { value: 'GB', label: 'United Kingdom', icon: '🇬🇧' },
-                        { value: 'DE', label: 'Germany', icon: '🇩🇪' },
-                        { value: 'FR', label: 'France', icon: '🇫🇷' },
-                        { value: 'AU', label: 'Australia', icon: '🇦🇺' },
-                        { value: 'PK', label: 'Pakistan', icon: '🇵🇰' },
-                        { value: 'IN', label: 'India', icon: '🇮🇳' },
-                        { value: 'CN', label: 'China', icon: '🇨🇳' },
-                        { value: 'JP', label: 'Japan', icon: '🇯🇵' },
-                        { value: 'IT', label: 'Italy', icon: '🇮🇹' },
-                        { value: 'ES', label: 'Spain', icon: '🇪🇸' },
-                        { value: 'NL', label: 'Netherlands', icon: '🇳🇱' },
-                        { value: 'BE', label: 'Belgium', icon: '🇧🇪' },
-                        { value: 'CH', label: 'Switzerland', icon: '🇨🇭' },
-                        { value: 'AT', label: 'Austria', icon: '🇦🇹' },
-                        { value: 'SE', label: 'Sweden', icon: '🇸🇪' },
-                        { value: 'NO', label: 'Norway', icon: '🇳🇴' },
-                        { value: 'DK', label: 'Denmark', icon: '🇩🇰' },
-                        { value: 'FI', label: 'Finland', icon: '🇫🇮' },
-                        { value: 'PL', label: 'Poland', icon: '🇵🇱' },
-                        { value: 'CZ', label: 'Czech Republic', icon: '🇨🇿' },
-                        { value: 'HU', label: 'Hungary', icon: '🇭🇺' },
-                        { value: 'RO', label: 'Romania', icon: '🇷🇴' },
-                        { value: 'BG', label: 'Bulgaria', icon: '🇧🇬' },
-                        { value: 'GR', label: 'Greece', icon: '🇬🇷' },
-                        { value: 'PT', label: 'Portugal', icon: '🇵🇹' },
-                        { value: 'IE', label: 'Ireland', icon: '🇮🇪' },
-                        { value: 'NZ', label: 'New Zealand', icon: '🇳🇿' },
-                        { value: 'BR', label: 'Brazil', icon: '🇧🇷' },
-                        { value: 'MX', label: 'Mexico', icon: '🇲🇽' },
-                        { value: 'AR', label: 'Argentina', icon: '🇦🇷' },
-                        { value: 'CL', label: 'Chile', icon: '🇨🇱' },
-                        { value: 'CO', label: 'Colombia', icon: '🇨🇴' },
-                        { value: 'PE', label: 'Peru', icon: '🇵🇪' },
-                        { value: 'VE', label: 'Venezuela', icon: '🇻🇪' },
-                        { value: 'ZA', label: 'South Africa', icon: '🇿🇦' },
-                        { value: 'EG', label: 'Egypt', icon: '🇪🇬' },
-                        { value: 'NG', label: 'Nigeria', icon: '🇳🇬' },
-                        { value: 'KE', label: 'Kenya', icon: '🇰🇪' },
-                        { value: 'MA', label: 'Morocco', icon: '🇲🇦' },
-                        { value: 'SA', label: 'Saudi Arabia', icon: '🇸🇦' },
-                        { value: 'AE', label: 'United Arab Emirates', icon: '🇦🇪' },
-                        { value: 'TR', label: 'Turkey', icon: '🇹🇷' },
-                        { value: 'IL', label: 'Israel', icon: '🇮🇱' },
-                        { value: 'IR', label: 'Iran', icon: '🇮🇷' },
-                        { value: 'TH', label: 'Thailand', icon: '🇹🇭' },
-                        { value: 'VN', label: 'Vietnam', icon: '🇻🇳' },
-                        { value: 'ID', label: 'Indonesia', icon: '🇮🇩' },
-                        { value: 'MY', label: 'Malaysia', icon: '🇲🇾' },
-                        { value: 'SG', label: 'Singapore', icon: '🇸🇬' },
-                        { value: 'PH', label: 'Philippines', icon: '🇵🇭' },
-                        { value: 'KR', label: 'South Korea', icon: '🇰🇷' },
-                        { value: 'RU', label: 'Russia', icon: '🇷🇺' },
-                        { value: 'UA', label: 'Ukraine', icon: '🇺🇦' },
-                        { value: 'BY', label: 'Belarus', icon: '🇧🇾' },
-                        { value: 'KZ', label: 'Kazakhstan', icon: '🇰🇿' },
-                        { value: 'UZ', label: 'Uzbekistan', icon: '🇺🇿' }
-                      ].map(country => ({
-                        value: country.value,
-                        label: country.label,
-                        icon: <span className="text-lg">{country.icon}</span>
-                      }))}
-                      value={addressForm.country}
-                      onValueChange={(value: string) => handleAddressFormChange('country', value)}
-                      placeholder="Select country"
-                      searchPlaceholder="Search countries..."
-                      emptyMessage="No countries found."
-                      triggerClassName="h-12 border-2 border-purple-200 focus:border-purple-500 transition-colors"
-                      contentClassName="w-[400px]"
-                    />
+                    {countriesLoading ? (
+                      <div className="h-12 border-2 border-purple-200 rounded-xl flex items-center justify-center bg-purple-50">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
+                        <span className="ml-2 text-sm text-purple-600">Loading countries...</span>
+                      </div>
+                    ) : countriesError ? (
+                      <div className="h-12 border-2 border-red-200 rounded-xl flex items-center justify-center bg-red-50 text-red-600 text-sm">
+                        Failed to load countries
+                      </div>
+                    ) : (
+                      <SearchableSelect
+                        options={countries.map(country => ({
+                          value: country.code,
+                          label: country.name,
+                          icon: <span className="text-lg">{country.flagEmoji}</span>
+                        }))}
+                        value={addressForm.country}
+                        onValueChange={(value: string) => handleAddressFormChange('country', value)}
+                        placeholder="Select country"
+                        searchPlaceholder="Search countries..."
+                        emptyMessage="No countries found."
+                        triggerClassName="h-12 border-2 border-purple-200 focus:border-purple-500 transition-colors"
+                        contentClassName="w-[400px]"
+                      />
+                    )}
                   </div>
                   
                   <div>

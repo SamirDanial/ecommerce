@@ -499,6 +499,24 @@ model LanguageConfig {
   @@map("language_configs")
 }
 
+model CountryConfig {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(10)  // e.g., "US", "GB", "DE"
+  name        String   @db.VarChar(100)         // e.g., "United States", "United Kingdom"
+  flagEmoji   String   @db.VarChar(10)          // e.g., "🇺🇸", "🇬🇧", "🇩🇪"
+  phoneCode   String?  @db.VarChar(10)          // e.g., "+1", "+44", "+49"
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  hasDelivery Boolean  @default(true)            // Whether we deliver to this country
+  deliveryCost Decimal? @db.Decimal(10, 2)      // Delivery cost for this country
+  deliveryDays Int?                              // Estimated delivery days
+  sortOrder   Int      @default(0)               // For custom ordering
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("country_configs")
+}
+
 enum Role {
   USER
   ADMIN
