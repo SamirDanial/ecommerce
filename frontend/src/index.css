@@ -2,6 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* React Select Global Styles */
+.react-select__control {
+  @apply border-2 border-blue-200 focus:border-blue-500 transition-colors;
+}
+
+.react-select__control--is-focused {
+  @apply border-blue-500 shadow-lg;
+}
+
+.react-select__menu {
+  @apply shadow-lg border border-gray-200 rounded-lg;
+}
+
+.react-select__option--is-focused {
+  @apply bg-blue-50;
+}
+
+.react-select__option--is-selected {
+  @apply bg-blue-600 text-white;
+}
+
+.react-select__option--is-selected:hover {
+  @apply bg-blue-700;
+}
+
+/* Language Dropdown Custom Styles */
+.language-dropdown-content {
+  @apply max-h-60 overflow-y-auto;
+}
+
+.language-dropdown-item {
+  @apply px-3 py-2 hover:bg-blue-50 cursor-pointer transition-colors;
+}
+
+.language-dropdown-item[data-state="checked"] {
+  @apply bg-blue-600 text-white;
+}
+
+.language-dropdown-item[data-state="checked"]:hover {
+  @apply bg-blue-700;
+}
+
+.language-dropdown-trigger {
+  @apply w-full h-12 px-3 py-2 text-left bg-white border-2 border-blue-200 focus:border-blue-500 transition-colors rounded-md hover:border-blue-300 focus:outline-none;
+}
+
+.language-dropdown-trigger:focus {
+  @apply border-blue-500 shadow-lg;
+}
+
+
+
 /* PhotoSwipe Styles */
 @import 'photoswipe/style.css';
 

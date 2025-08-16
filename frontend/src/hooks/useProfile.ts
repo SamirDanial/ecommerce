@@ -8,15 +8,15 @@ export const useProfile = () => {
   const { getToken } = useClerkAuth();
   const queryClient = useQueryClient();
 
-  // Get orders
-  const useOrders = () => {
+  // Get orders with pagination
+  const useOrders = (page: number = 1, limit: number = 3) => {
     return useQuery({
-      queryKey: ['profile', 'orders'],
+      queryKey: ['profile', 'orders', page, limit],
       queryFn: async () => {
         const token = await getToken();
         if (!token) throw new Error('No authentication token');
-        const data = await profileService.getOrders(token);
-        return data.orders || [];
+        const data = await profileService.getOrders(token, page, limit);
+        return data;
       },
       enabled: !!getToken,
     });

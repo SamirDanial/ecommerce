@@ -90,9 +90,11 @@ export function SearchableSelect({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
+                  value={`${option.value} ${option.label} ${option.description || ''}`}
                   onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue)
+                    // Extract the actual option value from the searchable text
+                    const actualValue = option.value
+                    onValueChange(actualValue === value ? "" : actualValue)
                     setOpen(false)
                   }}
                 >

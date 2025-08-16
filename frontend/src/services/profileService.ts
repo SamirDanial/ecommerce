@@ -1,5 +1,17 @@
 import api, { createAuthHeaders } from '../lib/axios';
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+export interface PaginatedOrdersResponse {
+  orders: Order[];
+  pagination: PaginationMeta;
+}
+
 export interface Order {
   id: number;
   orderNumber: string;
@@ -111,8 +123,8 @@ export interface UserPreferences {
   orderUpdates?: boolean;
   promotionalOffers?: boolean;
   newsletter?: boolean;
-  language?: 'ENGLISH' | 'URDU' | 'ARABIC';
-  currency?: 'USD' | 'EUR' | 'PKR';
+  language?: string;
+  currency?: string; // Updated to support all backend currencies
   timezone?: string;
 }
 
@@ -133,9 +145,9 @@ export interface ChangePasswordRequest {
 
 // Profile API functions
 export const profileService = {
-  // Get user orders
-  getOrders: async (token: string) => {
-    const response = await api.get('/api/profile/orders', {
+  // Get user orders with pagination
+  getOrders: async (token: string, page: number = 1, limit: number = 3): Promise<PaginatedOrdersResponse> => {
+    const response = await api.get(`/api/profile/orders?page=${page}&limit=${limit}`, {
       headers: createAuthHeaders(token),
     });
     return response.data;
