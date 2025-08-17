@@ -139,6 +139,7 @@ model ProductVariant {
 model ProductImage {
   id        Int      @id @default(autoincrement())
   productId Int
+  color     String?  @db.VarChar(50)  // New field for color-specific images
   url       String   @db.VarChar(500)
   alt       String?  @db.VarChar(200)
   sortOrder Int      @default(0)

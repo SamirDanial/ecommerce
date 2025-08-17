@@ -427,6 +427,67 @@ router.get('/slug/:slug', async (req, res) => {
   }
 });
 
+// Get product images by color (lazy loading)
+router.get('/:productId/images/:color', async (req, res) => {
+  try {
+    const { productId, color } = req.params;
+    
+    console.log(`Fetching images for product ${productId}, color: ${color}`);
+    
+    // First try to get images with the exact color field match
+    let colorImages = await (prisma.productImage as any).findMany({
+      where: { 
+        productId: parseInt(productId),
+        color: color
+      },
+      orderBy: { sortOrder: 'asc' }
+    });
+    
+    // If no exact matches, fall back to filename-based filtering
+    if (colorImages.length === 0) {
+      const allImages = await (prisma.productImage as any).findMany({
+        where: { productId: parseInt(productId) },
+        orderBy: { sortOrder: 'asc' }
+      });
+      
+      console.log(`No exact color matches, filtering ${allImages.length} images by filename`);
+      
+      // Filter images by color using naming convention as fallback
+      colorImages = allImages.filter((image: any) => {
+        const fileName = image.url.toLowerCase();
+        const colorLower = color.toLowerCase();
+        
+        // Check if filename contains the color
+        const hasColor = fileName.includes(colorLower) || 
+                        fileName.includes(`-${colorLower}-`) ||
+                        fileName.includes(`_${colorLower}_`);
+        
+        console.log(`Image ${image.url}: color ${colorLower} found = ${hasColor}`);
+        return hasColor;
+      });
+    } else {
+      console.log(`Found ${colorImages.length} exact color matches for ${color}`);
+    }
+    
+    // If still no color-specific images found, return default images
+    const imagesToReturn = colorImages.length > 0 ? colorImages : await (prisma.productImage as any).findMany({
+      where: { productId: parseInt(productId) },
+      orderBy: { sortOrder: 'asc' }
+    });
+    
+    res.json({
+      images: convertDecimalToNumber(imagesToReturn),
+      isColorSpecific: colorImages.length > 0,
+      totalImages: imagesToReturn.length,
+      colorImagesFound: colorImages.length
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error fetching color-specific images:', error);
+    res.status(500).json({ message: 'Server error', error: errorMessage });
+  }
+});
+
 // Create product
 router.post('/', async (req, res) => {
   try {

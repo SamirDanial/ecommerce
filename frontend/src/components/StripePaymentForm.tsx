@@ -309,7 +309,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
             ) : (
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Pay {currency}${(amount / 100).toFixed(2)}
+                Pay {currency}${(amount / 100).toFixed(1).replace(/\.0$/, '')}
               </div>
             )}
           </Button>

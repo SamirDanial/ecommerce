@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { useNavigate } from "react-router-dom";
 import { 
   Sparkles, 
   Truck, 
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 
 export const ProductsBanner: React.FC = () => {
+  const navigate = useNavigate();
+  
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-3xl shadow-2xl mb-8">
       {/* Background Pattern */}
@@ -95,6 +98,7 @@ export const ProductsBanner: React.FC = () => {
                 variant="outline" 
                 size="lg" 
                 className="border-white/30 text-black bg-white hover:bg-gray-100 hover:text-gray-900 font-semibold px-5 py-3 text-base rounded-xl backdrop-blur-sm transition-all duration-300"
+                onClick={() => navigate('/categories')}
               >
                 View Collections
               </Button>

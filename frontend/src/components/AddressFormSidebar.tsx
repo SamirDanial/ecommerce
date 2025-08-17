@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { MapPin, Save, X, User, Phone, Home, MapPin as MapPinIcon, Globe, Building2, Mail, Navigation } from 'lucide-react';
+import { MapPin, Save, X, User, Phone, Home, MapPin as MapPinIcon, Navigation } from 'lucide-react';
 import { ShippingAddress } from '../stores/cartStore';
 import { CreateAddressRequest } from '../services/addressService';
 import { useConfig } from '../hooks/useConfig';
@@ -122,11 +122,7 @@ const AddressFormSidebar: React.FC<AddressFormSidebarProps> = ({
     return `${baseClasses} ${errorClasses}`;
   };
 
-  const getSelectClassName = (field: keyof CreateAddressRequest) => {
-    const baseClasses = "w-full h-12 px-4 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white";
-    const errorClasses = errors[field] ? 'border-red-300 bg-red-50 focus:border-red-500' : 'border-gray-200 hover:border-gray-300 focus:border-blue-500';
-    return `${baseClasses} ${errorClasses}`;
-  };
+
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>

@@ -7,6 +7,7 @@ import { Heart, Trash2, RefreshCw } from 'lucide-react';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { toast } from 'sonner';
 
@@ -22,6 +23,7 @@ const Wishlist: React.FC = () => {
     isLoading 
   } = useWishlistStore();
   const { isAuthenticated, getToken } = useClerkAuth();
+  const { formatPrice } = useCurrency();
 
   // Track page view
   useEffect(() => {
@@ -212,15 +214,15 @@ const Wishlist: React.FC = () => {
                            item.product.comparePrice > item.product.price ? (
                             <>
                               <span className="font-semibold text-primary">
-                                ${item.product.price.toFixed(2)}
+                                {formatPrice(item.product.price)}
                               </span>
                               <span className="text-sm text-muted-foreground line-through">
-                                ${item.product.comparePrice.toFixed(2)}
+                                {formatPrice(item.product.comparePrice)}
                               </span>
                             </>
                           ) : (
                             <span className="font-semibold text-primary">
-                              ${typeof item.product?.price === 'number' ? item.product.price.toFixed(2) : '0.00'}
+                              {formatPrice(item.product?.price || 0)}
                             </span>
                           )}
                         </div>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { 
   ShoppingCart, 
   Heart, 
@@ -15,11 +15,17 @@ import {
   Grid3X3,
   Info,
   MessageCircle,
-  Sparkles,
-  Zap,
-  Star,
-  X
+  Sparkles
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+
 import { useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
@@ -60,6 +66,8 @@ const Header: React.FC = () => {
   }, []);
 
   const handleLogout = () => {
+    // Clear cart when user logs out
+    useCartStore.getState().clearCart();
     signOut();
     navigate('/');
   };
@@ -203,6 +211,102 @@ const Header: React.FC = () => {
                   </Button>
                 </div>
               </CartHoverSheet>
+
+              {/* User Menu Dropdown */}
+              {isAuthenticated && user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="relative group px-4 py-2 rounded-2xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 dark:hover:from-purple-950/20 dark:hover:to-pink-950/20 transition-all duration-300 hover:scale-105"
+                    >
+                      {user.imageUrl ? (
+                        <img 
+                          src={user.imageUrl} 
+                          alt={`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'} 
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-5 w-5 transition-all duration-300 group-hover:scale-110" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="end" 
+                    className="w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 shadow-2xl"
+                  >
+                    <DropdownMenuLabel className="p-4">
+                      <div className="flex items-center space-x-3">
+                        {user.imageUrl ? (
+                          <img 
+                            src={user.imageUrl} 
+                            alt={`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'} 
+                            className="w-10 h-10 rounded-full object-cover border-2 border-purple-200 dark:border-purple-700"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center border-2 border-purple-200 dark:border-purple-700">
+                            <User className="h-5 w-5 text-white" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p 
+                            className="font-semibold text-gray-900 dark:text-gray-100 truncate" 
+                            title={`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'}
+                          >
+                            {`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'}
+                          </p>
+                          <p 
+                            className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate" 
+                            title={user.emailAddresses?.[0]?.emailAddress || 'No email'}
+                          >
+                            {user.emailAddresses?.[0]?.emailAddress || 'No email'}
+                          </p>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex items-center space-x-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 dark:hover:from-blue-950/20 dark:hover:to-cyan-950/20 transition-all duration-300">
+                        <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span>View Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        // Clear cart when user logs out
+                        useCartStore.getState().clearCart();
+                        handleLogout();
+                      }}
+                      className="flex items-center space-x-3 p-3 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 dark:hover:from-red-950/20 dark:hover:to-pink-950/20 transition-all duration-300 text-red-600 dark:text-red-400"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Link to="/login">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="px-4 py-2 rounded-2xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 dark:hover:from-blue-950/20 dark:hover:to-cyan-950/20 transition-all duration-300"
+                    >
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button 
+                      size="sm"
+                      className="px-4 py-2 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg transition-all duration-300"
+                    >
+                      Sign Up
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Mobile Menu Button */}

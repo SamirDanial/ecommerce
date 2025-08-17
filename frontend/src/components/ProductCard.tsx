@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import WishlistButton from './WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { Eye, Star } from 'lucide-react';
 import RatingDisplay from './ui/rating-display';
 
@@ -16,6 +17,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToRecentlyViewed } = useUserInteractionStore();
+  const { formatPrice } = useCurrency();
 
   // Get the primary image or first image - handle cases where images might not be an array
   const images = Array.isArray(product.images) ? product.images : [];
@@ -80,11 +82,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="text-lg sm:text-xl font-bold text-primary">
-                ${product.salePrice || product.price}
+                {formatPrice(product.salePrice || product.price)}
               </span>
               {product.comparePrice && product.comparePrice > product.price && (
                 <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                  ${product.comparePrice}
+                  {formatPrice(product.comparePrice)}
                 </span>
               )}
             </div>

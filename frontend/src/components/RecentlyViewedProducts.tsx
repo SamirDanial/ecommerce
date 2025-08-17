@@ -5,10 +5,12 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { Link } from 'react-router-dom';
 
 export const RecentlyViewedProducts: React.FC = () => {
   const { recentlyViewed, clearRecentlyViewed } = useUserInteractionStore();
+  const { formatPrice } = useCurrency();
 
   if (recentlyViewed.length === 0) {
     return null;
@@ -80,15 +82,15 @@ export const RecentlyViewedProducts: React.FC = () => {
                     {product.comparePrice && product.comparePrice > product.price ? (
                       <>
                         <span className="font-semibold text-primary text-sm">
-                          ${product.price.toFixed(2)}
+                          {formatPrice(product.price)}
                         </span>
                         <span className="text-xs text-muted-foreground line-through">
-                          ${product.comparePrice.toFixed(2)}
+                          {formatPrice(product.comparePrice)}
                         </span>
                       </>
                     ) : (
                       <span className="font-semibold text-primary text-sm">
-                        ${product.price.toFixed(2)}
+                        {formatPrice(product.price)}
                       </span>
                     )}
                   </div>

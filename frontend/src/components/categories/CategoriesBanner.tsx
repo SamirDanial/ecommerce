@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { useNavigate } from "react-router-dom";
 import { 
   Sparkles, 
   ShoppingBag, 
@@ -13,8 +14,10 @@ import {
 } from "lucide-react";
 
 export const CategoriesBanner: React.FC = () => {
+  const navigate = useNavigate();
+  
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl mb-8">
+    <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl mb-8 min-h-[240px]">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16"></div>
@@ -98,6 +101,7 @@ export const CategoriesBanner: React.FC = () => {
                 variant="outline" 
                 size="lg" 
                 className="border-white/30 text-black bg-white hover:bg-gray-100 hover:text-gray-900 font-semibold px-5 py-3 text-base rounded-xl backdrop-blur-sm transition-all duration-300"
+                onClick={() => navigate('/products')}
               >
                 View All Products
               </Button>

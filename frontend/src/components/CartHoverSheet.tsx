@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { 
   ShoppingCart, 
@@ -10,11 +9,11 @@ import {
   Plus,
   Minus,
   Trash2,
-  X,
   ArrowRight,
   Sparkles
 } from 'lucide-react';
 import { useCartStore } from '../stores/cartStore';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 
 interface CartHoverSheetProps {
@@ -31,10 +30,11 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
     items, 
     getTotalItems, 
     getTotal, 
-    selectedCurrency,
     updateQuantity,
     removeFromCart
   } = useCartStore();
+  
+  const { formatPrice } = useCurrency();
 
   // Detect mobile device
   useEffect(() => {
@@ -91,9 +91,7 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
     setIsOpen(false);
   };
 
-  const formatPrice = (price: number) => {
-    return `${selectedCurrency.symbol}${price.toFixed(2)}`;
-  };
+
 
   const cartTotal = getTotalItems();
   const total = getTotal();
@@ -189,7 +187,15 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
                           {item.name}
                         </h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {item.selectedColor && <span className="mr-2">Color: {item.selectedColor}</span>}
+                          {item.selectedColor && (
+                            <span className="mr-2 flex items-center gap-1">
+                              <span 
+                                className="w-3 h-3 rounded-full border border-gray-300" 
+                                style={{ backgroundColor: item.selectedColor }}
+                              ></span>
+                              Color: {item.selectedColor}
+                            </span>
+                          )}
                           {item.selectedSize && <span>Size: {item.selectedSize}</span>}
                         </p>
                         <p className="text-lg font-bold text-blue-600 dark:text-blue-400">

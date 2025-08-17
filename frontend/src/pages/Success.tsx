@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, Package, ShoppingBag, Mail, Truck, Clock, ArrowRight, Star, Heart, Home, User } from 'lucide-react';
+import { CheckCircle, Package, ShoppingBag, Mail, Clock, ArrowRight, Star, Heart, Home, User } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';

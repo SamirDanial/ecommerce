@@ -1,10 +1,10 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Product } from '../types';
 import { productService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Separator } from '../components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
@@ -12,6 +12,7 @@ import WishlistButton from '../components/WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useCartStore } from '../stores/cartStore';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { 
   Star, 
   ShoppingCart, 
@@ -29,7 +30,8 @@ import {
   Flag,
   Check,
   Trash2,
-  Edit
+  Edit,
+  Sparkles
 } from 'lucide-react';
 import ProductImageGallery from '../components/ProductImageGallery';
 import SizeChart from '../components/SizeChart';
@@ -164,7 +166,77 @@ const ProductDetail: React.FC = () => {
   
   const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
   const { isAuthenticated, getToken } = useClerkAuth();
-  const { addToCart, removeFromCart, isInCart, getItemQuantity, updateQuantity, isProductInCart: isProductInCartAnyVariant } = useCartStore();
+  const { addToCart, removeFromCart, isInCart, getItemQuantity, updateQuantity, isProductInCart: isProductInCartAnyVariant, getProductVariants } = useCartStore();
+  const { formatPrice } = useCurrency();
+
+  // Get images for selected color (direct mapping approach)
+  const getImagesForColor = (color: string) => {
+    if (!product || !product.images) return [];
+    
+    console.log(`Getting images for color: ${color}`);
+    console.log('Available images:', product.images);
+    
+    // Create a mapping of colors to images based on filename patterns
+    const colorImageMap: Record<string, string[]> = {};
+    
+    product.images.forEach(img => {
+      const fileName = img.url.toLowerCase();
+      
+      // Check for common color patterns in filenames
+      if (fileName.includes('black') || fileName.includes('bk') || fileName.includes('dark')) {
+        if (!colorImageMap['Black']) colorImageMap['Black'] = [];
+        colorImageMap['Black'].push(img.url);
+      } else if (fileName.includes('white') || fileName.includes('wt') || fileName.includes('light')) {
+        if (!colorImageMap['White']) colorImageMap['White'] = [];
+        colorImageMap['White'].push(img.url);
+      } else if (fileName.includes('blue') || fileName.includes('bl')) {
+        if (!colorImageMap['Blue']) colorImageMap['Blue'] = [];
+        colorImageMap['Blue'].push(img.url);
+      } else if (fileName.includes('red') || fileName.includes('rd')) {
+        if (!colorImageMap['Red']) colorImageMap['Red'] = [];
+        colorImageMap['Red'].push(img.url);
+      } else if (fileName.includes('green') || fileName.includes('gr')) {
+        if (!colorImageMap['Green']) colorImageMap['Green'] = [];
+        colorImageMap['Green'].push(img.url);
+      } else if (fileName.includes('yellow') || fileName.includes('yl')) {
+        if (!colorImageMap['Yellow']) colorImageMap['Yellow'] = [];
+        colorImageMap['Yellow'].push(img.url);
+      } else if (fileName.includes('purple') || fileName.includes('pr')) {
+        if (!colorImageMap['Purple']) colorImageMap['Purple'] = [];
+        colorImageMap['Purple'].push(img.url);
+      } else if (fileName.includes('pink') || fileName.includes('pk')) {
+        if (!colorImageMap['Pink']) colorImageMap['Pink'] = [];
+        colorImageMap['Pink'].push(img.url);
+      } else if (fileName.includes('orange') || fileName.includes('or')) {
+        if (!colorImageMap['Orange']) colorImageMap['Orange'] = [];
+        colorImageMap['Orange'].push(img.url);
+      } else if (fileName.includes('brown') || fileName.includes('br')) {
+        if (!colorImageMap['Brown']) colorImageMap['Brown'] = [];
+        colorImageMap['Brown'].push(img.url);
+      } else if (fileName.includes('gray') || fileName.includes('grey') || fileName.includes('gy')) {
+        if (!colorImageMap['Gray']) colorImageMap['Gray'] = [];
+        colorImageMap['Gray'].push(img.url);
+      }
+    });
+    
+    console.log('Color image mapping:', colorImageMap);
+    
+    // Return color-specific images if available, otherwise fallback to main images
+    const colorImages = colorImageMap[color];
+    if (colorImages && colorImages.length > 0) {
+      console.log(`Found ${colorImages.length} images for color ${color}:`, colorImages);
+      return colorImages;
+    } else {
+      console.log(`No color-specific images found for ${color}, using default images`);
+      return product.images.map(img => img.url);
+    }
+  };
+
+  // Handle when new images are loaded for a color
+  const handleImagesLoaded = (images: any[], color: string) => {
+    console.log(`Loaded ${images.length} images for color: ${color}`);
+    // You can add additional logic here if needed
+  };
 
 
 
@@ -663,6 +735,7 @@ const ProductDetail: React.FC = () => {
   }, [isAuthenticated, getToken, questionReplyForm]);
 
   // Function to toggle replies expansion
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const toggleQuestionReplies = useCallback((questionId: number) => {
     setExpandedQuestionReplies(prev => {
       const newState = { ...prev, [questionId]: !prev[questionId] };
@@ -695,6 +768,7 @@ const ProductDetail: React.FC = () => {
   }, []);
 
   // Function to submit edited question reply
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleSubmitEditedQuestionReply = useCallback(async (replyId: number) => {
     const editedText = editQuestionReplyForm[replyId]?.trim();
     if (!editedText) {
@@ -954,7 +1028,9 @@ const ProductDetail: React.FC = () => {
         }
         
         // Now add the product with selected variants
-        addToCart(product, quantity, selectedColor, selectedSize);
+        const colorImages = getImagesForColor(selectedColor);
+        const selectedImage = colorImages.length > 0 ? colorImages[0] : product.images?.[0]?.url;
+        addToCart(product, quantity, selectedColor, selectedSize, selectedImage);
         
         addInteraction({
           type: 'cart_add',
@@ -970,7 +1046,9 @@ const ProductDetail: React.FC = () => {
         });
       } else {
         // Add new item to cart
-        addToCart(product, quantity, selectedColor, selectedSize);
+        const colorImages = getImagesForColor(selectedColor);
+        const selectedImage = colorImages.length > 0 ? colorImages[0] : product.images?.[0]?.url;
+        addToCart(product, quantity, selectedColor, selectedSize, selectedImage);
         
         addInteraction({
           type: 'cart_add',
@@ -1720,6 +1798,14 @@ const ProductDetail: React.FC = () => {
             <ProductImageGallery
               images={images}
               productName={product.name}
+              colorImages={{
+                [selectedColor]: getImagesForColor(selectedColor)
+              }}
+              defaultImages={images.map(img => img.url)}
+              selectedColor={selectedColor}
+              productId={product.id}
+              onImagesLoaded={handleImagesLoaded}
+              enableLazyLoading={false}
             />
           </div>
 
@@ -1771,11 +1857,11 @@ const ProductDetail: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4">
                 <div className="flex items-center gap-2 sm:gap-4">
                   <span className="text-2xl sm:text-3xl font-bold text-primary">
-                    ${product.salePrice || product.price}
+                    {formatPrice(product.salePrice || product.price)}
                   </span>
                   {product.comparePrice && product.comparePrice > product.price && (
                     <span className="text-lg sm:text-xl text-muted-foreground line-through">
-                      ${product.comparePrice}
+                      {formatPrice(product.comparePrice)}
                     </span>
                   )}
                 </div>
@@ -1975,6 +2061,97 @@ const ProductDetail: React.FC = () => {
                   <ShoppingCart className="h-4 w-4" />
                   This item is already in your cart ({cartItemQuantity} {cartItemQuantity === 1 ? 'item' : 'items'}). 
                   You can remove it or adjust the quantity above.
+                </p>
+              </div>
+            )}
+
+            {/* Cart Variants Section - Show all variants of this product in cart */}
+            {product && getProductVariants(product.id).length > 0 && (
+              <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 text-blue-600" />
+                  Cart Variants ({getProductVariants(product.id).length})
+                </h4>
+                <div className="space-y-3">
+                  {getProductVariants(product.id).map((cartItem, index) => (
+                    <div 
+                      key={`${cartItem.id}-${cartItem.selectedColor}-${cartItem.selectedSize}`}
+                      className={`flex items-center justify-between p-3 rounded-md border ${
+                        cartItem.selectedColor === selectedColor && cartItem.selectedSize === selectedSize
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-md overflow-hidden">
+                          <img 
+                            src={cartItem.image || '/placeholder-image.jpg'} 
+                            alt={cartItem.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{cartItem.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            {cartItem.selectedColor && (
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 rounded-full border border-gray-300" 
+                                      style={{ backgroundColor: cartItem.selectedColor }}></span>
+                                {cartItem.selectedColor}
+                              </span>
+                            )}
+                            {cartItem.selectedSize && (
+                              <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                Size: {cartItem.selectedSize}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          Qty: {cartItem.quantity}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            removeFromCart(cartItem.id, cartItem.selectedColor, cartItem.selectedSize);
+                            addInteraction({
+                              type: 'cart_remove',
+                              targetId: cartItem.id.toString(),
+                              targetType: 'product',
+                              data: { 
+                                productName: cartItem.name, 
+                                color: cartItem.selectedColor, 
+                                size: cartItem.selectedSize 
+                              }
+                            });
+                          }}
+                          className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 h-8 px-2"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-600 mt-3">
+                  💡 You can add the same product with different colors and sizes. Each variant is treated as a separate cart item.
+                </p>
+              </div>
+            )}
+
+            {/* Helpful Tip for Multiple Variants */}
+            {product && getProductVariants(product.id).length === 0 && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  Shopping Tip
+                </h4>
+                <p className="text-sm text-blue-800">
+                  💡 Want to try different sizes or colors? You can add the same product multiple times with different variants! 
+                  Each combination of color and size will be treated as a separate cart item, making it easy to compare and choose.
                 </p>
               </div>
             )}
@@ -3658,15 +3835,15 @@ const ProductDetail: React.FC = () => {
                           {product.comparePrice && product.comparePrice > product.price ? (
                             <>
                               <span className="font-semibold text-primary">
-                                ${product.price.toFixed(2)}
+                                {formatPrice(product.price)}
                               </span>
                               <span className="text-sm text-muted-foreground line-through">
-                                ${product.comparePrice.toFixed(2)}
+                                {formatPrice(product.comparePrice)}
                               </span>
                             </>
                           ) : (
                             <span className="font-semibold text-primary">
-                              ${product.price.toFixed(2)}
+                              {formatPrice(product.price)}
                             </span>
                           )}
                         </div>

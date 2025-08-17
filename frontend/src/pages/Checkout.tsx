@@ -393,7 +393,7 @@ const Checkout: React.FC = () => {
   };
 
   const formatPrice = (price: number) => {
-    return `${selectedCurrency.symbol}${price.toFixed(2)}`;
+    return `${selectedCurrency.symbol}${price.toFixed(1).replace(/\.0$/, '')}`;
   };
 
   const handlePaymentMethodChange = (value: string) => {
@@ -555,48 +555,38 @@ const Checkout: React.FC = () => {
                       />
                     )}
                     
-                    {/* Enhanced Continue to Payment Section */}
+                    {/* Address Status Section */}
                     <div className="mt-8 pt-6 border-t border-gray-200">
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="flex-1">
-                          {selectedAddress ? (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold text-green-800 mb-1">Address Selected</h4>
-                                  <p className="text-sm text-green-700 mb-1">
-                                    {selectedAddress.firstName} {selectedAddress.lastName}
-                                  </p>
-                                  <p className="text-sm text-green-700">
-                                    {selectedAddress.address}, {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postalCode}, {selectedAddress.country}
-                                  </p>
-                                </div>
+                      <div className="flex-1">
+                        {selectedAddress ? (
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
                               </div>
-                            </div>
-                          ) : (
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <MapPin className="h-4 w-4 text-blue-600" />
-                                </div>
-                                <p className="text-sm text-blue-800">
-                                  Please select a shipping address to continue
+                              <div>
+                                <h4 className="font-semibold text-green-800 mb-1">Address Selected</h4>
+                                <p className="text-sm text-green-700 mb-1">
+                                  {selectedAddress.firstName} {selectedAddress.lastName}
+                                </p>
+                                <p className="text-sm text-green-700">
+                                  {selectedAddress.address}, {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postalCode}, {selectedAddress.country}
                                 </p>
                               </div>
                             </div>
-                          )}
-                        </div>
-                        <Button 
-                          onClick={() => setCurrentStep('payment')} 
-                          disabled={!selectedAddress}
-                          className="w-full lg:w-auto h-12 px-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Continue to Payment
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
+                          </div>
+                        ) : (
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <MapPin className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <p className="text-sm text-blue-800">
+                                Please select a shipping address to continue
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -936,6 +926,26 @@ const Checkout: React.FC = () => {
                     <span className="text-2xl">{formatPrice(getTotal())}</span>
                   </div>
                 </div>
+                
+                {/* Continue to Payment Button - Mobile First */}
+                {currentStep === 'address' && (
+                  <div className="pt-6 border-t border-gray-200">
+                    <Button 
+                      onClick={() => setCurrentStep('payment')} 
+                      disabled={!selectedAddress}
+                      className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
+                    >
+                      Continue to Payment
+                      <ArrowRight className="h-5 w-5 ml-2" />
+                    </Button>
+                    
+                    {!selectedAddress && (
+                      <p className="text-sm text-gray-500 text-center mt-3">
+                        Please select a shipping address to continue
+                      </p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

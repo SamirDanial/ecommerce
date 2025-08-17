@@ -7,6 +7,7 @@ import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import { ShoppingCart, Package, Check, Zap } from 'lucide-react';
 import { useCartStore } from '../stores/cartStore';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { Product } from '../types';
 import RatingDisplay from './ui/rating-display';
 
@@ -30,6 +31,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
   
   const { addToCart } = useCartStore();
   const { addInteraction } = useUserInteractionStore();
+  const { formatPrice } = useCurrency();
 
   // Generate frequently bought together items
   React.useEffect(() => {
@@ -104,7 +106,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
     // Add each selected item to cart
     selectedBundle.forEach(item => {
       const quantity = 1; // itemQuantities[item.product.id] || 1; // This line was removed
-      addToCart(item.product, quantity);
+      addToCart(item.product, quantity, undefined, undefined, item.product.images?.[0]?.url);
       
       // Track interaction
       addInteraction({
@@ -204,15 +206,15 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                       {item.product.comparePrice && item.product.comparePrice > item.product.price ? (
                         <>
                           <span className="font-semibold text-primary text-base sm:text-lg">
-                            ${item.product.price.toFixed(2)}
+                            {formatPrice(item.product.price)}
                           </span>
                           <span className="text-sm text-muted-foreground line-through">
-                            ${item.product.comparePrice.toFixed(2)}
+                            {formatPrice(item.product.comparePrice)}
                           </span>
                         </>
                       ) : (
                         <span className="font-semibold text-primary text-base sm:text-lg">
-                          ${item.product.price.toFixed(2)}
+                          {formatPrice(item.product.price)}
                         </span>
                       )}
                     </div>
@@ -261,7 +263,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                 <h4 className="font-semibold text-center sm:text-left">Bundle Summary</h4>
                 <Badge variant="outline" className="text-green-600 border-green-600 w-fit mx-auto sm:mx-0">
-                  Save ${savings.toFixed(2)}
+                  Save {formatPrice(savings)}
                 </Badge>
               </div>
               
@@ -279,7 +281,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                         )}
                       </span>
                       <span className="font-medium text-right sm:text-left">
-                        ${(item.product.price * item.quantity).toFixed(2)}
+                        {formatPrice(item.product.price * item.quantity)}
                       </span>
                     </div>
                   ))
@@ -290,7 +292,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <span className="font-semibold text-center sm:text-left">Bundle Total:</span>
                   <span className="font-semibold text-lg text-primary text-center sm:text-right">
-                    ${bundlePrice.toFixed(2)}
+                    {formatPrice(bundlePrice)}
                   </span>
                 </div>
                 
@@ -307,8 +309,8 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                   size="lg"
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Add Bundle to Cart - Save ${savings.toFixed(2)}</span>
-                  <span className="sm:hidden">Add Bundle - Save ${savings.toFixed(2)}</span>
+                                          <span className="hidden sm:inline">Add Bundle to Cart - Save {formatPrice(savings)}</span>
+                        <span className="sm:hidden">Add Bundle - Save {formatPrice(savings)}</span>
                 </Button>
               </div>
             </div>

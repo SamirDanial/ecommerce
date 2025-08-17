@@ -101,7 +101,7 @@ export interface DynamicLanguage extends Language {
 interface CartState {
   // Cart Items
   items: CartItem[];
-  addToCart: (product: any, quantity?: number, color?: string, size?: string) => void;
+  addToCart: (product: any, quantity?: number, color?: string, size?: string, imageUrl?: string) => void;
   removeFromCart: (productId: number, color?: string, size?: string) => void;
   updateQuantity: (productId: number, quantity: number, color?: string, size?: string) => void;
   clearCart: () => void;
@@ -145,6 +145,8 @@ interface CartState {
   // Utility
   isInCart: (productId: number, color?: string, size?: string) => boolean;
   isProductInCart: (productId: number) => boolean;
+  isVariantInCart: (productId: number, color?: string, size?: string) => boolean;
+  getProductVariants: (productId: number) => CartItem[];
 }
 
 
@@ -167,7 +169,7 @@ export const useCartStore = create<CartState>()(
       isLoadingLanguages: false,
 
       // Cart item methods
-      addToCart: (product, quantity = 1, color, size) => {
+      addToCart: (product, quantity = 1, color, size, imageUrl?: string) => {
         const { items } = get();
         const existingItemIndex = items.findIndex(
           item => 
@@ -183,13 +185,23 @@ export const useCartStore = create<CartState>()(
           set({ items: updatedItems });
         } else {
           // Add new item
+          // Get the appropriate image for the selected color
+          let productImage = imageUrl || product.images?.[0]?.url;
+          
+          // If we have color-specific images, try to find one for the selected color
+          if (color && product.images && product.images.length > 0 && !imageUrl) {
+            // For now, we'll use the first image as a fallback
+            // In a real implementation, you'd have a mapping of colors to specific images
+            productImage = product.images[0]?.url;
+          }
+          
           const newItem: CartItem = {
             id: product.id,
             name: product.name,
             slug: product.slug,
             price: product.price,
             comparePrice: product.comparePrice,
-            image: product.images?.[0]?.url,
+            image: productImage,
             quantity,
             selectedColor: color,
             selectedSize: size,
@@ -197,6 +209,22 @@ export const useCartStore = create<CartState>()(
           };
           set({ items: [...items, newItem] });
         }
+      },
+
+      // New method to check if a specific variant is in cart
+      isVariantInCart: (productId: number, color?: string, size?: string) => {
+        const { items } = get();
+        return items.some(item => 
+          item.id === productId && 
+          item.selectedColor === color && 
+          item.selectedSize === size
+        );
+      },
+
+      // New method to get all variants of a product in cart
+      getProductVariants: (productId: number) => {
+        const { items } = get();
+        return items.filter(item => item.id === productId);
       },
 
       removeFromCart: (productId, color, size) => {

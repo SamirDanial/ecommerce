@@ -121,6 +121,17 @@ export const productService = {
     return response.data;
   },
 
+  // New method for lazy loading color-specific images
+  getImagesByColor: async (productId: number, color: string): Promise<{
+    images: any[];
+    isColorSpecific: boolean;
+    totalImages: number;
+    colorImagesFound: number;
+  }> => {
+    const response = await api.get(`/products/${productId}/images/${encodeURIComponent(color)}`);
+    return response.data;
+  },
+
   create: async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<Product> => {
     const response = await api.post('/products', product);
     return response.data;

@@ -9,6 +9,7 @@ import ClerkSessionManager from './components/ClerkSessionManager';
 import SessionRecovery from './components/SessionRecovery';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalWishlistLoader from './components/GlobalWishlistLoader';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 
 import { AuthRedirectWrapper } from './components/AuthRedirectWrapper';
 import Home from './pages/Home';
@@ -47,44 +48,46 @@ function App() {
         <ClerkSessionManager />
         <SessionRecovery />
         <ThemeProvider>
-          <Router>
-            <AuthRedirectWrapper>
-              <div className="App">
-                <GlobalWishlistLoader />
-                <Header />
-                <main>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/products" element={<Products />} />
-                    <Route path="/products/:slug" element={<ProductDetail />} />
-                    <Route path="/categories" element={<Categories />} />
-                    <Route path="/categories/:slug" element={<CategoryDetail />} />
-                    <Route path="/wishlist" element={
-                      <ProtectedRoute>
-                        <Wishlist />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/success" element={<Success />} />
-                    <Route path="/cancel" element={<Cancel />} />
-                    <Route path="/login" element={<ClerkLogin />} />
-                    <Route path="/login/factor-one" element={<ClerkLogin />} />
-                    <Route path="/register" element={<ClerkRegister />} />
-                    <Route path="/register/verify-email-address" element={<VerifyEmail />} />
-                    <Route path="/profile" element={
-                      <ProtectedRoute>
-                        <UserProfile />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/contact" element={<Contact />} />
-                  </Routes>
-                </main>
-                <Toaster position="top-right" richColors />
-              </div>
-            </AuthRedirectWrapper>
-          </Router>
+          <CurrencyProvider>
+            <Router>
+              <AuthRedirectWrapper>
+                <div className="App">
+                  <GlobalWishlistLoader />
+                  <Header />
+                  <main>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/products" element={<Products />} />
+                      <Route path="/products/:slug" element={<ProductDetail />} />
+                      <Route path="/categories" element={<Categories />} />
+                      <Route path="/categories/:slug" element={<CategoryDetail />} />
+                      <Route path="/wishlist" element={
+                        <ProtectedRoute>
+                          <Wishlist />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/cart" element={<Cart />} />
+                      <Route path="/checkout" element={<Checkout />} />
+                      <Route path="/success" element={<Success />} />
+                      <Route path="/cancel" element={<Cancel />} />
+                      <Route path="/login" element={<ClerkLogin />} />
+                      <Route path="/login/factor-one" element={<ClerkLogin />} />
+                      <Route path="/register" element={<ClerkRegister />} />
+                      <Route path="/register/verify-email-address" element={<VerifyEmail />} />
+                      <Route path="/profile" element={
+                        <ProtectedRoute>
+                          <UserProfile />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/about" element={<About />} />
+                      <Route path="/contact" element={<Contact />} />
+                    </Routes>
+                  </main>
+                  <Toaster position="top-right" richColors />
+                </div>
+              </AuthRedirectWrapper>
+            </Router>
+          </CurrencyProvider>
         </ThemeProvider>
       </ClerkProvider>
     </QueryClientProvider>

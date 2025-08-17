@@ -31,12 +31,13 @@ import {
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useProfile } from '../hooks/useProfile';
 import { useConfig } from '../hooks/useConfig';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { timezoneService } from '../services/timezoneService';
 
 
 import { toast } from 'sonner';
 import { Address } from '../types';
-import { Order, OrderItem, PaymentMethod, UserPreferences, UserSession } from '../services/profileService';
+import { Order, OrderItem, UserPreferences, UserSession } from '../services/profileService';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -52,6 +53,7 @@ const UserProfile: React.FC = () => {
     const { isAuthenticated } = useClerkAuth();
   const { useLanguages } = useConfig();
   const { data: languages, isLoading: languagesLoading, error: languagesError } = useLanguages();
+  const { formatPrice } = useCurrency();
   
   // Simple flag emoji function
   const getFlagEmoji = (languageCode: string): string => {
@@ -308,7 +310,7 @@ const UserProfile: React.FC = () => {
     useSessions,
     useUpdatePreferences,
     useDeleteAddress,
-    useDeletePaymentMethod,
+
     useAddAddress,
     useUpdateAddress,
     useRevokeSession,
@@ -322,7 +324,7 @@ const UserProfile: React.FC = () => {
   // Data queries
   const { data: ordersData, isLoading: ordersLoading, error: ordersError } = useOrders(currentPage, ordersPerPage);
   const { data: addresses = [], isLoading: addressesLoading, error: addressesError } = useAddresses();
-  const { data: paymentMethods = [], isLoading: paymentLoading, error: paymentError } = usePaymentMethods();
+  const { isLoading: paymentLoading, error: paymentError } = usePaymentMethods();
   const { data: preferences, isLoading: preferencesLoading, error: preferencesError } = usePreferences();
   const { data: sessions = [], isLoading: sessionsLoading, error: sessionsError } = useSessions();
   
@@ -348,7 +350,7 @@ const UserProfile: React.FC = () => {
     if (pagination?.pages && currentPage > pagination.pages) {
       setCurrentPage(pagination.pages);
     }
-  }, [pagination?.pages]); // Only depend on total pages, not current page
+  }, [pagination?.pages, currentPage]); // Include currentPage dependency
 
   // Custom page change handlers
   const handlePageChange = (newPage: number) => {
@@ -358,7 +360,7 @@ const UserProfile: React.FC = () => {
   // Mutations
   const updatePreferencesMutation = useUpdatePreferences();
   const deleteAddressMutation = useDeleteAddress();
-  const deletePaymentMethodMutation = useDeletePaymentMethod();
+
   const addAddressMutation = useAddAddress();
   const updateAddressMutation = useUpdateAddress();
   const revokeSessionMutation = useRevokeSession();
@@ -410,7 +412,7 @@ const UserProfile: React.FC = () => {
         }));
       }
     }
-  }, [countries, editingAddress]);
+  }, [countries, editingAddress, addressForm.country]);
   
 
 
@@ -544,17 +546,7 @@ const UserProfile: React.FC = () => {
     }
   };
 
-  const handleAddPaymentMethod = async () => {
-    toast.info('Add payment method functionality coming soon');
-  };
 
-  const handleEditPaymentMethod = async (methodId: number) => {
-    toast.info(`Edit payment method ${methodId} functionality coming soon`);
-  };
-
-  const handleDeletePaymentMethod = async (methodId: number) => {
-    deletePaymentMethodMutation.mutate(methodId);
-  };
 
   const handleSavePreferences = async () => {
     if (!localPreferences) {
@@ -773,7 +765,7 @@ const UserProfile: React.FC = () => {
                                 </div>
                                 <div className="text-left sm:text-right">
                                   <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-3 rounded-xl text-white">
-                                    <p className="font-bold text-2xl sm:text-3xl">${toNumber(order.total).toFixed(2)}</p>
+                                    <p className="font-bold text-2xl sm:text-3xl">{formatPrice(toNumber(order.total))}</p>
                                     <p className="text-sm font-medium opacity-90">{order.currency}</p>
                                   </div>
                                 </div>
@@ -795,7 +787,7 @@ const UserProfile: React.FC = () => {
                                   <Truck className="h-4 w-4 text-white" />
                                 </div>
                                 <p className="text-xs sm:text-sm text-green-700 font-semibold mb-1">Shipping</p>
-                                <p className="font-bold text-lg sm:text-xl text-green-900">${toNumber(order.shipping).toFixed(2)}</p>
+                                <p className="font-bold text-lg sm:text-xl text-green-900">{formatPrice(toNumber(order.shipping))}</p>
                                 <p className="text-xs text-green-600">cost</p>
                               </div>
                               <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200 text-center transform hover:scale-105 transition-transform duration-200">
@@ -1092,17 +1084,17 @@ const UserProfile: React.FC = () => {
                       <div className="space-y-3 sm:space-y-4">
                         <div className="flex justify-between items-center py-2">
                           <span className="text-gray-600 text-sm sm:text-base">Subtotal</span>
-                          <span className="font-medium text-sm sm:text-base">${toNumber(selectedOrder.subtotal).toFixed(2)}</span>
+                          <span className="font-medium text-sm sm:text-base">{formatPrice(toNumber(selectedOrder.subtotal))}</span>
                         </div>
                         
                         <div className="flex justify-between items-center py-2">
                           <span className="text-gray-600 text-sm sm:text-base">Tax</span>
-                          <span className="font-medium text-sm sm:text-base">${toNumber(selectedOrder.tax).toFixed(2)}</span>
+                          <span className="font-medium text-sm sm:text-base">{formatPrice(toNumber(selectedOrder.tax))}</span>
                         </div>
                         
                         <div className="flex justify-between items-center py-2">
                           <span className="text-gray-600 text-sm sm:text-base">Shipping</span>
-                          <span className="font-medium text-sm sm:text-base">${toNumber(selectedOrder.shipping).toFixed(2)}</span>
+                          <span className="font-medium text-sm sm:text-base">{formatPrice(toNumber(selectedOrder.shipping))}</span>
                         </div>
                         
                         {toNumber(selectedOrder.discount) > 0 && (
@@ -1112,7 +1104,7 @@ const UserProfile: React.FC = () => {
                               Discount Applied
                             </span>
                             <span className="text-green-700 font-bold text-base sm:text-lg">
-                              -${toNumber(selectedOrder.discount).toFixed(2)}
+                              -{formatPrice(toNumber(selectedOrder.discount))}
                             </span>
                           </div>
                         )}
@@ -1122,7 +1114,7 @@ const UserProfile: React.FC = () => {
                         <div className="flex justify-between items-center py-3 bg-gradient-to-r from-blue-50 to-purple-50 p-3 sm:p-4 rounded-lg border border-blue-200">
                           <span className="text-lg sm:text-xl font-bold text-gray-900">Total</span>
                           <span className="text-xl sm:text-2xl font-bold text-blue-600">
-                            ${toNumber(selectedOrder.total).toFixed(2)} {selectedOrder.currency}
+                            {formatPrice(toNumber(selectedOrder.total))} {selectedOrder.currency}
                           </span>
                         </div>
                       </div>
@@ -1196,13 +1188,13 @@ const UserProfile: React.FC = () => {
                                       Qty: {item.quantity}
                                     </span>
                                     <span className="text-gray-500">•</span>
-                                    <span>${toNumber(item.price).toFixed(2)} each</span>
+                                    <span>{formatPrice(toNumber(item.price))} each</span>
                                   </div>
                                   
                                   {/* Total Price */}
                                   <div className="text-center sm:text-right">
                                     <div className="text-base sm:text-lg font-bold text-blue-600">
-                                      ${toNumber(item.total).toFixed(2)}
+                                      {formatPrice(toNumber(item.total))}
                                     </div>
                                   </div>
                                 </div>

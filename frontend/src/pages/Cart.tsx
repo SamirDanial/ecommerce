@@ -3,12 +3,12 @@ import { Trash2, Plus, Minus, ShoppingCart, ArrowRight, Package, Truck, CreditCa
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Separator } from '../components/ui/separator';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { useCartStore } from '../stores/cartStore';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useAuthRedirect } from '../hooks/useAuthRedirect';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Cart: React.FC = () => {
@@ -24,6 +24,8 @@ const Cart: React.FC = () => {
     getSavings
   } = useCartStore();
   
+  const { formatPrice } = useCurrency();
+  
   const { addInteraction } = useUserInteractionStore();
   const { isAuthenticated } = useClerkAuth();
   const { navigateToLogin } = useAuthRedirect();
@@ -31,6 +33,12 @@ const Cart: React.FC = () => {
 
   // Use actual authentication state
   const isLoggedIn = isAuthenticated;
+
+
+
+
+
+
 
   // Track page view
   React.useEffect(() => {
@@ -40,6 +48,10 @@ const Cart: React.FC = () => {
       data: { path: '/cart', name: 'Cart' }
     });
   }, [addInteraction]);
+
+
+
+
 
   if (items.length === 0) {
     return (
@@ -126,7 +138,7 @@ const Cart: React.FC = () => {
                   <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <h3 className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">Fast Shipping</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Free shipping on orders over $50</p>
+                <p className="text-xs sm:text-sm text-gray-600">Free shipping on orders over {formatPrice(50)}</p>
               </div>
             </div>
           </div>
@@ -218,6 +230,16 @@ const Cart: React.FC = () => {
     });
   };
 
+  // Group cart items by product to show variants together
+  const groupedItems = items.reduce((groups, item) => {
+    const key = item.id;
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(item);
+    return groups;
+  }, {} as Record<number, typeof items>);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <div className="container mx-auto px-4 py-6 sm:py-8">
@@ -248,7 +270,7 @@ const Cart: React.FC = () => {
                 {getSavings() > 0 && (
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-full">
                     <span className="text-sm font-medium text-green-800">
-                      Save ${getSavings().toFixed(2)}
+                      Save {formatPrice(getSavings())}
                     </span>
                   </div>
                 )}
@@ -278,12 +300,39 @@ const Cart: React.FC = () => {
           </div>
         </div>
 
+
+
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-8">
           {/* Enhanced Cart Items */}
           <div className="xl:col-span-2">
-            <div className="space-y-4">
-              {items.map((item, index) => (
-                                <Card key={`${item.id}-${item.selectedColor}-${item.selectedSize}`} className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white">
+            <div className="space-y-6">
+              {Object.entries(groupedItems).map(([productId, productItems]) => {
+                const firstItem = productItems[0];
+                const totalQuantity = productItems.reduce((sum, item) => sum + item.quantity, 0);
+                const hasMultipleVariants = productItems.length > 1;
+                
+                return (
+                  <div key={productId} className="space-y-3">
+                    {/* Product Header for Multiple Variants */}
+                    {hasMultipleVariants && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Package className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-900">{firstItem.name}</h3>
+                          <p className="text-sm text-blue-700">
+                            {productItems.length} variant{productItems.length > 1 ? 's' : ''} • Total: {totalQuantity} {totalQuantity === 1 ? 'item' : 'items'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Individual Variants */}
+                    {productItems.map((item, index) => (
+                      <Card key={`${item.id}-${item.selectedColor}-${item.selectedSize}`} className={`overflow-hidden border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white ${
+                        hasMultipleVariants ? 'border-l-4 border-l-blue-200' : ''
+                      }`}>
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                        {/* Enhanced Product Image - Larger for T-shirts */}
@@ -313,7 +362,11 @@ const Cart: React.FC = () => {
                             {/* Enhanced Variants */}
                             <div className="flex flex-wrap gap-2 mb-4">
                               {item.selectedColor && (
-                                <Badge variant="outline" className="text-xs px-3 py-1 border-blue-200 text-blue-700 bg-blue-50">
+                                <Badge variant="outline" className="text-xs px-3 py-1 border-blue-200 text-blue-700 bg-blue-50 flex items-center gap-2">
+                                  <span 
+                                    className="w-3 h-3 rounded-full border border-gray-300" 
+                                    style={{ backgroundColor: item.selectedColor }}
+                                  ></span>
                                   Color: {item.selectedColor}
                                 </Badge>
                               )}
@@ -329,18 +382,18 @@ const Cart: React.FC = () => {
                               {item.comparePrice && item.comparePrice > item.price ? (
                                 <>
                                   <span className="font-bold text-2xl text-blue-600">
-                                    ${item.price.toFixed(2)}
+                                    {formatPrice(item.price)}
                                   </span>
                                   <span className="text-gray-500 line-through text-lg">
-                                    ${item.comparePrice.toFixed(2)}
+                                    {formatPrice(item.comparePrice)}
                                   </span>
                                   <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                                    Save ${(item.comparePrice - item.price).toFixed(2)}
+                                    Save {formatPrice(item.comparePrice - item.price)}
                                   </Badge>
                                 </>
                               ) : (
                                 <span className="font-bold text-2xl text-blue-600">
-                                  ${item.price.toFixed(2)}
+                                  {formatPrice(item.price)}
                                 </span>
                               )}
                             </div>
@@ -409,6 +462,9 @@ const Cart: React.FC = () => {
                   </CardContent>
                 </Card>
               ))}
+                    </div>
+                  );
+                })}
             </div>
           </div>
 
@@ -425,22 +481,15 @@ const Cart: React.FC = () => {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">Subtotal ({getTotalItems()} items)</span>
-                    <span className="font-semibold text-gray-900">${getSubtotal().toFixed(2)}</span>
+                    <span className="font-semibold text-gray-900">{formatPrice(getSubtotal())}</span>
                   </div>
                   
                   {getSavings() > 0 && (
                     <div className="flex justify-between items-center py-2 bg-green-50 px-3 rounded-lg">
                       <span className="text-green-700 font-medium">Total Savings</span>
-                      <span className="font-bold text-green-700">-${getSavings().toFixed(2)}</span>
+                      <span className="font-bold text-green-700">-{formatPrice(getSavings())}</span>
                     </div>
                   )}
-                  
-                  <Separator className="my-4" />
-                  
-                  <div className="flex justify-between items-center py-3 bg-blue-50 px-4 rounded-lg">
-                    <span className="text-xl font-bold text-blue-900">Total</span>
-                    <span className="text-2xl font-bold text-blue-900">${getTotal().toFixed(2)}</span>
-                  </div>
                 </div>
 
                 {/* Enhanced Checkout Button */}
@@ -509,7 +558,7 @@ const Cart: React.FC = () => {
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <Package className="h-4 w-4 text-blue-600" />
                     </div>
-                    <span className="font-medium">Free shipping on orders over $50</span>
+                    <span className="font-medium">Free shipping on orders over {formatPrice(50)}</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">

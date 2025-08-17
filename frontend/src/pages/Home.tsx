@@ -5,14 +5,14 @@ import { productService, flashSaleService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { ShoppingBag, Heart, ArrowRight, Zap, TrendingUp, Gift, Star, Grid3X3, List, Sparkles, Play, Shield, Truck, Clock, Users, Award } from 'lucide-react';
+import { ShoppingBag, Heart, ArrowRight, Zap, TrendingUp, Gift, Star, Grid3X3, List, Sparkles, Shield, Truck, Clock, Users } from 'lucide-react';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { RecentlyViewedProducts } from '../components/RecentlyViewedProducts';
 import WishlistButton from '../components/WishlistButton';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { useCartStore } from '../stores/cartStore';
 import { categoryService } from '../services/api';
 import RatingDisplay from '../components/ui/rating-display';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 const Home: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -28,7 +28,7 @@ const Home: React.FC = () => {
   });
 
   const { addToRecentlyViewed, addInteraction } = useUserInteractionStore();
-  const { addToCart } = useCartStore();
+  const { formatPrice } = useCurrency();
 
   // Responsive default view mode - Grid on desktop, List on mobile
   const getDefaultViewMode = useMemo(() => {
@@ -419,11 +419,11 @@ const Home: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <span className="text-2xl font-black text-blue-600">
-                              ${product.salePrice || product.price}
+                              {formatPrice(product.salePrice || product.price)}
                             </span>
                             {product.comparePrice && product.comparePrice > product.price && (
                               <span className="text-lg text-gray-400 line-through">
-                                ${product.comparePrice}
+                                {formatPrice(product.comparePrice)}
                               </span>
                             )}
                           </div>
@@ -460,11 +460,11 @@ const Home: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <span className="text-2xl font-black text-blue-600">
-                              ${product.salePrice || product.price}
+                              {formatPrice(product.salePrice || product.price)}
                             </span>
                             {product.comparePrice && product.comparePrice > product.price && (
                               <span className="text-lg text-gray-400 line-through">
-                                ${product.comparePrice}
+                                {formatPrice(product.comparePrice)}
                               </span>
                             )}
                           </div>
@@ -673,31 +673,15 @@ const Home: React.FC = () => {
                         />
                       </CardHeader>
                       <CardContent>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl font-black text-blue-600">
-                              ${product.salePrice || product.price}
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-black text-blue-600">
+                            {formatPrice(product.salePrice || product.price)}
+                          </span>
+                          {product.comparePrice && product.comparePrice > product.price && (
+                            <span className="text-lg text-gray-400 line-through">
+                              {formatPrice(product.comparePrice)}
                             </span>
-                            {product.comparePrice && product.comparePrice > product.price && (
-                              <span className="text-lg text-gray-400 line-through">
-                                ${product.comparePrice}
-                              </span>
-                            )}
-                          </div>
-                          <Button size="sm" onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            addToCart(product, 1);
-                            addInteraction({
-                              type: 'cart_add',
-                              targetId: product.id.toString(),
-                              targetType: 'product',
-                              data: { slug: product.slug, name: product.name }
-                            });
-                          }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                            <ShoppingBag className="h-4 w-4 mr-2" />
-                            Add to Cart
-                          </Button>
+                          )}
                         </div>
                       </CardContent>
                     </>
@@ -728,31 +712,15 @@ const Home: React.FC = () => {
                             size="md"
                           />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl font-black text-blue-600">
-                              ${product.salePrice || product.price}
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-black text-blue-600">
+                            {formatPrice(product.salePrice || product.price)}
+                          </span>
+                          {product.comparePrice && product.comparePrice > product.price && (
+                            <span className="text-lg text-gray-400 line-through">
+                              {formatPrice(product.comparePrice)}
                             </span>
-                            {product.comparePrice && product.comparePrice > product.price && (
-                              <span className="text-lg text-gray-400 line-through">
-                                ${product.comparePrice}
-                              </span>
-                            )}
-                          </div>
-                          <Button size="sm" onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            addToCart(product, 1);
-                            addInteraction({
-                              type: 'cart_add',
-                              targetId: product.id.toString(),
-                              targetType: 'product',
-                              data: { slug: product.slug, name: product.name }
-                            });
-                          }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                            <ShoppingBag className="h-4 w-4 mr-2" />
-                            Add to Cart
-                          </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -789,7 +757,7 @@ const Home: React.FC = () => {
               {
                 icon: Truck,
                 title: "Free Shipping",
-                description: "Free shipping on orders over $50",
+                description: `Free shipping on orders over ${formatPrice(50)}`,
                 color: "from-blue-500 to-blue-600"
               },
               {

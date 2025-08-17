@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { useNavigate } from "react-router-dom";
 import { 
   Sparkles, 
   ShoppingBag, 
@@ -9,8 +10,7 @@ import {
   ArrowRight,
   Gift,
   Heart,
-  Shield,
-  TrendingUp
+  Shield
 } from "lucide-react";
 
 interface CategoryBannerProps {
@@ -24,8 +24,10 @@ export const CategoryBanner: React.FC<CategoryBannerProps> = ({
   productCount,
   categoryDescription
 }) => {
+  const navigate = useNavigate();
+  
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 rounded-3xl shadow-2xl mb-8">
+    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 rounded-3xl shadow-2xl mb-8 min-h-[240px]">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16"></div>
@@ -42,9 +44,6 @@ export const CategoryBanner: React.FC<CategoryBannerProps> = ({
       </div>
       <div className="absolute top-1/2 left-4 animate-float">
         <Heart className="h-5 w-5 text-red-300" />
-      </div>
-      <div className="absolute top-1/3 right-1/3 animate-pulse">
-        <TrendingUp className="h-4 w-4 text-green-300" />
       </div>
 
       <div className="relative px-6 py-4 text-white">
@@ -111,6 +110,7 @@ export const CategoryBanner: React.FC<CategoryBannerProps> = ({
                 variant="outline" 
                 size="lg" 
                 className="border-white/30 text-black bg-white hover:bg-gray-100 hover:text-gray-900 font-semibold px-5 py-3 text-base rounded-xl backdrop-blur-sm transition-all duration-300"
+                onClick={() => navigate('/categories')}
               >
                 View All Categories
               </Button>

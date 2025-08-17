@@ -9,12 +9,8 @@ import {
   CheckCircle, 
   Clock, 
   RefreshCw,
-  MapPin,
   Calendar,
   User,
-  Phone,
-  Mail,
-  ArrowRight,
   Star,
   Zap
 } from 'lucide-react';
@@ -78,16 +74,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'PENDING': return <Clock className="h-5 w-5" />;
-      case 'CONFIRMED': return <CheckCircle className="h-5 w-5" />;
-      case 'PROCESSING': return <Package className="h-5 w-5" />;
-      case 'SHIPPED': return <Truck className="h-5 w-5" />;
-      case 'DELIVERED': return <CheckCircle className="h-5 w-5" />;
-      default: return <Clock className="h-5 w-5" />;
-    }
-  };
+
 
   const getStatusStep = (status: string) => {
     const statusFlow = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];

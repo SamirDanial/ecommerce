@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card } from './ui/card';
 import { Heart, X } from 'lucide-react';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface WishlistHoverOverlayProps {
   children: React.ReactNode;
@@ -22,6 +22,7 @@ const WishlistHoverOverlay: React.FC<WishlistHoverOverlayProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const { items, removeItem } = useWishlistStore();
   const { isAuthenticated, getToken } = useClerkAuth();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
 
   // Detect mobile device
@@ -190,7 +191,7 @@ const WishlistHoverOverlay: React.FC<WishlistHoverOverlayProps> = ({
                           
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-pink-600 dark:text-pink-400">
-                              ${typeof item.product?.price === 'number' ? item.product.price.toFixed(2) : '0.00'}
+                              {formatPrice(item.product?.price || 0)}
                             </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                               {formatDate(item.createdAt)}

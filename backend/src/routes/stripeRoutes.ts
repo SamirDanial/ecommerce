@@ -68,7 +68,7 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
       payment_method_types: ['card'],
       customer: customer?.id, // Associate with customer
       receipt_email: userEmail, // Add customer email for receipt
-      description: `Order from ${userEmail || 'Customer'} - ${currency.toUpperCase()} ${(amount / 100).toFixed(2)}`,
+      description: `Order from ${userEmail || 'Customer'} - ${currency.toUpperCase()} ${(amount / 100).toFixed(1).replace(/\.0$/, '')}`,
       metadata: {
         userEmail: userEmail || 'unknown',
         userId: req.user?.id || 'unknown',
