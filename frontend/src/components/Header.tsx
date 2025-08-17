@@ -29,6 +29,7 @@ import {
 import { useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
 import WishlistHoverOverlay from './WishlistHoverOverlay';
@@ -42,8 +43,47 @@ const Header: React.FC = () => {
   const { getTotalItems } = useCartStore();
   const { getWishlistCount } = useWishlistStore();
   const { user, isAuthenticated, signOut } = useClerkAuth();
+  const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check user role from backend for admin access
+  const [isUserAdmin, setIsUserAdmin] = useState<boolean>(false);
+  
+  React.useEffect(() => {
+    const checkUserRole = async () => {
+      if (!clerkUser || !isAuthenticated) {
+        setIsUserAdmin(false);
+        return;
+      }
+
+      try {
+        const token = await getToken({ template: 'e-commerce' });
+        if (!token) return;
+
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/check-role`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const isAdmin = data.isAdmin === true || data.role === 'ADMIN';
+          setIsUserAdmin(isAdmin);
+        } else {
+          setIsUserAdmin(false);
+        }
+      } catch (error) {
+        console.error('Header - Error checking user role:', error);
+        setIsUserAdmin(false);
+      }
+    };
+
+    checkUserRole();
+  }, [clerkUser, isAuthenticated, getToken]);
 
   // Get wishlist count from store
   const wishlistCount = getWishlistCount();
@@ -272,6 +312,22 @@ const Header: React.FC = () => {
                         <span>View Profile</span>
                       </Link>
                     </DropdownMenuItem>
+                    
+                    {/* Admin Panel Link - Only show if user has admin role */}
+                    {isUserAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="flex items-center space-x-3 p-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 dark:hover:from-purple-950/20 dark:hover:to-cyan-950/20 transition-all duration-300">
+                            <svg className="h-4 w-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>Admin Panel</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       onClick={() => {
@@ -421,7 +477,7 @@ const Header: React.FC = () => {
                     }`}
                     style={{ animationDelay: `${400 + index * 100}ms` }}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
                       <div className={`p-2 rounded-xl transition-all duration-300 ${
                         isActive 
                           ? 'bg-white/20' 
@@ -495,6 +551,25 @@ const Header: React.FC = () => {
                       View Profile
                     </span>
                   </Link>
+
+                  {/* Admin Panel Link - Only show if user has admin role */}
+                  {isUserAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={handleMenuClick}
+                      className="group flex items-center p-4 rounded-2xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 dark:hover:from-purple-950/20 dark:hover:to-pink-950/20 transition-all duration-300 hover:translate-x-3 hover:scale-105"
+                    >
+                      <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/30 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50 transition-all duration-300">
+                        <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                      <span className="ml-3 font-medium text-gray-700 dark:text-gray-300 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                        Admin Panel
+                      </span>
+                    </Link>
+                  )}
 
                   <button
                     onClick={() => {

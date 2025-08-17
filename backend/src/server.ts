@@ -14,6 +14,7 @@ import stripeRoutes from './routes/stripeRoutes';
 import discountRoutes from './routes/discountRoutes';
 import trackingRoutes from './routes/trackingRoutes';
 import adminRoutes from './routes/adminRoutes';
+import adminLocalizationRoutes from './routes/adminLocalizationRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import currencyRoutes from './routes/currencyRoutes';
 import languageRoutes from './routes/languageRoutes';
@@ -30,7 +31,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma']
 }));
 
 // Body parsing middleware - exclude Stripe webhook from JSON parsing
@@ -84,7 +85,10 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/localization', adminLocalizationRoutes);
 app.use('/api/reviews', reviewRoutes);
+
+// These routes come AFTER admin routes to avoid conflicts
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/languages', languageRoutes);
 app.use('/api/countries', countryRoutes);

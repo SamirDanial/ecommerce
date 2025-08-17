@@ -1,8 +1,66 @@
 import express from 'express';
 import { trackingService } from '../services/trackingService';
 import { authenticateClerkToken } from '../middleware/clerkAuth';
+import { PrismaClient } from '@prisma/client';
 
 const router = express.Router();
+
+// Check if user has admin role
+router.get('/check-role', authenticateClerkToken, async (req, res) => {
+  try {
+    
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+
+    const prisma = new PrismaClient();
+    
+    try {
+      // Find user in database by email
+      const user = await prisma.user.findUnique({
+        where: {
+          email: req.user.email
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          name: true
+        }
+      });
+
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'User not found in database' 
+        });
+      }
+
+      // Check if user has admin role
+      const isAdmin = user.role === 'ADMIN';
+
+      res.json({
+        success: true,
+        isAdmin: isAdmin,
+        role: user.role,
+        userId: user.id,
+        email: user.email
+      });
+    } finally {
+      await prisma.$disconnect();
+    }
+
+  } catch (error) {
+    console.error('Error checking admin role:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to check admin role' 
+    });
+  }
+});
 
 // Get all orders with tracking info (for admin dashboard)
 router.get('/orders', authenticateClerkToken, async (req, res) => {
@@ -10,10 +68,10 @@ router.get('/orders', authenticateClerkToken, async (req, res) => {
     // For now, allow any authenticated user to view orders
     // In production, you'd want proper admin middleware here
     
-    const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
     
-    const orders = await prisma.order.findMany({
+    try {
+      const orders = await prisma.order.findMany({
       include: {
         user: {
           select: {
@@ -37,26 +95,29 @@ router.get('/orders', authenticateClerkToken, async (req, res) => {
       }
     });
 
-    res.json({
-      success: true,
-      orders: orders.map((order: any) => ({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        currentStatus: order.currentStatus,
-        status: order.status,
-        customerName: order.user?.name || 'Unknown',
-        customerEmail: order.user?.email || 'Unknown',
-        total: order.total,
-        createdAt: order.createdAt,
-        lastStatusUpdate: order.lastStatusUpdate,
-        itemsCount: order.items.length,
-        items: order.items.map((item: any) => ({
-          name: item.product?.name || item.productName,
-          quantity: item.quantity,
-          price: item.price
+      res.json({
+        success: true,
+        orders: orders.map((order: any) => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          currentStatus: order.currentStatus,
+          status: order.status,
+          customerName: order.user?.name || 'Unknown',
+          customerEmail: order.user?.email || 'Unknown',
+          total: order.total,
+          createdAt: order.createdAt,
+          lastStatusUpdate: order.lastStatusUpdate,
+          itemsCount: order.items.length,
+          items: order.items.map((item: any) => ({
+            name: item.product?.name || item.productName,
+            quantity: item.quantity,
+            price: item.price
+          }))
         }))
-      }))
-    });
+      });
+    } finally {
+      await prisma.$disconnect();
+    }
   } catch (error) {
     console.error('Error getting orders:', error);
     res.status(500).json({ 
