@@ -23,7 +23,6 @@ interface CategoryContentProps {
   onEdit: (category: Category) => void;
   onToggleStatus: (category: Category) => void;
   onDelete: (category: Category) => void;
-  onImageUpload: (categoryId: number, file: File) => void;
 }
 
 const CategoryContent: React.FC<CategoryContentProps> = ({
@@ -33,8 +32,7 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
   onView,
   onEdit,
   onToggleStatus,
-  onDelete,
-  onImageUpload
+  onDelete
 }) => {
   if (loading) {
     return (
@@ -68,7 +66,6 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
           onEdit={onEdit}
           onToggleStatus={onToggleStatus}
           onDelete={onDelete}
-          onImageUpload={onImageUpload}
         />
       ) : (
         <CategoryList
@@ -77,7 +74,6 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
           onEdit={onEdit}
           onToggleStatus={onToggleStatus}
           onDelete={onDelete}
-          onImageUpload={onImageUpload}
         />
       )}
     </div>

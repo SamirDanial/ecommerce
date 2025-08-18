@@ -83,14 +83,22 @@ const CategoryFilters: React.FC<CategoryFiltersProps> = ({
             <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               onClick={() => onViewModeChange('grid')}
-              className="h-10 px-3 bg-white/80 backdrop-blur-sm border-slate-200/50 hover:border-purple-500 rounded-lg transition-all duration-300"
+              className={`h-10 px-3 rounded-lg transition-all duration-300 ${
+                viewMode === 'grid'
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600'
+                  : 'bg-white/80 backdrop-blur-sm border-slate-200/50 hover:border-purple-500 text-slate-700'
+              }`}
             >
               <Grid3X3 className="w-4 h-4" />
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'outline'}
               onClick={() => onViewModeChange('list')}
-              className="h-10 px-3 bg-white/80 backdrop-blur-sm border-slate-200/50 hover:border-purple-500 rounded-lg transition-all duration-300"
+              className={`h-10 px-3 rounded-lg transition-all duration-300 ${
+                viewMode === 'list'
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600'
+                  : 'bg-white/80 backdrop-blur-sm border-slate-200/50 hover:border-purple-500 text-slate-700'
+              }`}
             >
               <List className="w-4 h-4" />
             </Button>

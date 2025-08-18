@@ -23,7 +23,6 @@ interface CategoryCardProps {
   onEdit: (category: Category) => void;
   onToggleStatus: (category: Category) => void;
   onDelete: (category: Category) => void;
-  onImageUpload: (categoryId: number, file: File) => void;
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({
@@ -31,15 +30,9 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   onView,
   onEdit,
   onToggleStatus,
-  onDelete,
-  onImageUpload
+  onDelete
 }) => {
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImageUpload(category.id, file);
-    }
-  };
+
 
   return (
     <Card className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-xl rounded-xl sm:rounded-2xl">
@@ -107,26 +100,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
               {category.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
             </Button>
             
-            {/* Image Upload Button */}
-            <input
-              type="file"
-              id={`image-upload-${category.id}`}
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                document.getElementById(`image-upload-${category.id}`)?.click();
-              }}
-              className="bg-white/90 hover:bg-white text-indigo-600 shadow-lg"
-              title="Upload Image"
-            >
-              📷
-            </Button>
+
             
             <Button
               variant="secondary"

@@ -23,7 +23,6 @@ interface CategoryListProps {
   onEdit: (category: Category) => void;
   onToggleStatus: (category: Category) => void;
   onDelete: (category: Category) => void;
-  onImageUpload: (categoryId: number, file: File) => void;
 }
 
 const CategoryList: React.FC<CategoryListProps> = ({
@@ -31,15 +30,9 @@ const CategoryList: React.FC<CategoryListProps> = ({
   onView,
   onEdit,
   onToggleStatus,
-  onDelete,
-  onImageUpload
+  onDelete
 }) => {
-  const handleImageUpload = (categoryId: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImageUpload(categoryId, file);
-    }
-  };
+
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -127,26 +120,7 @@ const CategoryList: React.FC<CategoryListProps> = ({
                       {category.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                     </Button>
                     
-                    {/* Image Upload Button */}
-                    <input
-                      type="file"
-                      id={`list-image-upload-${category.id}`}
-                      accept="image/*"
-                      onChange={(e) => handleImageUpload(category.id, e)}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        document.getElementById(`list-image-upload-${category.id}`)?.click();
-                      }}
-                      title="Upload Image"
-                      className="text-indigo-600 hover:text-indigo-700"
-                    >
-                      📷
-                    </Button>
+
                     
                     <Button
                       variant="ghost"

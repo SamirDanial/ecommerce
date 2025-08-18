@@ -20,7 +20,6 @@ interface CategoryGridProps {
   onEdit: (category: Category) => void;
   onToggleStatus: (category: Category) => void;
   onDelete: (category: Category) => void;
-  onImageUpload: (categoryId: number, file: File) => void;
 }
 
 const CategoryGrid: React.FC<CategoryGridProps> = ({
@@ -28,8 +27,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({
   onView,
   onEdit,
   onToggleStatus,
-  onDelete,
-  onImageUpload
+  onDelete
 }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -41,7 +39,6 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({
           onEdit={onEdit}
           onToggleStatus={onToggleStatus}
           onDelete={onDelete}
-          onImageUpload={onImageUpload}
         />
       ))}
     </div>

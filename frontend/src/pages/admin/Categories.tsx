@@ -643,7 +643,6 @@ const Categories: React.FC = () => {
             onEdit={openEditDialog}
             onToggleStatus={handleToggleStatus}
             onDelete={openDeleteDialog}
-            onImageUpload={uploadCategoryImage}
           />
         </div>
       </div>
