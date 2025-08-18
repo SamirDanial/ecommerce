@@ -1111,71 +1111,44 @@ const Categories: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Enhanced View Details Dialog */}
-      {isViewDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Enhanced Backdrop */}
-          <div 
-            className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/20 to-blue-900/20 backdrop-blur-md"
-            onClick={() => setIsViewDialogOpen(false)}
-          />
+      {/* View Category Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="pb-6 flex-shrink-0">
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Category Details
+            </DialogTitle>
+            <p className="text-slate-600 mt-2">View complete information about this category</p>
+          </DialogHeader>
           
-          {/* Enhanced Dialog Content */}
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-gradient-to-br from-white via-slate-50/50 to-white border border-white/40 shadow-3xl rounded-3xl overflow-hidden flex flex-col">
-            {/* Enhanced Header with Icon - Fixed */}
-            <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 px-8 py-8 flex-shrink-0">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                  <Eye className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">
-                    {viewingCategory?.name || 'Category'} Details
-                  </h2>
-                  <p className="text-white/80 mt-1 text-lg">
-                    Complete information about this category
-                  </p>
-                </div>
-              </div>
-              
-              {/* Close Button */}
-              <button
-                onClick={() => setIsViewDialogOpen(false)}
-                className="absolute top-6 right-6 p-3 hover:bg-white/20 rounded-2xl transition-all duration-300 hover:scale-110"
-              >
-                <XCircle className="w-6 h-6 text-white" />
-              </button>
-            </div>
-          
-          {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pr-2 min-h-0">
             {viewingCategory ? (
-              <div className="p-8">
+              <div className="space-y-6">
                 {/* Hero Section */}
-                <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 rounded-3xl p-8 mb-8 border border-slate-200/50">
-                  <div className="flex items-center space-x-6">
-                    <div className="p-6 bg-white rounded-3xl shadow-xl border border-slate-200/50">
+                <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 rounded-2xl p-6 border border-slate-200/50">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-4 bg-white rounded-2xl shadow-lg border border-slate-200/50">
                       {viewingCategory.image ? (
                         <img
                           src={viewingCategory.image}
                           alt={viewingCategory.name}
-                          className="w-24 h-24 object-cover rounded-2xl"
+                          className="w-20 h-20 object-cover rounded-xl"
                         />
                       ) : (
-                        <span className="text-6xl">👕</span>
+                        <span className="text-5xl">👕</span>
                       )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-4xl font-bold text-slate-900 mb-2">{viewingCategory.name}</h3>
-                      <p className="text-xl text-slate-600 font-medium">Slug: <span className="font-mono bg-slate-100 px-3 py-1 rounded-lg">{viewingCategory.slug}</span></p>
+                      <h3 className="text-3xl font-bold text-slate-900 mb-2">{viewingCategory.name}</h3>
+                      <p className="text-lg text-slate-600 font-medium">Slug: <span className="font-mono bg-slate-100 px-3 py-1 rounded-lg">{viewingCategory.slug}</span></p>
                       
                       {/* Status Badge */}
-                      <div className="mt-4">
+                      <div className="mt-3">
                         <Badge 
-                          variant={viewingCategory.isActive ? "default" : "destructive"}
-                          className="px-4 py-2 text-base font-semibold"
+                          variant={viewingCategory.isActive ? "default" : "secondary"}
+                          className="px-3 py-1 text-sm font-medium"
                         >
-                          {viewingCategory.isActive ? '🟢 Active' : '🔴 Inactive'}
+                          {viewingCategory.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </div>
                     </div>
@@ -1183,42 +1156,42 @@ const Categories: React.FC = () => {
                 </div>
 
                 {/* Information Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Main Details */}
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-semibold text-slate-800 flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       <span>Category Details</span>
                     </h3>
                     
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50 shadow-sm">
-                        <span className="text-base font-medium text-slate-700">Sort Order</span>
-                        <span className="text-2xl font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">{viewingCategory.sortOrder}</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200/50 shadow-sm">
+                        <span className="text-sm font-medium text-slate-700">Sort Order</span>
+                        <span className="text-xl font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">{viewingCategory.sortOrder}</span>
                       </div>
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50 shadow-sm">
-                        <span className="text-base font-medium text-slate-700">Products Count</span>
-                        <span className="text-xl font-semibold text-slate-700 bg-slate-50 px-4 py-2 rounded-xl">{viewingCategory.productCount}</span>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200/50 shadow-sm">
+                        <span className="text-sm font-medium text-slate-700">Products Count</span>
+                        <span className="text-lg font-semibold text-slate-700 bg-slate-50 px-3 py-1 rounded-lg">{viewingCategory.productCount}</span>
                       </div>
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50 shadow-sm">
-                        <span className="text-base font-medium text-slate-700">Created Date</span>
-                        <span className="text-lg font-semibold text-slate-700 bg-slate-50 px-4 py-2 rounded-xl">{new Date(viewingCategory.createdAt).toLocaleDateString()}</span>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200/50 shadow-sm">
+                        <span className="text-sm font-medium text-slate-700">Created Date</span>
+                        <span className="text-base font-semibold text-slate-700 bg-slate-50 px-3 py-1 rounded-lg">{new Date(viewingCategory.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50 shadow-sm">
-                        <span className="text-base font-medium text-slate-700">Last Updated</span>
-                        <span className="text-lg font-semibold text-slate-700 bg-slate-50 px-4 py-2 rounded-xl">{new Date(viewingCategory.updatedAt).toLocaleDateString()}</span>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200/50 shadow-sm">
+                        <span className="text-sm font-medium text-slate-700">Last Updated</span>
+                        <span className="text-base font-semibold text-slate-700 bg-slate-50 px-3 py-1 rounded-lg">{new Date(viewingCategory.updatedAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-semibold text-slate-800 flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                       <span>Quick Actions</span>
                     </h3>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <Button
                         variant="outline"
                         size="lg"
@@ -1226,22 +1199,13 @@ const Categories: React.FC = () => {
                           setIsViewDialogOpen(false);
                           openEditDialog(viewingCategory);
                         }}
-                        className="w-full justify-start bg-white border-slate-300 hover:bg-slate-50 hover:border-purple-400 h-14 text-base font-medium rounded-2xl transition-all duration-300"
+                        className="w-full justify-start bg-white border-slate-300 hover:bg-slate-50 hover:border-purple-400 h-12 text-base font-medium rounded-xl transition-all duration-300"
                       >
                         <Edit className="w-5 h-5 mr-3" />
                         Edit Category
                       </Button>
                       
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="w-full justify-start bg-white border-slate-300 hover:bg-slate-50 hover:border-blue-400 h-14 text-base font-medium rounded-2xl transition-all duration-300"
-                      >
-                        <Eye className="w-5 h-5 mr-3" />
-                        View Products
-                      </Button>
-                      
-                      <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl border border-purple-200/50">
+                      <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200/50">
                         <h4 className="font-semibold text-slate-800 mb-2 flex items-center">
                           <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
                           Quick Info
@@ -1256,12 +1220,12 @@ const Categories: React.FC = () => {
 
                 {/* Description Section */}
                 {viewingCategory.description && (
-                  <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-3xl p-6 border border-slate-200/50">
-                    <h3 className="text-xl font-semibold text-slate-800 mb-4 flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-2xl p-6 border border-slate-200/50">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <span>Description</span>
                     </h3>
-                    <p className="text-lg text-slate-700 leading-relaxed">{viewingCategory.description}</p>
+                    <p className="text-base text-slate-700 leading-relaxed">{viewingCategory.description}</p>
                   </div>
                 )}
               </div>
@@ -1275,9 +1239,19 @@ const Categories: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Footer */}
+          <div className="flex justify-end pt-6 border-t border-slate-200 flex-shrink-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+              className="px-6 py-2.5 h-11 rounded-xl border-slate-300 hover:border-slate-400 hover:bg-slate-400"
+            >
+              Close
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Category Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
