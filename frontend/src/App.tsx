@@ -17,6 +17,7 @@ import { AuthRedirectWrapper } from './components/AuthRedirectWrapper';
 import Home from './pages/Home';
 import Admin from './pages/Admin';
 import AdminProducts from './pages/admin/Products';
+import AdminCategories from './pages/admin/Categories';
 import AdminOrders from './pages/admin/Orders';
 import AdminLocalization from './pages/admin/Localization';
 import Products from './pages/Products';
@@ -66,6 +67,7 @@ function App() {
                   }>
                     <Route index element={<Admin />} />
                     <Route path="products" element={<AdminProducts />} />
+                    <Route path="categories" element={<AdminCategories />} />
                     <Route path="orders" element={<AdminOrders />} />
                     <Route path="localization" element={<AdminLocalization />} />
                   </Route>

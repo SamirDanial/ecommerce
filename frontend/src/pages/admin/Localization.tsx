@@ -8,19 +8,16 @@ import {
   Flag, 
   Edit3, 
   Search, 
-  Filter,
   CheckCircle,
   XCircle,
   AlertCircle,
-  RefreshCw,
   Settings,
   TrendingUp,
   Users,
   Languages,
   Plus,
   MoreVertical,
-  Eye,
-  Sparkles
+  Eye
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { Button } from '../../components/ui/button';
@@ -64,36 +61,50 @@ const Localization: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'languages' | 'currencies' | 'countries'>('languages');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [editForm, setEditForm] = useState<any>({});
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<any>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [editingRate, setEditingRate] = useState<{ id: number; rate: number } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTabSwitching, setIsTabSwitching] = useState(false);
   
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768); // md breakpoint
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Cleanup effect to prevent overlay issues
   useEffect(() => {
     return () => {
       // Cleanup on unmount
-      setIsEditDialogOpen(false);
       setIsViewDialogOpen(false);
-      setEditingItem(null);
       setViewingItem(null);
-      setEditForm({});
+      setEditingRate(null);
     };
   }, []);
 
   // Reset dialogs when changing tabs
   useEffect(() => {
-    setIsEditDialogOpen(false);
     setIsViewDialogOpen(false);
-    setEditingItem(null);
     setViewingItem(null);
-    setEditForm({});
+    setEditingRate(null);
   }, [activeTab]);
+
+  // Handle tab switching with loading state
+  const handleTabSwitch = (newTab: 'languages' | 'currencies' | 'countries') => {
+    setIsTabSwitching(true);
+    setActiveTab(newTab);
+    
+    // Simulate a small delay to show loading state
+    setTimeout(() => {
+      setIsTabSwitching(false);
+    }, 800);
+  };
 
     useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -103,9 +114,6 @@ const Localization: React.FC = () => {
       }
       
       if (e.key === 'Escape') {
-        if (isEditDialogOpen) {
-          handleCloseEditDialog();
-        }
         if (isViewDialogOpen) {
           handleCloseViewDialog();
         }
@@ -114,15 +122,13 @@ const Localization: React.FC = () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditDialogOpen, isViewDialogOpen]);
+  }, [isViewDialogOpen]);
 
   const forceResetDialogs = () => {
     // Reset all state
-    setIsEditDialogOpen(false);
     setIsViewDialogOpen(false);
-    setEditingItem(null);
     setViewingItem(null);
-    setEditForm({});
+    setEditingRate(null);
     
     // Find all potential overlay elements
     const allOverlays = document.querySelectorAll('*');
@@ -263,93 +269,97 @@ const Localization: React.FC = () => {
   });
 
   // Update mutations
-  const updateLanguage = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+  const updateLanguageStatus = useMutation({
+    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
       const response = await fetch(buildApiUrl(`/api/admin/localization/languages/${id}`), {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ isActive })
       });
-      if (!response.ok) throw new Error('Failed to update language');
+      if (!response.ok) throw new Error('Failed to update language status');
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-languages'] });
-      toast.success('✅ Language Updated', {
-        description: `${editingItem?.name} has been updated`,
-        duration: 3000,
-      });
-      setEditingItem(null);
-      setIsEditDialogOpen(false);
-      setIsSaving(false);
+      toast.success('✅ Language status updated');
     },
     onError: (error) => {
-      toast.error('Failed to update language');
-      setIsSaving(false);
+      toast.error('Failed to update language status');
     }
   });
 
-  const updateCurrency = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+  const updateCurrencyStatus = useMutation({
+    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
       const response = await fetch(buildApiUrl(`/api/admin/localization/currencies/${id}`), {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ isActive })
       });
-      if (!response.ok) throw new Error('Failed to update currency');
+      if (!response.ok) throw new Error('Failed to update currency status');
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-currencies'] });
-      toast.success('✅ Currency Updated', {
-        description: `${editingItem?.name} has been updated`,
-        duration: 3000,
-      });
-      setEditingItem(null);
-      setIsEditDialogOpen(false);
-      setIsSaving(false);
+      toast.success('✅ Currency status updated');
     },
     onError: (error) => {
-      toast.error('Failed to update currency');
-      setIsSaving(false);
+      toast.error('Failed to update currency status');
     }
   });
 
-  const updateCountry = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+  const updateCurrencyRate = useMutation({
+    mutationFn: async ({ id, rate }: { id: number; rate: number }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl(`/api/admin/localization/countries/${id}`), {
-        method: 'PUT',
+      const response = await fetch(buildApiUrl(`/api/admin/localization/currencies/${id}`), {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ rate })
       });
-      if (!response.ok) throw new Error('Failed to update country');
+      if (!response.ok) throw new Error('Failed to update currency rate');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-currencies'] });
+      toast.success('✅ Currency rate updated');
+      setEditingRate(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update currency rate');
+      setEditingRate(null);
+    }
+  });
+
+  const updateCountryStatus = useMutation({
+    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
+      const token = await getToken({ template: 'e-commerce' });
+      const response = await fetch(buildApiUrl(`/api/admin/localization/countries/${id}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive })
+      });
+      if (!response.ok) throw new Error('Failed to update country status');
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-countries'] });
-      toast.success('✅ Country Updated', {
-        description: `${editingItem?.name} has been updated`,
-        duration: 3000,
-      });
-      setEditingItem(null);
-      setIsEditDialogOpen(false);
-      setIsSaving(false);
+      toast.success('✅ Country status updated');
     },
     onError: (error) => {
-      toast.error('Failed to update country');
-      setIsSaving(false);
+      toast.error('Failed to update country status');
     }
   });
 
@@ -378,19 +388,6 @@ const Localization: React.FC = () => {
     }
   };
 
-  const handleEdit = (item: any) => {
-    setEditingItem(item);
-    setEditForm({
-      name: item.name,
-      code: item.code,
-      isActive: item.isActive,
-      ...(activeTab === 'currencies' && { symbol: item.symbol, exchangeRate: item.rate }),
-      ...(activeTab === 'languages' && { flag: item.flagEmoji, direction: item.isRTL ? 'rtl' : 'ltr' }),
-      ...(activeTab === 'countries' && { phoneCode: item.phoneCode, flag: item.flagEmoji })
-    });
-    setIsEditDialogOpen(true);
-  };
-
   const handleViewDetails = (item: any) => {
     try {
       setViewingItem(item);
@@ -411,52 +408,25 @@ const Localization: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    if (!editingItem) return;
-
-    setIsSaving(true);
-    const mutation = activeTab === 'languages' ? updateLanguage :
-                    activeTab === 'currencies' ? updateCurrency : updateCountry;
-
-    mutation.mutate({ id: editingItem.id, data: editForm });
+  const handleToggleStatus = (item: any) => {
+    const mutation = activeTab === 'languages' ? updateLanguageStatus :
+                    activeTab === 'currencies' ? updateCurrencyStatus : updateCountryStatus;
+    
+    mutation.mutate({ id: item.id, isActive: !item.isActive });
   };
 
-  const handleCancel = () => {
-    setEditingItem(null);
-    setEditForm({});
-    setIsEditDialogOpen(false);
-    setIsSaving(false);
-    
-    // Show cancellation toast
-    toast.info('⏹️ Edit Cancelled', {
-      description: 'Changes were not saved',
-      duration: 2000,
-    });
-    
-    // Force cleanup to prevent overlay issues
-    setTimeout(() => {
-      setEditingItem(null);
-      setEditForm({});
-    }, 100);
+  const handleEditRate = (item: any) => {
+    setEditingRate({ id: item.id, rate: item.rate });
   };
 
-  const handleCloseEditDialog = () => {
-    setIsEditDialogOpen(false);
-    setEditingItem(null);
-    setEditForm({});
-    setIsSaving(false);
-    
-    // Force cleanup any remaining overlays
-    setTimeout(() => {
-      const overlays = document.querySelectorAll('[data-radix-dialog-overlay]');
-      overlays.forEach((overlay) => {
-        if (overlay instanceof HTMLElement) {
-          overlay.style.display = 'none';
-          overlay.style.pointerEvents = 'none';
-        }
-      });
-      document.body.style.overflow = 'auto';
-    }, 50);
+  const handleSaveRate = () => {
+    if (editingRate) {
+      updateCurrencyRate.mutate(editingRate);
+    }
+  };
+
+  const handleCancelRate = () => {
+    setEditingRate(null);
   };
 
   const handleCloseViewDialog = () => {
@@ -499,12 +469,12 @@ const Localization: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-1 sm:p-3 md:p-6">
+      <div className="w-full space-y-3 sm:space-y-6 md:space-y-8">
         {/* Enhanced Header with Better Glassmorphism */}
         <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-indigo-600/20 rounded-3xl blur-3xl group-hover:blur-2xl transition-all duration-700"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-500">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-indigo-600/20 rounded-xl sm:rounded-2xl md:rounded-3xl blur-3xl group-hover:blur-2xl transition-all duration-700"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl rounded-xl sm:rounded-2xl md:rounded-3xl p-2 sm:p-4 md:p-8 border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-500">
             <div className="flex items-center justify-between">
               <div className="space-y-3">
                 <div className="flex items-center space-x-4">
@@ -515,29 +485,15 @@ const Localization: React.FC = () => {
                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
                       Localization Hub
                     </h1>
-                    <p className="text-slate-600 text-base font-medium">Manage your global presence with style</p>
+                    <p className="text-slate-600 text-sm sm:text-base font-medium">Manage your global presence with style</p>
                   </div>
                 </div>
               </div>
               
               <div className="flex space-x-3">
-                <Button
-                  size="default"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border-0"
-                  onClick={() => {
-                    queryClient.invalidateQueries({ queryKey: ['admin-languages'] });
-                    queryClient.invalidateQueries({ queryKey: ['admin-currencies'] });
-                    queryClient.invalidateQueries({ queryKey: ['admin-countries'] });
-                    toast.success('Refreshing data...');
-                  }}
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh Data
-                </Button>
-                
                 
               </div>
             </div>
@@ -545,56 +501,56 @@ const Localization: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 md:gap-6">
           <Card className="relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl border border-white/40 shadow-xl overflow-hidden">
-            <CardContent className="relative p-6">
+            <CardContent className="relative p-2 sm:p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Total Languages</p>
-                  <p className="text-3xl font-bold text-purple-600">{stats.totalLanguages}</p>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">Total Languages</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-purple-600">{stats.totalLanguages}</p>
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <p className="text-sm text-slate-600 font-medium">{stats.activeLanguages} active</p>
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium">{stats.activeLanguages} active</p>
                   </div>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
-                  <Languages className="w-7 h-7 text-purple-600" />
+                <div className="p-1 sm:p-2 md:p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-md sm:rounded-lg md:rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                  <Languages className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-purple-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl border border-white/40 shadow-xl overflow-hidden">
-            <CardContent className="relative p-6">
+            <CardContent className="relative p-2 sm:p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Total Currencies</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.totalCurrencies}</p>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">Total Currencies</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-600">{stats.totalCurrencies}</p>
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <p className="text-sm text-slate-600 font-medium">{stats.activeCurrencies} active</p>
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium">{stats.activeCurrencies} active</p>
                   </div>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
-                  <TrendingUp className="w-7 h-7 text-blue-600" />
+                <div className="p-1 sm:p-2 md:p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-md sm:rounded-lg md:rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-blue-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl border border-white/40 shadow-xl overflow-hidden">
-            <CardContent className="relative p-6">
+            <CardContent className="relative p-2 sm:p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Total Countries</p>
-                  <p className="text-3xl font-bold text-indigo-600">{stats.totalCountries}</p>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-600 uppercase tracking-wide">Total Countries</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-indigo-600">{stats.totalCountries}</p>
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <p className="text-sm text-slate-600 font-medium">{stats.activeCountries} active</p>
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium">{stats.activeCountries} active</p>
                   </div>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
-                  <Users className="w-7 h-7 text-indigo-600" />
+                <div className="p-1 sm:p-2 md:p-3 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-md sm:rounded-lg md:rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-indigo-600" />
                 </div>
               </div>
             </CardContent>
@@ -604,7 +560,8 @@ const Localization: React.FC = () => {
         {/* Modern Tabs */}
         <Card className="relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-2xl border border-white/40 shadow-2xl overflow-hidden">
           <div className="w-full">
-            <div className="border-b border-slate-200/30 bg-gradient-to-r from-slate-50/50 to-white/50">
+            {/* Desktop Tabs */}
+            <div className="hidden md:block border-b border-slate-200/30 bg-gradient-to-r from-slate-50/50 to-white/50">
               <div className="flex w-full bg-transparent p-0 h-auto">
                 {[
                   { id: 'languages', label: 'Languages', icon: Globe, count: stats.totalLanguages, color: 'purple' },
@@ -626,7 +583,7 @@ const Localization: React.FC = () => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setActiveTab(tab.id as 'languages' | 'currencies' | 'countries');
+                        handleTabSwitch(tab.id as 'languages' | 'currencies' | 'countries');
                       }}
                       className={`flex-1 flex items-center justify-center space-x-3 py-5 px-8 border-b-2 font-semibold text-base transition-all duration-500 rounded-none bg-transparent hover:bg-white/30 active:bg-white/50 cursor-pointer select-none ${colorClasses[tab.color as keyof typeof colorClasses]}`}
                       style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
@@ -651,10 +608,45 @@ const Localization: React.FC = () => {
               </div>
             </div>
 
+            {/* Mobile Tabs */}
+            <div className="md:hidden border-b border-slate-200/30 bg-gradient-to-r from-slate-50/50 to-white/50">
+              <div className="flex w-full bg-transparent p-0 h-auto">
+                {[
+                  { id: 'languages', icon: Globe, color: 'purple' },
+                  { id: 'currencies', icon: DollarSign, color: 'blue' },
+                  { id: 'countries', icon: Flag, color: 'indigo' }
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const colorClasses = {
+                    purple: isActive ? 'text-purple-600 border-purple-500 bg-purple-50' : 'text-slate-500 hover:text-purple-600 hover:bg-purple-50/30',
+                    blue: isActive ? 'text-blue-600 border-blue-500 bg-blue-50' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50/30',
+                    indigo: isActive ? 'text-indigo-600 border-indigo-500 bg-indigo-50' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50/30'
+                  };
+                  
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleTabSwitch(tab.id as 'languages' | 'currencies' | 'countries');
+                      }}
+                      className={`flex-1 flex items-center justify-center py-4 border-b-2 transition-all duration-300 cursor-pointer select-none ${colorClasses[tab.color as keyof typeof colorClasses]}`}
+                      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+                    >
+                      <Icon className="w-6 h-6" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
 
             
             {/* Enhanced Search and Filters */}
-            <div className="p-6 border-b border-slate-200/30 bg-gradient-to-r from-slate-50/30 to-white/50">
+            <div className="p-2 sm:p-3 md:p-6 border-b border-slate-200/30 bg-gradient-to-r from-slate-50/30 to-white/50">
               <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3">
                 <div className="flex-1 w-full sm:w-auto">
                   <div className="relative">
@@ -670,7 +662,7 @@ const Localization: React.FC = () => {
                 </div>
                 
                 <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-                  <SelectTrigger className="w-40 h-10 bg-white/80 backdrop-blur-sm border-slate-200/50 focus:border-purple-500 focus:ring-purple-500/20 rounded-lg">
+                  <SelectTrigger className="w-full sm:w-40 h-10 bg-white/80 backdrop-blur-sm border-slate-200/50 focus:border-purple-500 focus:ring-purple-500/20 rounded-lg">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -679,20 +671,27 @@ const Localization: React.FC = () => {
                     <SelectItem value="inactive">Inactive Only</SelectItem>
                   </SelectContent>
                 </Select>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10 px-4 bg-white/80 backdrop-blur-sm border-slate-200/50 hover:bg-white hover:border-purple-300 rounded-lg transition-all duration-300"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                </Button>
               </div>
             </div>
 
             {/* Enhanced Content Area */}
-            <div className="p-6">
+            <div className="p-2 sm:p-3 md:p-6">
+              {/* Tab Switching Loading State */}
+              {isTabSwitching && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-4">
+                    <div className="relative mx-auto">
+                      <div className="w-12 h-12 border-3 border-purple-200 rounded-full animate-spin"></div>
+                      <div className="absolute top-0 left-0 w-12 h-12 border-3 border-transparent border-t-purple-600 rounded-full animate-spin"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-lg font-semibold text-slate-700">Switching to {activeTab}...</p>
+                      <p className="text-sm text-slate-500">Loading your data</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {isLoading ? (
                 <div className="flex items-center justify-center py-16">
                   <div className="relative">
@@ -700,109 +699,237 @@ const Localization: React.FC = () => {
                     <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-purple-600 rounded-full animate-spin"></div>
                   </div>
                 </div>
-              ) : (
+              ) : !isTabSwitching ? (
                 <div className="space-y-4">
-                  {filteredData.map((item) => (
-                    <div
-                      key={item.id}
-                      className="relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-2xl p-6 border border-white/40 transition-all duration-300 overflow-hidden hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg"
-                    >
-                      {/* Modern Display Mode */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-3">
-                            {item.flagEmoji && (
-                              <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl shadow-md transition-all duration-300">
-                                <span className="text-3xl">{item.flagEmoji}</span>
+                  {/* Desktop list */}
+                  <div className="hidden md:block space-y-4">
+                    {filteredData.map((item) => (
+                      <div
+                        key={item.id}
+                        className="relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-6 border border-white/40 transition-all duration-300 overflow-hidden hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-3">
+                              {item.flagEmoji && (
+                                <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl shadow-md transition-all duration-300">
+                                  <span className="text-3xl">{item.flagEmoji}</span>
+                                </div>
+                              )}
+                              <div className="space-y-1">
+                                <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
+                                <p className="text-sm text-slate-500 font-medium">Code: {item.code}</p>
+                              </div>
+                            </div>
+                            {activeTab === 'currencies' && (
+                              <div className="flex items-center space-x-2">
+                                <div className="px-3 py-1.5 bg-blue-100 rounded-lg">
+                                  <span className="text-lg font-bold text-blue-700">{item.symbol}</span>
+                                </div>
+                                <div className="text-xs text-slate-600">
+                                  Rate: <span className="font-semibold">{item.rate}</span>
+                                </div>
                               </div>
                             )}
-                            
-                            <div className="space-y-1">
-                              <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
-                              <p className="text-sm text-slate-500 font-medium">Code: {item.code}</p>
-                            </div>
+                            {activeTab === 'languages' && (
+                              <div className="flex items-center space-x-2">
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`px-2 py-1 text-xs font-semibold ${item.isRTL ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-green-100 text-green-700 border-green-200'}`}
+                                >
+                                  {item.isRTL ? 'RTL' : 'LTR'}
+                                </Badge>
+                                <span className="text-xs text-slate-600">
+                                  Native: <span className="font-semibold">{item.nativeName}</span>
+                                </span>
+                              </div>
+                            )}
+                            {activeTab === 'countries' && item.phoneCode && (
+                              <div className="px-2 py-1.5 bg-indigo-100 rounded-lg">
+                                <span className="text-xs font-semibold text-indigo-700">{item.phoneCode}</span>
+                              </div>
+                            )}
                           </div>
-
-                          {activeTab === 'currencies' && (
+                          <div className="flex items-center space-x-3">
                             <div className="flex items-center space-x-2">
-                              <div className="px-3 py-1.5 bg-blue-100 rounded-lg">
-                                <span className="text-lg font-bold text-blue-700">{item.symbol}</span>
-                              </div>
-                              <div className="text-xs text-slate-600">
-                                Rate: <span className="font-semibold">{item.rate}</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {activeTab === 'languages' && (
-                            <div className="flex items-center space-x-2">
-                              <Badge 
-                                variant="secondary" 
-                                className={`px-2 py-1 text-xs font-semibold ${
-                                  item.isRTL 
-                                    ? 'bg-orange-100 text-orange-700 border-orange-200' 
-                                    : 'bg-green-100 text-green-700 border-green-200'
-                                }`}
-                              >
-                                {item.isRTL ? 'RTL' : 'LTR'}
-                              </Badge>
-                              <span className="text-xs text-slate-600">
-                                Native: <span className="font-semibold">{item.nativeName}</span>
-                              </span>
-                            </div>
-                          )}
-
-                          {activeTab === 'countries' && (
-                            <div className="flex items-center space-x-2">
-                              {item.phoneCode && (
-                                <div className="px-2 py-1.5 bg-indigo-100 rounded-lg">
-                                  <span className="text-xs font-semibold text-indigo-700">{item.phoneCode}</span>
+                              {item.isActive ? (
+                                <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl shadow-sm">
+                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                  <span className="text-sm font-semibold text-green-700">Active</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-red-100 to-rose-100 rounded-xl shadow-sm">
+                                  <XCircle className="w-4 h-4 text-red-600" />
+                                  <span className="text-sm font-semibold text-red-700">Inactive</span>
                                 </div>
                               )}
                             </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center space-x-2">
-                            {item.isActive ? (
-                              <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl shadow-sm">
-                                <CheckCircle className="w-4 h-4 text-green-600" />
-                                <span className="text-sm font-semibold text-green-700">Active</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-red-100 to-rose-100 rounded-xl shadow-sm">
-                                <XCircle className="w-4 h-4 text-red-600" />
-                                <span className="text-sm font-semibold text-red-700">Inactive</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                                                        <div className="flex items-center space-x-2">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-9 w-9 p-0 hover:bg-slate-100/80 rounded-xl transition-all duration-300"
+                                onClick={() => handleToggleStatus(item)}
+                                className="h-9 px-3 hover:bg-slate-100/80 rounded-xl transition-all duration-300"
+                                title={item.isActive ? 'Deactivate' : 'Activate'}
                               >
-                                <MoreVertical className="w-4 h-4" />
+                                {item.isActive ? (
+                                  <XCircle className="w-4 h-4 text-red-600" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                )}
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-2xl border-slate-200/40 rounded-xl shadow-2xl">
-                              <DropdownMenuItem onClick={() => handleEdit(item)} className="cursor-pointer">
-                                <Edit3 className="w-3 h-3 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleViewDetails(item)} className="cursor-pointer">
-                                <Eye className="w-3 h-3 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              {activeTab === 'currencies' && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-9 w-9 p-0 hover:bg-slate-100/80 rounded-xl transition-all duration-300"
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-2xl border-slate-200/40 rounded-xl shadow-2xl">
+                                    <DropdownMenuItem onClick={() => handleEditRate(item)} className="cursor-pointer">
+                                      <Edit3 className="w-3 h-3 mr-2" />
+                                      Edit Rate
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* Mobile list */}
+                  <div className="md:hidden space-y-2">
+                    {filteredData.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white/95 backdrop-blur-xl rounded-lg p-2 border border-slate-200/60 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        {/* Header Section */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-4">
+                            {item.flagEmoji && (
+                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-3xl shadow-md">
+                                <span>{item.flagEmoji}</span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-bold text-slate-900 mb-1">{item.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs font-mono bg-slate-50">
+                                  {item.code}
+                                </Badge>
+                                {item.isActive ? (
+                                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+                                    Active
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-rose-100 text-rose-700 border-rose-200 text-xs">
+                                    Inactive
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Info Section */}
+                        <div className="mb-5">
+                          {activeTab === 'currencies' && (
+                            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
+                                  <span className="text-xl font-bold text-blue-700">{item.symbol}</span>
+                                </div>
+                                <span className="text-sm text-slate-600">Exchange Rate</span>
+                              </div>
+                              <span className="text-lg font-bold text-blue-700 bg-white px-3 py-1 rounded-xl shadow-sm">
+                                {item.rate}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {activeTab === 'languages' && (
+                            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200/50">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-purple-100 rounded-xl flex items-center justify-center">
+                                  <span className="text-sm font-bold text-purple-700">
+                                    {item.isRTL ? '➡️' : '⬅️'}
+                                  </span>
+                                </div>
+                                <span className="text-sm text-slate-600">Text Direction</span>
+                              </div>
+                              <Badge variant="secondary" className={`px-3 py-1 text-sm font-semibold ${
+                                item.isRTL 
+                                  ? 'bg-orange-100 text-orange-700 border-orange-200' 
+                                  : 'bg-green-100 text-green-700 border-green-200'
+                              }`}>
+                                {item.isRTL ? 'RTL' : 'LTR'}
+                              </Badge>
+                            </div>
+                          )}
+                          
+                          {activeTab === 'countries' && item.phoneCode && (
+                            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200/50">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                  <span className="text-sm font-bold text-indigo-700">📞</span>
+                                </div>
+                                <span className="text-sm text-slate-600">Phone Code</span>
+                              </div>
+                              <span className="text-lg font-bold text-indigo-700 bg-white px-3 py-1 rounded-xl shadow-sm">
+                                {item.phoneCode}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Section */}
+                        <div className="flex flex-col gap-3">
+                          <Button 
+                            variant={item.isActive ? "destructive" : "default"}
+                            size="lg"
+                            className={`h-12 rounded-2xl font-semibold transition-all duration-300 ${
+                              item.isActive 
+                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg hover:shadow-xl' 
+                                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg hover:shadow-xl'
+                            }`}
+                            onClick={() => handleToggleStatus(item)}
+                          >
+                            {item.isActive ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Deactivate
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                Activate
+                              </>
+                            )}
+                          </Button>
+                          
+                          {activeTab === 'currencies' && (
+                            <Button 
+                              variant="outline"
+                              size="lg"
+                              className="h-12 rounded-2xl border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 font-semibold transition-all duration-300"
+                              onClick={() => handleEditRate(item)}
+                            >
+                              <Edit3 className="w-5 h-5 mr-2" />
+                              Edit Exchange Rate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
                   {filteredData.length === 0 && (
                     <div className="text-center py-16">
@@ -819,259 +946,63 @@ const Localization: React.FC = () => {
                           : `No ${activeTab} have been added yet. Get started by adding your first ${activeTab.slice(0, -1)}.`
                         }
                       </p>
-                      {!searchTerm && statusFilter === 'all' && (
-                        <Button className="mt-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg rounded-xl transition-all duration-300">
-                          <Plus className="w-5 h-5 mr-2" />
-                          Add {activeTab.slice(0, -1)}
-                        </Button>
-                      )}
                     </div>
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </Card>
 
-        {/* Enhanced Edit Dialog */}
-        {isEditDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-            {/* Enhanced Backdrop */}
+        {/* Inline Rate Editor for Currencies */}
+        {editingRate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div 
-              className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/20 to-blue-900/20 backdrop-blur-md"
-              onClick={handleCloseEditDialog}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={handleCancelRate}
             />
-            
-            {/* Enhanced Dialog Content */}
-            <div className="relative w-full max-w-5xl mx-4 bg-gradient-to-br from-white via-slate-50/50 to-white border border-white/40 shadow-3xl rounded-3xl overflow-hidden">
-              {/* Enhanced Header with Icon */}
-              <div className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 px-8 py-8">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                    <Edit3 className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-white">
-                      Edit {getSingularForm(activeTab)}
-                    </h2>
-                    <p className="text-white/80 mt-1 text-lg">
-                      Update details for <span className="font-semibold">{editingItem?.name || 'this item'}</span>
-                    </p>
-                  </div>
+            <div className="relative bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-slate-900">Edit Exchange Rate</h3>
+                <p className="text-slate-600 mt-1">Update the currency exchange rate</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Exchange Rate</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editingRate.rate}
+                    onChange={(e) => setEditingRate({ ...editingRate, rate: parseFloat(e.target.value) || 0 })}
+                    className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl"
+                    placeholder="1.00"
+                  />
                 </div>
                 
-                {/* Close Button */}
-                <button
-                  onClick={handleCloseEditDialog}
-                  className="absolute top-6 right-6 p-3 hover:bg-white/20 rounded-2xl transition-all duration-300 hover:scale-110"
-                >
-                  <XCircle className="w-6 h-6 text-white" />
-                </button>
-              </div>
-            
-            {editingItem && (
-              <div className="p-8">
-                {/* Form Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-                  {/* Basic Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span>Basic Information</span>
-                    </h3>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Name</label>
-                        <Input
-                          type="text"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300"
-                          placeholder="Enter name..."
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Code</label>
-                        <Input
-                          type="text"
-                          value={editForm.code}
-                          onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
-                          className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300"
-                          placeholder="Enter code..."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Tab-Specific Fields */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span>{activeTab === 'currencies' ? 'Currency Details' : activeTab === 'languages' ? 'Language Settings' : 'Country Info'}</span>
-                    </h3>
-                    
-                    <div className="space-y-3">
-                      {activeTab === 'currencies' && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Symbol</label>
-                            <Input
-                              type="text"
-                              value={editForm.symbol}
-                              onChange={(e) => setEditForm({ ...editForm, symbol: e.target.value })}
-                              className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300"
-                              placeholder="$, €, ¥..."
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Exchange Rate</label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={editForm.exchangeRate}
-                              onChange={(e) => setEditForm({ ...editForm, exchangeRate: parseFloat(e.target.value) })}
-                              className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300"
-                              placeholder="1.00"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {activeTab === 'languages' && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Flag Emoji</label>
-                            <Input
-                              type="text"
-                              value={editForm.flag || ''}
-                              onChange={(e) => setEditForm({ ...editForm, flag: e.target.value })}
-                              placeholder="🇺🇸"
-                              className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300 text-center text-2xl"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Text Direction</label>
-                            <Select value={editForm.direction} onValueChange={(value) => setEditForm({ ...editForm, direction: value })}>
-                              <SelectTrigger className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300">
-                                <SelectValue placeholder="Select direction" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ltr">Left to Right (LTR)</SelectItem>
-                                <SelectItem value="rtl">Right to Left (RTL)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </>
-                      )}
-
-                      {activeTab === 'countries' && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Phone Code</label>
-                            <Input
-                              type="text"
-                              value={editForm.phoneCode || ''}
-                              onChange={(e) => setEditForm({ ...editForm, phoneCode: e.target.value })}
-                              placeholder="+1"
-                              className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Flag Emoji</label>
-                            <Input
-                              type="text"
-                              value={editForm.flag || ''}
-                              onChange={(e) => setEditForm({ ...editForm, flag: e.target.value })}
-                              placeholder="🇺🇸"
-                              className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300 text-center text-2xl"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status & Actions */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Status & Actions</span>
-                    </h3>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-                        <Select value={editForm.isActive ? 'active' : 'inactive'} onValueChange={(value) => setEditForm({ ...editForm, isActive: value === 'active' })}>
-                          <SelectTrigger className="h-12 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl shadow-sm transition-all duration-300">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="active">🟢 Active</SelectItem>
-                            <SelectItem value="inactive">🔴 Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="pt-4">
-                        <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200/50">
-                          <p className="text-sm text-slate-600 font-medium">
-                            💡 Make sure all required fields are filled before saving
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enhanced Action Buttons */}
-                <div className="flex items-center justify-between pt-8 border-t border-slate-200/50">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-slate-500">Ready to save changes</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <Button
-                      variant="outline"
-                      onClick={handleCancel}
-                      className="h-12 px-8 bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400 rounded-xl transition-all duration-300 font-medium"
-                    >
-                      Cancel
-                    </Button>
-                    
-                    <Button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="h-12 px-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                    >
-                      {isSaving ? (
-                        <>
-                          <div className="w-5 h-5 mr-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Saving Changes...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-5 h-5 mr-3" />
-                          Save Changes
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                <div className="flex space-x-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelRate}
+                    className="flex-1 h-12 rounded-xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveRate}
+                    className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl"
+                  >
+                    Save Rate
+                  </Button>
                 </div>
               </div>
-            )}
             </div>
           </div>
         )}
 
         {/* Enhanced View Details Dialog */}
         {isViewDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
             {/* Enhanced Backdrop */}
             <div 
               className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/20 to-blue-900/20 backdrop-blur-md"
@@ -1079,9 +1010,9 @@ const Localization: React.FC = () => {
             />
             
             {/* Enhanced Dialog Content */}
-            <div className="relative w-full max-w-4xl mx-4 bg-gradient-to-br from-white via-slate-50/50 to-white border border-white/40 shadow-3xl rounded-3xl overflow-hidden">
+            <div className="relative w-full max-w-[95vw] md:max-w-4xl mx-2 md:mx-4 max-h-[90vh] bg-gradient-to-br from-white via-slate-50/50 to-white border border-white/40 shadow-3xl rounded-3xl overflow-hidden flex flex-col">
               {/* Enhanced Header with Icon */}
-              <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 px-8 py-8">
+              <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 px-4 sm:px-6 md:px-8 py-6 md:py-8 flex-shrink-0">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
                     <Eye className="w-8 h-8 text-white" />
@@ -1106,7 +1037,7 @@ const Localization: React.FC = () => {
               </div>
             
             {viewingItem ? (
-              <div className="p-8">
+              <div className="p-4 sm:p-6 md:p-8 flex-1 overflow-y-auto">
                 {/* Hero Section */}
                 <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 rounded-3xl p-8 mb-8 border border-slate-200/50">
                   <div className="flex items-center space-x-6">
@@ -1199,12 +1130,14 @@ const Localization: React.FC = () => {
                         size="lg"
                         onClick={() => {
                           setIsViewDialogOpen(false);
-                          handleEdit(viewingItem);
+                          if (activeTab === 'currencies') {
+                            handleEditRate(viewingItem);
+                          }
                         }}
                         className="w-full justify-start bg-white border-slate-300 hover:bg-slate-50 hover:border-purple-400 h-14 text-base font-medium rounded-2xl transition-all duration-300"
                       >
                         <Edit3 className="w-5 h-5 mr-3" />
-                        Edit {getSingularForm(activeTab)}
+                        {activeTab === 'currencies' ? 'Edit Rate' : 'Edit ' + getSingularForm(activeTab)}
                       </Button>
                       
                       <Button

@@ -1,7 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { prisma } from './lib/prisma';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import userRoutes from './routes/userRoutes';
 import profileRoutes from './routes/profileRoutes';
 import clerkWebhookRoutes from './routes/clerkWebhookRoutes';
@@ -30,7 +36,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma']
 }));
 
@@ -92,6 +98,9 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/languages', languageRoutes);
 app.use('/api/countries', countryRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Basic route
 app.get('/', (req, res) => {

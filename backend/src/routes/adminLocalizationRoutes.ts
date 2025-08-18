@@ -114,6 +114,38 @@ router.put('/languages/:id', async (req, res) => {
   }
 });
 
+// Update language status only
+router.patch('/languages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean'
+      });
+    }
+
+    const updatedLanguage = await prisma.languageConfig.update({
+      where: { id: parseInt(id) },
+      data: { isActive }
+    });
+
+    res.json({
+      success: true,
+      data: updatedLanguage,
+      message: 'Language status updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating language status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update language status'
+    });
+  }
+});
+
 // ===== CURRENCIES =====
 
 // Get all currencies (including inactive)
@@ -198,6 +230,49 @@ router.put('/currencies/:id', async (req, res) => {
   }
 });
 
+// Update currency status only
+router.patch('/currencies/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive, rate } = req.body;
+
+    // Prepare update data
+    const updateData: any = {};
+    
+    if (typeof isActive === 'boolean') {
+      updateData.isActive = isActive;
+    }
+    
+    if (typeof rate === 'number') {
+      updateData.rate = rate;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Must provide either isActive or rate'
+      });
+    }
+
+    const updatedCurrency = await prisma.currencyConfig.update({
+      where: { id: parseInt(id) },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      data: updatedCurrency,
+      message: 'Currency updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating currency:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update currency'
+    });
+  }
+});
+
 // ===== COUNTRIES =====
 
 // Get all countries (including inactive)
@@ -279,6 +354,38 @@ router.put('/countries/:id', async (req, res) => {
     });
   } finally {
     await prisma.$disconnect();
+  }
+});
+
+// Update country status only
+router.patch('/countries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean'
+      });
+    }
+
+    const updatedCountry = await prisma.countryConfig.update({
+      where: { id: parseInt(id) },
+      data: { isActive }
+    });
+
+    res.json({
+      success: true,
+      data: updatedCountry,
+      message: 'Country status updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating country status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update country status'
+    });
   }
 });
 
