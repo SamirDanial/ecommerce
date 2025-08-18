@@ -1,0 +1,455 @@
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
+import { toast } from 'sonner';
+import VariantService, { CreateVariantData, ProductVariant } from '../../services/variantService';
+import { useClerkAuth } from '../../hooks/useClerkAuth';
+
+interface VariantManagementDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  productId: number;
+  productName: string;
+  existingVariants?: ProductVariant[];
+  onVariantsChange: () => void;
+}
+
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+const COLORS = [
+  { name: 'Black', code: '#000000' },
+  { name: 'White', code: '#FFFFFF' },
+  { name: 'Red', code: '#FF0000' },
+  { name: 'Blue', code: '#0000FF' },
+  { name: 'Green', code: '#00FF00' },
+  { name: 'Yellow', code: '#FFFF00' },
+  { name: 'Purple', code: '#800080' },
+  { name: 'Orange', code: '#FFA500' },
+  { name: 'Pink', code: '#FFC0CB' },
+  { name: 'Brown', code: '#A52A2A' },
+  { name: 'Gray', code: '#808080' },
+  { name: 'Navy', code: '#000080' },
+  { name: 'Teal', code: '#008080' },
+  { name: 'Maroon', code: '#800000' },
+  { name: 'Olive', code: '#808000' }
+];
+
+export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = ({
+  isOpen,
+  onClose,
+  productId,
+  productName,
+  existingVariants = [],
+  onVariantsChange
+}) => {
+  const { getToken } = useClerkAuth();
+  const [variants, setVariants] = useState<ProductVariant[]>(existingVariants);
+  const [loading, setLoading] = useState(false);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>(['M', 'L']);
+  const [selectedColors, setSelectedColors] = useState<string[]>(['Black', 'White']);
+  const [basePrice, setBasePrice] = useState<number>(0);
+  const [baseStock, setBaseStock] = useState<number>(10);
+
+
+  // Load existing variants when dialog opens
+  useEffect(() => {
+    if (isOpen && existingVariants.length > 0) {
+      setVariants(existingVariants);
+      // Extract unique sizes and colors from existing variants
+      const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
+      const colors = Array.from(new Set(existingVariants.map(v => v.color)));
+      setSelectedSizes(sizes);
+      setSelectedColors(colors);
+      
+      // Set base price and stock from first variant
+      if (existingVariants[0]) {
+        setBasePrice(existingVariants[0].price || 0);
+        setBaseStock(existingVariants[0].stock || 10);
+      }
+    }
+  }, [isOpen, existingVariants]);
+
+  const generateVariants = () => {
+    const newVariants: CreateVariantData[] = [];
+    
+    selectedSizes.forEach(size => {
+      selectedColors.forEach(color => {
+        // Check if variant already exists
+        const exists = variants.some(v => v.size === size && v.color === color);
+        if (!exists) {
+          const colorData = COLORS.find(c => c.name === color);
+          newVariants.push({
+            size,
+            color,
+            colorCode: colorData?.code,
+            stock: baseStock,
+            price: basePrice,
+            isActive: true
+          });
+        }
+      });
+    });
+
+    if (newVariants.length === 0) {
+      toast.info('All selected size/color combinations already exist');
+      return;
+    }
+
+    setVariants(prev => [...prev, ...newVariants.map((v, index) => ({
+      ...v,
+      id: -(index + 1), // Temporary negative ID for new variants
+      productId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }))]);
+    
+    toast.success(`Generated ${newVariants.length} new variants`);
+  };
+
+  const saveVariants = async () => {
+    if (!getToken) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      // Separate new variants and existing variants
+      const newVariants = variants.filter(v => v.id < 0);
+      const existingVariants = variants.filter(v => v.id > 0);
+
+      // Create new variants
+      for (const variant of newVariants) {
+        const { id, productId, createdAt, updatedAt, ...variantData } = variant;
+        await VariantService.createVariant(productId, variantData, token);
+      }
+
+      // Update existing variants
+      for (const variant of existingVariants) {
+        const { id, productId, createdAt, updatedAt, ...variantData } = variant;
+        await VariantService.updateVariant(productId, id, { ...variantData, id }, token);
+      }
+
+      toast.success('Variants saved successfully');
+      onVariantsChange();
+      onClose();
+    } catch (error) {
+      console.error('Error saving variants:', error);
+      toast.error('Failed to save variants');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateVariant = (variantId: number, field: keyof ProductVariant, value: any) => {
+    setVariants(prev => prev.map(v => 
+      v.id === variantId ? { ...v, [field]: value } : v
+    ));
+  };
+
+  const deleteVariant = (variantId: number) => {
+    if (variantId > 0) {
+      // Existing variant - mark for deletion
+      setVariants(prev => prev.map(v => 
+        v.id === variantId ? { ...v, isActive: false } : v
+      ));
+    } else {
+      // New variant - remove from list
+      setVariants(prev => prev.filter(v => v.id !== variantId));
+    }
+    toast.success('Variant removed');
+  };
+
+  const toggleVariantActive = (variantId: number) => {
+    updateVariant(variantId, 'isActive', !variants.find(v => v.id === variantId)?.isActive);
+  };
+
+  const getVariantDisplay = (variant: ProductVariant) => {
+    const colorData = COLORS.find(c => c.name === variant.color);
+    return (
+      <div className="flex items-center gap-2">
+        <div 
+          className="w-4 h-4 rounded-full border border-gray-300"
+          style={{ backgroundColor: colorData?.code || '#ccc' }}
+        />
+        <span className="font-medium">{variant.color}</span>
+        <span className="text-gray-500">•</span>
+        <span className="font-medium">{variant.size}</span>
+      </div>
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Manage Variants - {productName}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Variant Generator */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Generate Variants</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Sizes</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {SIZES.map(size => (
+                      <Button
+                        key={size}
+                        variant={selectedSizes.includes(size) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedSizes(prev => 
+                          prev.includes(size) 
+                            ? prev.filter(s => s !== size)
+                            : [...prev, size]
+                        )}
+                      >
+                        {size}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Colors</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {COLORS.map(color => (
+                      <Button
+                        key={color.name}
+                        variant={selectedColors.includes(color.name) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedColors(prev => 
+                          prev.includes(color.name) 
+                            ? prev.filter(c => c !== color.name)
+                            : [...prev, color.name]
+                        )}
+                        className="flex items-center gap-2"
+                      >
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: color.code }}
+                        />
+                        {color.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Base Settings</Label>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="basePrice" className="text-xs text-gray-600 block mb-1">
+                        Base Price ($)
+                      </Label>
+                      <Input
+                        id="basePrice"
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        placeholder="29.99"
+                        value={Number.isNaN(basePrice) ? '' : basePrice}
+                        onChange={(e) => {
+                          const { value } = e.target;
+                          if (value === '') {
+                            setBasePrice(0);
+                            return;
+                          }
+                          const parsed = parseFloat(value);
+                          if (!Number.isNaN(parsed)) {
+                            setBasePrice(parsed);
+                          }
+                        }}
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Starting price for all new variants
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="baseStock" className="text-xs text-gray-600 block mb-1">
+                        Base Stock (units)
+                      </Label>
+                      <Input
+                        id="baseStock"
+                        type="text"
+                        placeholder="25"
+                        value={baseStock === 0 ? '' : baseStock || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow numbers and empty string
+                          if (value === '' || /^\d*$/.test(value)) {
+                            if (value === '') {
+                              setBaseStock(0);
+                            } else {
+                              const parsed = parseInt(value);
+                              if (!isNaN(parsed)) {
+                                setBaseStock(parsed);
+                              }
+                            }
+                          }
+                        }}
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Starting inventory for all new variants
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button onClick={generateVariants} className="w-full">
+                Generate {selectedSizes.length * selectedColors.length} Variants
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Variants List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                Variants ({variants.filter(v => v.isActive).length} active)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {variants.map(variant => (
+                  <div
+                    key={variant.id}
+                    className={`p-4 border rounded-lg ${
+                      variant.isActive ? 'bg-white' : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        {getVariantDisplay(variant)}
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col">
+                            <Label className="text-xs text-gray-600 mb-1">Price</Label>
+                            <Input
+                              type="text"
+                              placeholder="29.99"
+                              value={variant.price || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Allow numbers, decimal point, and empty string
+                                // More permissive regex to allow typing decimals
+                                if (value === '' || /^[\d.]*$/.test(value)) {
+                                  // Prevent multiple decimal points
+                                  if ((value.match(/\./g) || []).length <= 1) {
+                                    if (value === '') {
+                                      updateVariant(variant.id, 'price', undefined);
+                                    } else if (value === '.') {
+                                      // Allow typing just a decimal point
+                                      return;
+                                    } else {
+                                      const parsed = parseFloat(value);
+                                      if (!isNaN(parsed)) {
+                                        updateVariant(variant.id, 'price', parsed);
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
+                              className="w-20 font-mono text-xs"
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <Label className="text-xs text-gray-600 mb-1">Stock</Label>
+                            <Input
+                              type="text"
+                              placeholder="25"
+                              value={variant.stock || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Only allow numbers and empty string
+                                if (value === '' || /^\d*$/.test(value)) {
+                                  if (value === '') {
+                                    updateVariant(variant.id, 'stock', 0);
+                                  } else {
+                                    const parsed = parseInt(value);
+                                    if (!isNaN(parsed)) {
+                                      updateVariant(variant.id, 'stock', parsed);
+                                    }
+                                  }
+                                }
+                              }}
+                              className="w-20 font-mono text-xs"
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <Label className="text-xs text-gray-600 mb-1">SKU</Label>
+                            <Input
+                              placeholder="TSH-001"
+                              value={variant.sku || ''}
+                              onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
+                              className="w-24 text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={variant.isActive}
+                            onCheckedChange={() => toggleVariantActive(variant.id)}
+                          />
+                          <Badge variant={variant.isActive ? "default" : "secondary"}>
+                            {variant.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteVariant(variant.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {variants.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No variants created yet. Use the generator above to create variants.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={saveVariants} disabled={loading}>
+            {loading ? 'Saving...' : 'Save All Variants'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};

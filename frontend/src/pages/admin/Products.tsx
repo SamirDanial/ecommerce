@@ -1,130 +1,412 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { 
+  Plus, 
+  Grid3X3, 
+  List, 
+  Upload,
+  Download,
+  BarChart3,
+  Loader2,
+  RefreshCw
+} from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { useProducts } from '../../hooks/useProducts';
+import { ProductCard } from '../../components/admin/ProductCard';
+import { ProductFilters } from '../../components/admin/ProductFilters';
+import { CreateProductDialog } from '../../components/admin/CreateProductDialog';
+import { VariantManagementDialog } from '../../components/admin/VariantManagementDialog';
+import { Product } from '../../types';
+import { toast } from 'sonner';
 
 const Products: React.FC = () => {
+  const {
+    products,
+    categories,
+    loading,
+    filters,
+    totalProducts,
+    totalPages,
+    updateFilters,
+    resetFilters,
+    createProduct,
+    toggleProductStatus,
+    deleteProduct,
+    fetchProducts
+  } = useProducts();
+
+  // Debug logging
+  console.log('Products page - categories:', categories);
+  console.log('Products page - categories length:', categories?.length);
+
+  // UI State
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
+  const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Dialog handlers
+  const openCreateDialog = () => setIsCreateDialogOpen(true);
+  const openEditDialog = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  };
+  const openViewDialog = (product: Product) => {
+    setSelectedProduct(product);
+    setIsViewDialogOpen(true);
+  };
+  const openDeleteDialog = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDeleteDialogOpen(true);
+  };
+  const openImageManager = (product: Product) => {
+    setSelectedProduct(product);
+    setIsImageManagerOpen(true);
+  };
+  const openVariantManager = (product: Product) => {
+    setSelectedProduct(product);
+    setIsVariantManagerOpen(true);
+  };
+
+  // Action handlers
+  const handleToggleStatus = async (id: number) => {
+    await toggleProductStatus(id);
+  };
+
+  const handleDelete = async (product: Product) => {
+    const success = await deleteProduct(product.id);
+    if (success) {
+      setIsDeleteDialogOpen(false);
+      setSelectedProduct(null);
+    }
+  };
+
+  // Calculate stats
+  const activeProducts = products.filter(p => p.isActive).length;
+  const lowStockProducts = products.filter(p => p.hasLowStock || false).length;
+  const outOfStockProducts = products.filter(p => p.hasOutOfStock || false).length;
+
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Products Management</h2>
-        <p className="text-gray-600">Manage your product inventory and catalog</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Product Management</h1>
+            <p className="text-gray-600">Manage your product catalog, inventory, and variants</p>
+          </div>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className="flex items-center gap-2"
+            >
+              <Grid3X3 className="h-4 w-4" />
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="flex items-center gap-2"
+            >
+              <List className="h-4 w-4" />
+              List
+            </Button>
+            
+            {/* Refresh Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchProducts}
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+            
+            {/* Create Product Button */}
+            <Button
+              onClick={openCreateDialog}
+              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Create Product
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Actions Bar */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors">
-              <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Product
-            </button>
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-medium transition-colors">
-              Import CSV
-            </button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-medium transition-colors">
-              Filter
-            </button>
-          </div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Products</p>
+                <p className="text-2xl font-bold text-gray-900">{totalProducts}</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Products</p>
+                <p className="text-2xl font-bold text-green-600">{activeProducts}</p>
+              </div>
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Low Stock</p>
+                <p className="text-2xl font-bold text-yellow-600">{lowStockProducts}</p>
+              </div>
+              <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Out of Stock</p>
+                <p className="text-2xl font-bold text-red-600">{outOfStockProducts}</p>
+              </div>
+              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={openCreateDialog}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Product
+          </Button>
+          
+          <Button variant="outline">
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">All Products</h3>
+      {/* Filters */}
+      <ProductFilters
+        filters={filters}
+        categories={categories}
+        loading={loading}
+        onFiltersChange={updateFilters}
+        onReset={resetFilters}
+      />
+
+      {/* Products Grid/List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {/* Sample Product Rows */}
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">Sample Product 1</div>
-                      <div className="text-sm text-gray-500">SKU: SP001</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Electronics</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$99.99</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">45</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                    Active
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button className="text-purple-600 hover:text-purple-900 mr-3">Edit</button>
-                  <button className="text-red-600 hover:text-red-900">Delete</button>
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">Sample Product 2</div>
-                      <div className="text-sm text-gray-500">SKU: SP002</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Clothing</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$49.99</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">12</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                    Low Stock
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button className="text-purple-600 hover:text-purple-900 mr-3">Edit</button>
-                  <button className="text-red-600 hover:text-red-900">Delete</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      ) : products.length === 0 ? (
+        <Card className="py-12">
+          <CardContent className="text-center">
+            <div className="text-gray-400 mb-4">
+              <BarChart3 className="h-16 w-16 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 mb-4">
+              {filters.search || filters.category || filters.status || filters.featured || filters.onSale
+                ? 'Try adjusting your filters or search terms'
+                : 'Get started by creating your first product'}
+            </p>
+            {!filters.search && !filters.category && !filters.status && !filters.featured && !filters.onSale && (
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Product
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Products Display */}
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+              {products.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  viewMode="grid"
+                  onView={openViewDialog}
+                  onEdit={openEditDialog}
+                  onDelete={openDeleteDialog}
+                  onToggleStatus={handleToggleStatus}
+                  onImageManager={openImageManager}
+                  onVariantManager={openVariantManager}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {products.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  viewMode="list"
+                  onView={openViewDialog}
+                  onEdit={openEditDialog}
+                  onDelete={openDeleteDialog}
+                  onToggleStatus={handleToggleStatus}
+                  onImageManager={openImageManager}
+                  onVariantManager={openVariantManager}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center mt-8">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateFilters({ page: Math.max(1, filters.page - 1) })}
+                  disabled={filters.page <= 1}
+                >
+                  Previous
+                </Button>
+                
+                <span className="text-sm text-gray-600">
+                  Page {filters.page} of {totalPages}
+                </span>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateFilters({ page: Math.min(totalPages, filters.page + 1) })}
+                  disabled={filters.page >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Floating Action Button - Mobile Only */}
+      <Button
+        onClick={openCreateDialog}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 md:hidden"
+        size="lg"
+        disabled={loading}
+      >
+        {loading ? (
+          <Loader2 className="h-6 w-6 animate-spin" />
+        ) : (
+          <Plus className="h-6 w-6" />
+        )}
+      </Button>
+
+      {/* Create Product Dialog */}
+      <CreateProductDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onSubmit={async (data) => {
+          const newProduct = await createProduct(data);
+          if (newProduct) {
+            setIsCreateDialogOpen(false);
+          }
+        }}
+        categories={categories}
+        categoriesLoading={loading}
+      />
+
+      {/* Variant Management Dialog */}
+      {selectedProduct && (
+        <VariantManagementDialog
+          isOpen={isVariantManagerOpen}
+          onClose={() => {
+            setIsVariantManagerOpen(false);
+            setSelectedProduct(null);
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          existingVariants={selectedProduct.variants || []}
+          onVariantsChange={() => {
+            // Refresh products to get updated variant data
+            fetchProducts();
+            toast.success('Variants updated successfully');
+          }}
+        />
+      )}
+
+      {/* Dialogs will be implemented next */}
+      {/* Edit Product Dialog */}
+      {/* View Product Dialog */}
+      {/* Delete Confirmation Dialog */}
+      {/* Image Manager Dialog */}
     </div>
   );
 };

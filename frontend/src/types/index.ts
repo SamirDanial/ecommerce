@@ -23,9 +23,9 @@ export interface Category {
   description?: string;
   image?: string;
   isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProductVariant {
@@ -48,9 +48,65 @@ export interface ProductImage {
   productId: number;
   url: string;
   alt?: string;
+  color?: string;
   sortOrder: number;
   isPrimary: boolean;
   createdAt: string;
+}
+
+export interface ProductCounts {
+  variants: number;
+  images: number;
+  reviews: number;
+  orderItems: number;
+}
+
+export interface ProductFilters {
+  page: number;
+  limit: number;
+  search?: string;
+  category?: string;
+  status?: string;
+  featured?: string;
+  onSale?: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface CreateProductData {
+  name: string;
+  description: string;
+  shortDescription?: string;
+  price: number;
+  comparePrice?: number;
+  costPrice?: number;
+  categoryId: number;
+  slug?: string;
+  sku?: string;
+  barcode?: string;
+  weight?: number;
+  dimensions?: string;
+  tags: string[];
+  metaTitle?: string;
+  metaDescription?: string;
+  isActive: boolean;
+  isFeatured: boolean;
+  isOnSale: boolean;
+  salePrice?: number;
+  saleEndDate?: string;
+}
+
+export interface UpdateProductData extends Partial<CreateProductData> {
+  id: number;
+}
+
+export interface ProductStats {
+  totalProducts: number;
+  activeProducts: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  featuredProducts: number;
+  onSaleProducts: number;
 }
 
 export interface Review {
@@ -96,7 +152,7 @@ export interface Product {
   costPrice?: number;
   sku?: string;
   barcode?: string;
-  categoryId: number;
+  categoryId?: number;
   isActive: boolean;
   isFeatured: boolean;
   isOnSale: boolean;
@@ -109,12 +165,24 @@ export interface Product {
   metaDescription?: string;
   createdAt: string;
   updatedAt: string;
-  category?: Category;
-  variants?: ProductVariant[];
-  images?: ProductImage[];
+  // Public page fields (required for filtering)
+  category: Category;
+  variants: ProductVariant[];
+  images: ProductImage[];
   reviews?: Review[];
   averageRating?: number;
   reviewCount?: number;
+  // Admin-specific fields (optional for public use)
+  _count?: {
+    variants: number;
+    images: number;
+    reviews: number;
+    orderItems: number;
+  };
+  totalStock?: number;
+  activeVariants?: number;
+  hasLowStock?: boolean;
+  hasOutOfStock?: boolean;
 }
 
 export interface CartItem {

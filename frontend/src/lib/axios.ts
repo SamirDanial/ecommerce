@@ -1,9 +1,13 @@
 import axios from 'axios';
+import { getApiConfig, logApiConfig } from '../config/api';
+
+// Log configuration for debugging
+logApiConfig();
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
-  timeout: 10000,
+  baseURL: getApiConfig().baseURL,
+  timeout: getApiConfig().timeout,
   headers: {
     'Content-Type': 'application/json',
   },

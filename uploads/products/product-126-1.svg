@@ -1,0 +1,25 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#F3F4F6;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#E5E7EB;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    
+    <!-- Background -->
+    <rect width="400" height="400" fill="url(#bg)"/>
+    
+    <!-- T-shirt outline -->
+    <g stroke="#9CA3AF" stroke-width="2" fill="none">
+      <!-- Main body -->
+      <rect x="80" y="120" width="240" height="200" rx="5"/>
+      <!-- Sleeves -->
+      <rect x="40" y="100" width="80" height="60" rx="3"/>
+      <rect x="280" y="100" width="80" height="60" rx="3"/>
+      <!-- Neck -->
+      <rect x="140" y="120" width="120" height="40" rx="2"/>
+    </g>
+    
+    <!-- Product name -->
+    <text x="200" y="340" font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#6B7280">Premium Organic Cott...</text>
+  </svg>

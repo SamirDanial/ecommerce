@@ -11,6 +11,9 @@
     "seed:countries": "ts-node prisma/seed-countries.ts",
     "seed:tshirt-categories": "ts-node prisma/seed-tshirt-categories.ts",
     "seed:tshirt-products": "ts-node prisma/seed-tshirt-products.ts",
+    "seed:products": "ts-node prisma/seed-products.ts",
+    "seed:products:images": "ts-node prisma/seed-products-with-images.ts",
+    "update:product-images": "ts-node prisma/update-product-images.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

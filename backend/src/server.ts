@@ -21,6 +21,7 @@ import discountRoutes from './routes/discountRoutes';
 import trackingRoutes from './routes/trackingRoutes';
 import adminRoutes from './routes/adminRoutes';
 import adminLocalizationRoutes from './routes/adminLocalizationRoutes';
+import adminProductRoutes from './routes/adminProductRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import currencyRoutes from './routes/currencyRoutes';
 import languageRoutes from './routes/languageRoutes';
@@ -82,7 +83,9 @@ testDatabaseConnection().then(success => {
 app.use('/api/users', userRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/clerk', clerkWebhookRoutes);
-app.use('/api/products', productRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin/localization', adminLocalizationRoutes);
+app.use('/api/admin/products', adminProductRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/wishlist', wishlistRoutes);
@@ -90,8 +93,7 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/tracking', trackingRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/admin/localization', adminLocalizationRoutes);
+app.use('/api/products', productRoutes);
 app.use('/api/reviews', reviewRoutes);
 
 // These routes come AFTER admin routes to avoid conflicts

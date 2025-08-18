@@ -1,21 +1,49 @@
-// API Configuration
+// API Configuration for different environments
 export const API_CONFIG = {
-  // Backend API base URL
-  BASE_URL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  // Development
+  development: {
+    baseURL: 'http://localhost:5000',
+    timeout: 10000,
+  },
   
-  // API endpoints
-  ENDPOINTS: {
-    ADMIN: {
-      LOCALIZATION: {
-        LANGUAGES: '/api/admin/localization/languages',
-        CURRENCIES: '/api/admin/localization/currencies',
-        COUNTRIES: '/api/admin/localization/countries',
-      }
-    }
+  // Production
+  production: {
+    baseURL: process.env.REACT_APP_API_URL || window.location.origin,
+    timeout: 15000, // Longer timeout for production
+  },
+  
+  // Test
+  test: {
+    baseURL: 'http://localhost:5000',
+    timeout: 5000,
   }
 };
 
-// Helper function to build full API URLs
-export const buildApiUrl = (endpoint: string): string => {
-  return `${API_CONFIG.BASE_URL}${endpoint}`;
+// Get current environment
+export const getCurrentEnvironment = () => {
+  return process.env.NODE_ENV || 'development';
+};
+
+// Get API config for current environment
+export const getApiConfig = () => {
+  const env = getCurrentEnvironment();
+  return API_CONFIG[env as keyof typeof API_CONFIG] || API_CONFIG.development;
+};
+
+// Get base URL for current environment
+export const getApiBaseUrl = () => {
+  const config = getApiConfig();
+  return config.baseURL;
+};
+
+// Log configuration for debugging
+export const logApiConfig = () => {
+  const env = getCurrentEnvironment();
+  const config = getApiConfig();
+  
+  console.log('🌐 API Configuration:');
+  console.log('  Environment:', env);
+  console.log('  Base URL:', config.baseURL);
+  console.log('  Timeout:', config.timeout);
+  console.log('  REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
-import { buildApiUrl } from '../../config/api';
+import { getApiConfig } from '../../config/api';
 import { 
   Globe,
   DollarSign, 
@@ -209,7 +209,7 @@ const Localization: React.FC = () => {
     queryFn: async () => {
       const token = await getToken({ template: 'e-commerce' });
       
-      const response = await fetch(buildApiUrl('/api/admin/localization/languages'), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/languages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -233,7 +233,7 @@ const Localization: React.FC = () => {
     queryKey: ['admin-currencies'],
     queryFn: async () => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl('/api/admin/localization/currencies'), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/currencies`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -253,7 +253,7 @@ const Localization: React.FC = () => {
     queryKey: ['admin-countries'],
     queryFn: async () => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl('/api/admin/localization/countries'), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/countries`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -272,7 +272,7 @@ const Localization: React.FC = () => {
   const updateLanguageStatus = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl(`/api/admin/localization/languages/${id}`), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/languages/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ const Localization: React.FC = () => {
   const updateCurrencyStatus = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl(`/api/admin/localization/currencies/${id}`), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/currencies/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ const Localization: React.FC = () => {
   const updateCurrencyRate = useMutation({
     mutationFn: async ({ id, rate }: { id: number; rate: number }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl(`/api/admin/localization/currencies/${id}`), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/currencies/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -343,7 +343,7 @@ const Localization: React.FC = () => {
   const updateCountryStatus = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(buildApiUrl(`/api/admin/localization/countries/${id}`), {
+      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/countries/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -703,67 +703,67 @@ const Localization: React.FC = () => {
                 <div className="space-y-4">
                   {/* Desktop list */}
                   <div className="hidden md:block space-y-4">
-                    {filteredData.map((item) => (
-                      <div
-                        key={item.id}
+                  {filteredData.map((item) => (
+                    <div
+                      key={item.id}
                         className="relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-6 border border-white/40 transition-all duration-300 overflow-hidden hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-3">
-                              {item.flagEmoji && (
-                                <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl shadow-md transition-all duration-300">
-                                  <span className="text-3xl">{item.flagEmoji}</span>
-                                </div>
-                              )}
-                              <div className="space-y-1">
-                                <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
-                                <p className="text-sm text-slate-500 font-medium">Code: {item.code}</p>
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-3">
+                            {item.flagEmoji && (
+                              <div className="p-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl shadow-md transition-all duration-300">
+                                <span className="text-3xl">{item.flagEmoji}</span>
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
+                              <p className="text-sm text-slate-500 font-medium">Code: {item.code}</p>
+                            </div>
+                          </div>
+                          {activeTab === 'currencies' && (
+                            <div className="flex items-center space-x-2">
+                              <div className="px-3 py-1.5 bg-blue-100 rounded-lg">
+                                <span className="text-lg font-bold text-blue-700">{item.symbol}</span>
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                Rate: <span className="font-semibold">{item.rate}</span>
                               </div>
                             </div>
-                            {activeTab === 'currencies' && (
-                              <div className="flex items-center space-x-2">
-                                <div className="px-3 py-1.5 bg-blue-100 rounded-lg">
-                                  <span className="text-lg font-bold text-blue-700">{item.symbol}</span>
-                                </div>
-                                <div className="text-xs text-slate-600">
-                                  Rate: <span className="font-semibold">{item.rate}</span>
-                                </div>
-                              </div>
-                            )}
-                            {activeTab === 'languages' && (
-                              <div className="flex items-center space-x-2">
-                                <Badge 
-                                  variant="secondary" 
+                          )}
+                          {activeTab === 'languages' && (
+                            <div className="flex items-center space-x-2">
+                              <Badge 
+                                variant="secondary" 
                                   className={`px-2 py-1 text-xs font-semibold ${item.isRTL ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-green-100 text-green-700 border-green-200'}`}
-                                >
-                                  {item.isRTL ? 'RTL' : 'LTR'}
-                                </Badge>
-                                <span className="text-xs text-slate-600">
-                                  Native: <span className="font-semibold">{item.nativeName}</span>
-                                </span>
-                              </div>
-                            )}
+                              >
+                                {item.isRTL ? 'RTL' : 'LTR'}
+                              </Badge>
+                              <span className="text-xs text-slate-600">
+                                Native: <span className="font-semibold">{item.nativeName}</span>
+                              </span>
+                            </div>
+                          )}
                             {activeTab === 'countries' && item.phoneCode && (
-                              <div className="px-2 py-1.5 bg-indigo-100 rounded-lg">
-                                <span className="text-xs font-semibold text-indigo-700">{item.phoneCode}</span>
+                                <div className="px-2 py-1.5 bg-indigo-100 rounded-lg">
+                                  <span className="text-xs font-semibold text-indigo-700">{item.phoneCode}</span>
+                                </div>
+                              )}
+                            </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            {item.isActive ? (
+                              <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl shadow-sm">
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                <span className="text-sm font-semibold text-green-700">Active</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-red-100 to-rose-100 rounded-xl shadow-sm">
+                                <XCircle className="w-4 h-4 text-red-600" />
+                                <span className="text-sm font-semibold text-red-700">Inactive</span>
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-2">
-                              {item.isActive ? (
-                                <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl shadow-sm">
-                                  <CheckCircle className="w-4 h-4 text-green-600" />
-                                  <span className="text-sm font-semibold text-green-700">Active</span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-red-100 to-rose-100 rounded-xl shadow-sm">
-                                  <XCircle className="w-4 h-4 text-red-600" />
-                                  <span className="text-sm font-semibold text-red-700">Inactive</span>
-                                </div>
-                              )}
-                            </div>
                                                         <div className="flex items-center space-x-2">
                               <Button
                                 variant="ghost"
@@ -779,29 +779,29 @@ const Localization: React.FC = () => {
                                 )}
                               </Button>
                               {activeTab === 'currencies' && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-9 w-9 p-0 hover:bg-slate-100/80 rounded-xl transition-all duration-300"
-                                    >
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-2xl border-slate-200/40 rounded-xl shadow-2xl">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 w-9 p-0 hover:bg-slate-100/80 rounded-xl transition-all duration-300"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-2xl border-slate-200/40 rounded-xl shadow-2xl">
                                     <DropdownMenuItem onClick={() => handleEditRate(item)} className="cursor-pointer">
-                                      <Edit3 className="w-3 h-3 mr-2" />
+                                <Edit3 className="w-3 h-3 mr-2" />
                                       Edit Rate
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                               )}
                             </div>
-                          </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                   </div>
 
                   {/* Mobile list */}
@@ -817,7 +817,7 @@ const Localization: React.FC = () => {
                             {item.flagEmoji && (
                               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-3xl shadow-md">
                                 <span>{item.flagEmoji}</span>
-                              </div>
+                        </div>
                             )}
                             <div className="flex-1 min-w-0">
                               <h3 className="text-lg font-bold text-slate-900 mb-1">{item.name}</h3>
@@ -833,10 +833,10 @@ const Localization: React.FC = () => {
                                   <Badge className="bg-rose-100 text-rose-700 border-rose-200 text-xs">
                                     Inactive
                                   </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                  )}
+                </div>
+            </div>
+          </div>
                         </div>
 
                         {/* Info Section */}
@@ -846,13 +846,13 @@ const Localization: React.FC = () => {
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
                                   <span className="text-xl font-bold text-blue-700">{item.symbol}</span>
-                                </div>
+                  </div>
                                 <span className="text-sm text-slate-600">Exchange Rate</span>
-                              </div>
+                  </div>
                               <span className="text-lg font-bold text-blue-700 bg-white px-3 py-1 rounded-xl shadow-sm">
                                 {item.rate}
                               </span>
-                            </div>
+                </div>
                           )}
                           
                           {activeTab === 'languages' && (
@@ -862,9 +862,9 @@ const Localization: React.FC = () => {
                                   <span className="text-sm font-bold text-purple-700">
                                     {item.isRTL ? '➡️' : '⬅️'}
                                   </span>
-                                </div>
+              </div>
                                 <span className="text-sm text-slate-600">Text Direction</span>
-                              </div>
+                      </div>
                               <Badge variant="secondary" className={`px-3 py-1 text-sm font-semibold ${
                                 item.isRTL 
                                   ? 'bg-orange-100 text-orange-700 border-orange-200' 
@@ -880,16 +880,16 @@ const Localization: React.FC = () => {
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
                                   <span className="text-sm font-bold text-indigo-700">📞</span>
-                                </div>
+                      </div>
                                 <span className="text-sm text-slate-600">Phone Code</span>
-                              </div>
+                    </div>
                               <span className="text-lg font-bold text-indigo-700 bg-white px-3 py-1 rounded-xl shadow-sm">
                                 {item.phoneCode}
                               </span>
-                            </div>
+                  </div>
                           )}
-                        </div>
-
+                          </div>
+                          
                         {/* Action Section */}
                         <div className="flex flex-col gap-3">
                           <Button 
@@ -911,8 +911,8 @@ const Localization: React.FC = () => {
                               <>
                                 <CheckCircle className="w-5 h-5 mr-2" />
                                 Activate
-                              </>
-                            )}
+                        </>
+                      )}
                           </Button>
                           
                           {activeTab === 'currencies' && (
@@ -925,12 +925,12 @@ const Localization: React.FC = () => {
                               <Edit3 className="w-5 h-5 mr-2" />
                               Edit Exchange Rate
                             </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      )}
+                    </div>
                   </div>
-
+                    ))}
+                      </div>
+                      
                   {filteredData.length === 0 && (
                     <div className="text-center py-16">
                       <div className="relative mx-auto mb-6">
@@ -945,13 +945,13 @@ const Localization: React.FC = () => {
                           ? 'Try adjusting your search or filters to find what you\'re looking for'
                           : `No ${activeTab} have been added yet. Get started by adding your first ${activeTab.slice(0, -1)}.`
                         }
-                      </p>
-                    </div>
+                          </p>
+                        </div>
                   )}
-                </div>
+                      </div>
               ) : null}
-            </div>
-          </div>
+                    </div>
+                  </div>
         </Card>
 
         {/* Inline Rate Editor for Currencies */}
@@ -965,8 +965,8 @@ const Localization: React.FC = () => {
               <div className="text-center mb-6">
                 <h3 className="text-xl font-bold text-slate-900">Edit Exchange Rate</h3>
                 <p className="text-slate-600 mt-1">Update the currency exchange rate</p>
-              </div>
-              
+                </div>
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Exchange Rate</label>
@@ -978,24 +978,24 @@ const Localization: React.FC = () => {
                     className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl"
                     placeholder="1.00"
                   />
-                </div>
-                
+                  </div>
+                  
                 <div className="flex space-x-3 pt-4">
-                  <Button
-                    variant="outline"
+                    <Button
+                      variant="outline"
                     onClick={handleCancelRate}
                     className="flex-1 h-12 rounded-xl"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
+                    >
+                      Cancel
+                    </Button>
+                    <Button
                     onClick={handleSaveRate}
                     className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl"
                   >
                     Save Rate
-                  </Button>
+                    </Button>
+                  </div>
                 </div>
-              </div>
             </div>
           </div>
         )}

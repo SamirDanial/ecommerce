@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { Sheet } from "../components/ui/sheet";
 
 // Custom hooks
-import { useProducts } from "../hooks/useProducts";
+import { usePublicProducts } from "../hooks/usePublicProducts";
 import { useProductFilters } from "../hooks/useProductFilters";
 import { useViewMode } from "../hooks/useViewMode";
 
@@ -16,7 +16,7 @@ import { ProductsFilters } from "../components/products/ProductsFilters";
 
 const Products: React.FC = () => {
   // Custom hooks for data and logic
-  const { products, categories, loading, error } = useProducts();
+  const { products, categories, loading, error } = usePublicProducts();
   const { viewMode, setViewMode } = useViewMode();
   const {
     filters,
