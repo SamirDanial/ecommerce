@@ -39,7 +39,112 @@ const CategoryList: React.FC<CategoryListProps> = ({
       {categories.map((category) => (
         <Card key={category.id} className="hover:shadow-lg transition-shadow border-0 bg-white/80 backdrop-blur-sm">
           <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center gap-4 sm:gap-6">
+            {/* Mobile Layout - Minimal Information */}
+            <div className="block sm:hidden">
+              {/* Header with Image and Basic Info */}
+              <div className="flex items-start gap-3 mb-3">
+                {/* Image */}
+                <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                  {category.image ? (
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
+                      <div className="text-xl">👕</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Basic Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">{category.name}</h3>
+                  
+                  {/* Truncated Description - One Line Only */}
+                  {category.description && (
+                    <p className="text-gray-600 text-sm mb-2 line-clamp-1">{category.description}</p>
+                  )}
+                  
+                  {/* Minimal Badges - Only Essential Info */}
+                  <div className="flex items-center gap-2">
+                    <Badge variant={category.isActive ? "default" : "secondary"} className="text-xs">
+                      {category.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {category.productCount} products
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons - Larger and Better Spaced */}
+              <div className="flex items-center gap-3 mb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView(category);
+                  }}
+                  title="View Category Details"
+                  className="text-blue-600 hover:text-blue-700 p-2 h-10 w-10"
+                >
+                  <Eye className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(category);
+                  }}
+                  title="Edit Category"
+                  className="text-green-600 hover:text-green-700 p-2 h-10 w-10"
+                >
+                  <Edit className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleStatus(category);
+                  }}
+                  title={category.isActive ? 'Deactivate' : 'Activate'}
+                  className="text-gray-600 hover:text-gray-700 p-2 h-10 w-10"
+                >
+                  {category.isActive ? <XCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(category);
+                  }}
+                  disabled={category.productCount > 0}
+                  title="Delete Category"
+                  className="text-red-600 hover:text-red-700 p-2 h-10 w-10"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* View Details Button - Full Width on Mobile */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onView(category)}
+                className="w-full border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200 h-10"
+              >
+                View Details
+              </Button>
+            </div>
+
+            {/* Desktop Layout - Horizontal */}
+            <div className="hidden sm:flex items-center gap-4 sm:gap-6">
               {/* Image */}
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0">
                 {category.image ? (
@@ -119,9 +224,6 @@ const CategoryList: React.FC<CategoryListProps> = ({
                     >
                       {category.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                     </Button>
-                    
-
-                    
                     <Button
                       variant="ghost"
                       size="sm"
