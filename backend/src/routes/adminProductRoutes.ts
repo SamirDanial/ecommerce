@@ -173,7 +173,7 @@ router.get('/', authenticateClerkToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching products:', error);
-    res.status(500).json({ message: 'Failed to fetch products', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch products', error: error });
   }
 });
 
@@ -232,7 +232,7 @@ router.get('/:id', authenticateClerkToken, async (req, res) => {
     res.json(convertedProduct);
   } catch (error) {
     console.error('Error fetching product:', error);
-    res.status(500).json({ message: 'Failed to fetch product', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch product', error: error });
   }
 });
 
@@ -352,7 +352,7 @@ router.post('/', authenticateClerkToken, async (req, res) => {
     res.status(201).json(convertDecimalToNumber(createdProduct));
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ message: 'Failed to create product', error: error.message });
+    res.status(500).json({ message: 'Failed to create product', error: error });
   }
 });
 
@@ -402,7 +402,7 @@ router.put('/:id', authenticateClerkToken, async (req, res) => {
     res.json(convertDecimalToNumber(product));
   } catch (error) {
     console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Failed to update product', error: error.message });
+    res.status(500).json({ message: 'Failed to update product', error: error });
   }
 });
 
@@ -430,7 +430,7 @@ router.delete('/:id', authenticateClerkToken, async (req, res) => {
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({ message: 'Failed to delete product', error: error.message });
+    res.status(500).json({ message: 'Failed to delete product', error: error });
   }
 });
 
@@ -460,7 +460,7 @@ router.patch('/:id/toggle-status', authenticateClerkToken, async (req, res) => {
     res.json(convertDecimalToNumber(updatedProduct));
   } catch (error) {
     console.error('Error toggling product status:', error);
-    res.status(500).json({ message: 'Failed to toggle product status', error: error.message });
+    res.status(500).json({ message: 'Failed to toggle product status', error: error });
   }
 });
 
@@ -513,7 +513,7 @@ router.post('/:id/images', authenticateClerkToken, upload.array('images', 10), a
     });
   } catch (error) {
     console.error('Error uploading images:', error);
-    res.status(500).json({ message: 'Failed to upload images', error: error.message });
+    res.status(500).json({ message: 'Failed to upload images', error: error });
   }
 });
 
@@ -558,7 +558,7 @@ router.delete('/:id/images/:imageId', authenticateClerkToken, async (req, res) =
     res.json({ message: 'Image deleted successfully' });
   } catch (error) {
     console.error('Error deleting image:', error);
-    res.status(500).json({ message: 'Failed to delete image', error: error.message });
+    res.status(500).json({ message: 'Failed to delete image', error: error });
   }
 });
 
@@ -595,7 +595,7 @@ router.patch('/:id/images/:imageId', authenticateClerkToken, async (req, res) =>
     res.json(image);
   } catch (error) {
     console.error('Error updating image:', error);
-    res.status(500).json({ message: 'Failed to update image', error: error.message });
+    res.status(500).json({ message: 'Failed to update image', error: error });
   }
 });
 
@@ -632,7 +632,7 @@ router.post('/:productId/variants', authenticateClerkToken, async (req, res) => 
     res.status(201).json(variant);
   } catch (error) {
     console.error('Error creating variant:', error);
-    res.status(500).json({ message: 'Failed to create variant', error: error.message });
+    res.status(500).json({ message: 'Failed to create variant', error: error });
   }
 });
 
@@ -671,7 +671,7 @@ router.put('/:productId/variants/:variantId', authenticateClerkToken, async (req
     res.json(variant);
   } catch (error) {
     console.error('Error updating variant:', error);
-    res.status(500).json({ message: 'Failed to update variant', error: error.message });
+    res.status(500).json({ message: 'Failed to update variant', error: error });
   }
 });
 
@@ -699,7 +699,7 @@ router.delete('/:productId/variants/:variantId', authenticateClerkToken, async (
     res.json({ message: 'Variant deleted successfully' });
   } catch (error) {
     console.error('Error deleting variant:', error);
-    res.status(500).json({ message: 'Failed to delete variant', error: error.message });
+    res.status(500).json({ message: 'Failed to delete variant', error: error });
   }
 });
 
@@ -718,7 +718,7 @@ router.get('/:productId/variants', authenticateClerkToken, async (req, res) => {
     res.json(variants);
   } catch (error) {
     console.error('Error fetching variants:', error);
-    res.status(500).json({ message: 'Failed to fetch variants', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch variants', error: error });
   }
 });
 
@@ -789,7 +789,7 @@ router.get('/:id/stats', authenticateClerkToken, async (req, res) => {
     res.json(stats);
   } catch (error) {
     console.error('Error fetching product stats:', error);
-    res.status(500).json({ message: 'Failed to fetch product stats', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch product stats', error: error });
   }
 });
 
