@@ -69,6 +69,7 @@ export interface ProductFilters {
   status?: string;
   featured?: string;
   onSale?: string;
+  stockStatus?: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
@@ -94,6 +95,8 @@ export interface CreateProductData {
   isOnSale: boolean;
   salePrice?: number;
   saleEndDate?: string;
+  lowStockThreshold?: number;
+  allowBackorder?: boolean;
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {
@@ -161,6 +164,8 @@ export interface Product {
   weight?: number;
   dimensions?: string;
   tags: string[];
+  lowStockThreshold?: number;
+  allowBackorder?: boolean;
   metaTitle?: string;
   metaDescription?: string;
   createdAt: string;

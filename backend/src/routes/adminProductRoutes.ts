@@ -53,6 +53,7 @@ router.get('/', authenticateClerkToken, async (req, res) => {
       status, 
       featured, 
       onSale,
+      stockStatus,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -93,62 +94,97 @@ router.get('/', authenticateClerkToken, async (req, res) => {
     let orderBy: any = {};
     orderBy[sortBy as string] = sortOrder;
 
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        include: {
-          category: {
-            select: { id: true, name: true, slug: true }
-          },
-          variants: {
-            select: { 
-              id: true, 
-              size: true, 
-              color: true, 
-              stock: true, 
-              price: true,
-              isActive: true 
-            }
-          },
-          images: {
-            orderBy: [
-              { isPrimary: 'desc' },
-              { sortOrder: 'asc' }
-            ]
-          },
-          _count: {
-            select: { 
-              variants: true, 
-              images: true,
-              reviews: true,
-              orderItems: true
-            }
+    // First, get all products to calculate stock status
+    const allProducts = await prisma.product.findMany({
+      where,
+      include: {
+        category: {
+          select: { id: true, name: true, slug: true }
+        },
+        variants: {
+          select: { 
+            id: true, 
+            size: true, 
+            color: true, 
+            stock: true, 
+            price: true,
+            isActive: true 
           }
         },
-        orderBy,
-        skip,
-        take: limitNum
-      }),
-      prisma.product.count({ where })
-    ]);
+        images: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' }
+          ]
+        },
+        _count: {
+          select: { 
+            variants: true, 
+            images: true,
+            reviews: true,
+            orderItems: true
+          }
+        }
+      },
+      orderBy
+    });
 
     // Convert decimals and calculate additional metrics
-    const convertedProducts = products.map(product => {
+    let convertedProducts = allProducts.map(product => {
       const totalStock = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
       const activeVariants = product.variants.filter(v => v.isActive).length;
+      
+      console.log(`🏷️ Product: ${product.name}, Variants: ${product.variants.length}, Total Stock: ${totalStock}`);
+      product.variants.forEach(variant => {
+        console.log(`  └─ ${variant.size} ${variant.color}: ${variant.stock} stock`);
+      });
       
       return {
         ...convertDecimalToNumber(product),
         totalStock,
         activeVariants,
-        hasLowStock: totalStock <= 10,
+        hasLowStock: totalStock > 0 && totalStock <= 10,
         hasOutOfStock: totalStock === 0
       };
     });
 
+    // Apply stock status filtering BEFORE pagination
+    if (stockStatus && stockStatus !== 'all') {
+      console.log(`🔍 Stock Status Filter: ${stockStatus}`);
+      console.log(`📦 Products before filtering: ${convertedProducts.length}`);
+      
+      convertedProducts = convertedProducts.filter(product => {
+        const matches = (() => {
+          switch (stockStatus) {
+            case 'in_stock':
+              return product.totalStock > 10;
+            case 'low_stock':
+              return product.totalStock > 0 && product.totalStock <= 10;
+            case 'out_of_stock':
+              return product.totalStock === 0;
+            case 'backorder':
+              return product.totalStock === 0;
+            default:
+              return true;
+          }
+        })();
+        
+        console.log(`📊 Product: ${product.name}, Stock: ${product.totalStock}, Matches ${stockStatus}: ${matches}`);
+        return matches;
+      });
+      
+      console.log(`✅ Products after filtering: ${convertedProducts.length}`);
+    }
+
+    // Now apply pagination to the filtered results
+    const total = convertedProducts.length;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    const paginatedProducts = convertedProducts.slice(startIndex, endIndex);
+
     res.json({
-      products: convertedProducts,
-      totalProducts: total,
+      products: paginatedProducts,
+      totalProducts: total, // Use total filtered count
       totalPages: Math.ceil(total / limitNum)
     });
   } catch (error) {

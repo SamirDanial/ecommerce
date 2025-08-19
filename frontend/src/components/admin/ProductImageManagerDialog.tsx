@@ -51,7 +51,6 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       
       setLoading(true);
       const fetchedImages = await ProductImageService.getProductImages(productId, token);
-      console.log('Fetched images:', fetchedImages);
       setImages(fetchedImages);
     } catch (error) {
       console.error('Error fetching images:', error);
@@ -135,23 +134,8 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
     const token = await getToken();
     if (!token || selectedFiles.length === 0) return;
 
-    console.log('Starting upload with:', {
-      productId,
-      selectedFiles: selectedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })),
-      uploadDataArray,
-      token: token ? 'Present' : 'Missing'
-    });
-
     try {
       setUploading(true);
-      
-      // Debug: Log selected files
-      console.log('Selected files for upload:', {
-        names: selectedFiles.map(f => f.name),
-        sizes: selectedFiles.map(f => f.size),
-        types: selectedFiles.map(f => f.type)
-      });
-      console.log('Upload data:', uploadDataArray);
       
       // Use the multiple images upload method
       await ProductImageService.uploadMultipleImages(productId, selectedFiles, uploadDataArray, token);

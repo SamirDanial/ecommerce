@@ -19,6 +19,7 @@ import { useProducts } from '../../hooks/useProducts';
 import { ProductCard } from '../../components/admin/ProductCard';
 import { ProductFilters } from '../../components/admin/ProductFilters';
 import { CreateProductDialog } from '../../components/admin/CreateProductDialog';
+import { EditProductDialog } from '../../components/admin/EditProductDialog';
 import { VariantManagementDialog } from '../../components/admin/VariantManagementDialog';
 import ProductImageManagerDialog from '../../components/admin/ProductImageManagerDialog';
 import { Product } from '../../types';
@@ -35,6 +36,7 @@ const Products: React.FC = () => {
     updateFilters,
     resetFilters,
     createProduct,
+    updateProduct,
     toggleProductStatus,
     deleteProduct,
     fetchProducts
@@ -764,8 +766,23 @@ const Products: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialogs will be implemented next */}
       {/* Edit Product Dialog */}
+      {selectedProduct && (
+        <EditProductDialog
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setSelectedProduct(null);
+          }}
+          onSubmit={async (data) => {
+            await updateProduct(data);
+            fetchProducts(); // Refresh the products list
+          }}
+          product={selectedProduct}
+          categories={categories || []}
+          categoriesLoading={loading}
+        />
+      )}
     </div>
   );
 };
