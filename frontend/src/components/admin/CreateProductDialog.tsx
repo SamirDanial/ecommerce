@@ -141,8 +141,8 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
     setLoading(true);
     try {
       await onSubmit(formData);
-      toast.success('Product created successfully!');
-      onClose();
+      // Success toast is handled by the parent component, no need to duplicate
+      // Don't call onClose() here - let the parent component control when to close
       // Reset form
       setFormData({
         name: '',
@@ -168,6 +168,7 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
       });
     } catch (error) {
       toast.error('Failed to create product');
+      // Keep dialog open on error
     } finally {
       setLoading(false);
     }

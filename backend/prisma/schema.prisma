@@ -86,7 +86,7 @@ model Product {
   price            Decimal          @db.Decimal(10, 2)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
-  barcode          String?          @unique @db.VarChar(100)
+  barcode          String?          @db.VarChar(100)
   categoryId       Int
   comparePrice     Decimal?         @db.Decimal(10, 2)
   costPrice        Decimal?         @db.Decimal(10, 2)

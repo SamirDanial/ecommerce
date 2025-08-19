@@ -30,36 +30,35 @@ export interface ProductVariant {
   updatedAt: string;
 }
 
+export interface VariantOperation {
+  action: 'create' | 'update' | 'delete';
+  id?: number;
+  size?: string;
+  color?: string;
+  colorCode?: string;
+  stock?: number;
+  sku?: string;
+  price?: number;
+  comparePrice?: number;
+  isActive?: boolean;
+}
+
 class VariantService {
   private static baseUrl = '/api/admin/products';
 
-  static async createVariant(productId: number, variantData: CreateVariantData, token: string): Promise<ProductVariant> {
-    const response = await api.post(`${this.baseUrl}/${productId}/variants`, variantData, {
+  // Single method to save all variant changes (create, update, delete)
+  static async saveVariants(productId: number, variants: VariantOperation[], token: string): Promise<any> {
+    const response = await api.put(`${this.baseUrl}/${productId}/variants`, { variants }, {
       headers: createAuthHeaders(token)
     });
-
     return response.data;
   }
 
-  static async updateVariant(productId: number, variantId: number, variantData: UpdateVariantData, token: string): Promise<ProductVariant> {
-    const response = await api.put(`${this.baseUrl}/${productId}/variants/${variantId}`, variantData, {
-      headers: createAuthHeaders(token)
-    });
-
-    return response.data;
-  }
-
-  static async deleteVariant(productId: number, variantId: number, token: string): Promise<void> {
-    await api.delete(`${this.baseUrl}/${productId}/variants/${variantId}`, {
-      headers: createAuthHeaders(token)
-    });
-  }
-
+  // Get variants for a product
   static async getVariants(productId: number, token: string): Promise<ProductVariant[]> {
     const response = await api.get(`${this.baseUrl}/${productId}/variants`, {
       headers: createAuthHeaders(token)
     });
-
     return response.data;
   }
 }

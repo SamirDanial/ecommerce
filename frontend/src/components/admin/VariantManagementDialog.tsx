@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
-import VariantService, { CreateVariantData, ProductVariant } from '../../services/variantService';
+import VariantService, { CreateVariantData, ProductVariant, VariantOperation } from '../../services/variantService';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 
 interface VariantManagementDialogProps {
@@ -58,18 +58,23 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
 
   // Load existing variants when dialog opens
   useEffect(() => {
-    if (isOpen && existingVariants.length > 0) {
-      setVariants(existingVariants);
-      // Extract unique sizes and colors from existing variants
-      const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
-      const colors = Array.from(new Set(existingVariants.map(v => v.color)));
-      setSelectedSizes(sizes);
-      setSelectedColors(colors);
+    if (isOpen) {
+      // Reset deleted variants list
+      setDeletedVariantIds([]);
       
-      // Set base price and stock from first variant
-      if (existingVariants[0]) {
-        setBasePrice(existingVariants[0].price || 0);
-        setBaseStock(existingVariants[0].stock || 10);
+      if (existingVariants.length > 0) {
+        setVariants(existingVariants);
+        // Extract unique sizes and colors from existing variants
+        const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
+        const colors = Array.from(new Set(existingVariants.map(v => v.color)));
+        setSelectedSizes(sizes);
+        setSelectedColors(colors);
+        
+        // Set base price and stock from first variant
+        if (existingVariants[0]) {
+          setBasePrice(existingVariants[0].price || 0);
+          setBaseStock(existingVariants[0].stock || 10);
+        }
       }
     }
   }, [isOpen, existingVariants]);
@@ -129,19 +134,50 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
       const newVariants = variants.filter(v => v.id < 0);
       const existingVariants = variants.filter(v => v.id > 0);
 
-      // Create new variants
+      // Prepare operations array for all variant changes
+      const operations: VariantOperation[] = [];
+
+      // Add create operations for new variants
       for (const variant of newVariants) {
-        const { id, productId, createdAt, updatedAt, ...variantData } = variant;
-        await VariantService.createVariant(productId, variantData, token);
+        const { id, createdAt, updatedAt, ...variantData } = variant;
+        operations.push({
+          action: 'create',
+          ...variantData
+        });
       }
 
-      // Update existing variants
+      // Add update operations for existing variants
       for (const variant of existingVariants) {
-        const { id, productId, createdAt, updatedAt, ...variantData } = variant;
-        await VariantService.updateVariant(productId, id, { ...variantData, id }, token);
+        const { id, createdAt, updatedAt, ...variantData } = variant;
+        operations.push({
+          action: 'update',
+          id,
+          ...variantData
+        });
       }
 
-      toast.success('Variants saved successfully');
+      // Add delete operations for variants marked for deletion
+      for (const variantId of deletedVariantIds) {
+        operations.push({
+          action: 'delete',
+          id: variantId
+        });
+      }
+
+      // Send all operations in one request
+      const result = await VariantService.saveVariants(productId, operations, token);
+      
+      if (result.errors && result.errors.length > 0) {
+        toast.warning(`Variants saved with ${result.errors.length} errors`);
+        console.warn('Variant save errors:', result.errors);
+      } else {
+        toast.success('Variants saved successfully');
+      }
+
+      // Clear deleted variants list and remove them from UI after successful save
+      setDeletedVariantIds([]);
+      // Remove deleted variants from the variants list
+      setVariants(prev => prev.filter(v => !deletedVariantIds.includes(v.id)));
       onVariantsChange();
       onClose();
     } catch (error) {
@@ -158,17 +194,23 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
     ));
   };
 
+  const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
+
   const deleteVariant = (variantId: number) => {
     if (variantId > 0) {
-      // Existing variant - mark for deletion
-      setVariants(prev => prev.map(v => 
-        v.id === variantId ? { ...v, isActive: false } : v
-      ));
+      // Existing variant - mark for deletion (keep visible with undo option)
+      setDeletedVariantIds(prev => [...prev, variantId]);
+      toast.success('Variant marked for deletion. Click undo to restore or save to confirm.');
     } else {
-      // New variant - remove from list
+      // New variant - just remove from list
       setVariants(prev => prev.filter(v => v.id !== variantId));
+      toast.success('Variant removed');
     }
-    toast.success('Variant removed');
+  };
+
+  const undoDelete = (variantId: number) => {
+    setDeletedVariantIds(prev => prev.filter(id => id !== variantId));
+    toast.success('Variant restored');
   };
 
   const toggleVariantActive = (variantId: number) => {
@@ -334,9 +376,27 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                   <div
                     key={variant.id}
                     className={`p-4 border rounded-lg ${
-                      variant.isActive ? 'bg-white' : 'bg-gray-50'
+                      deletedVariantIds.includes(variant.id) 
+                        ? 'bg-red-50 border-red-300' 
+                        : variant.isActive 
+                          ? 'bg-white border-gray-200' 
+                          : 'bg-gray-50 border-gray-300'
                     }`}
                   >
+                    {deletedVariantIds.includes(variant.id) && (
+                      <div className="mb-3 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm flex items-center justify-between">
+                        <span>⚠️ Marked for deletion</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => undoDelete(variant.id)}
+                          className="text-red-700 border-red-300 hover:bg-red-200"
+                        >
+                          Undo
+                        </Button>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         {getVariantDisplay(variant)}
@@ -350,6 +410,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                               type="text"
                               placeholder="29.99"
                               value={variant.price || ''}
+                              disabled={deletedVariantIds.includes(variant.id)}
                               onChange={(e) => {
                                 const value = e.target.value;
                                 // Allow numbers, decimal point, and empty string
@@ -380,6 +441,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                               type="text"
                               placeholder="25"
                               value={variant.stock || ''}
+                              disabled={deletedVariantIds.includes(variant.id)}
                               onChange={(e) => {
                                 const value = e.target.value;
                                 // Only allow numbers and empty string
@@ -402,6 +464,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                             <Input
                               placeholder="TSH-001"
                               value={variant.sku || ''}
+                              disabled={deletedVariantIds.includes(variant.id)}
                               onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
                               className="w-24 text-xs"
                             />
@@ -411,6 +474,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                         <div className="flex items-center gap-2">
                           <Checkbox
                             checked={variant.isActive}
+                            disabled={deletedVariantIds.includes(variant.id)}
                             onCheckedChange={() => toggleVariantActive(variant.id)}
                           />
                           <Badge variant={variant.isActive ? "default" : "secondary"}>
@@ -421,9 +485,10 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                         <Button
                           variant="destructive"
                           size="sm"
+                          disabled={deletedVariantIds.includes(variant.id)}
                           onClick={() => deleteVariant(variant.id)}
                         >
-                          Delete
+                          {deletedVariantIds.includes(variant.id) ? 'Deleting...' : 'Delete'}
                         </Button>
                       </div>
                     </div>
