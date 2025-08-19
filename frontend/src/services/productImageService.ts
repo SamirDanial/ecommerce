@@ -52,9 +52,6 @@ class ProductImageService {
       formData.append('sortOrder', data.sortOrder.toString());
     }
 
-    // Debug: Log FormData contents
-    console.log('FormData created, sending request...');
-    
     // Debug: Check FormData contents
     for (let [key, value] of Array.from(formData.entries())) {
       console.log('FormData entry:', key, value);
@@ -73,6 +70,47 @@ class ProductImageService {
     console.log('Request headers:', headers);
     
     const response = await api.post(`${this.baseUrl}/${productId}/images`, formData, {
+      headers: headers
+    });
+    return response.data;
+  }
+
+  static async uploadMultipleImages(
+    productId: number, 
+    files: File[], 
+    dataArray: UploadImageData[], 
+    token: string
+  ): Promise<any> {
+    const formData = new FormData();
+    
+    // Debug: Log what we're adding to FormData
+    console.log('Creating FormData for multiple images:', { productId, fileCount: files.length, dataArray });
+    
+    // Add all images with key 'images'
+    files.forEach((file, index) => {
+      console.log(`Adding file ${index + 1}:`, { name: file.name, size: file.size, type: file.type });
+      formData.append('images', file);
+    });
+    
+    // Add metadata arrays
+    const colors = dataArray.map(data => data.color || '');
+    const alts = dataArray.map(data => data.alt || '');
+    const sortOrders = dataArray.map(data => data.sortOrder || 0);
+    
+    formData.append('colors', JSON.stringify(colors));
+    formData.append('alts', JSON.stringify(alts));
+    formData.append('sortOrders', JSON.stringify(sortOrders));
+    
+    // Debug: Check FormData contents
+    for (let [key, value] of Array.from(formData.entries())) {
+      console.log('FormData entry:', key, value);
+    }
+    
+    // Debug: Log the headers being sent
+    const headers = createFileUploadHeaders(token);
+    console.log('Request headers:', headers);
+    
+    const response = await api.post(`${this.baseUrl}/${productId}/images/multiple`, formData, {
       headers: headers
     });
     return response.data;

@@ -111,7 +111,10 @@ router.get('/', authenticateClerkToken, async (req, res) => {
             }
           },
           images: {
-            orderBy: { sortOrder: 'asc' }
+            orderBy: [
+              { isPrimary: 'desc' },
+              { sortOrder: 'asc' }
+            ]
           },
           _count: {
             select: { 
@@ -169,7 +172,10 @@ router.get('/:id', authenticateClerkToken, async (req, res) => {
           orderBy: [{ size: 'asc' }, { color: 'asc' }]
         },
         images: {
-          orderBy: { sortOrder: 'asc' }
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' }
+          ]
         },
         reviews: {
           where: { status: 'APPROVED', isActive: true },

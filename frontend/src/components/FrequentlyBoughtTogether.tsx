@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -10,6 +11,7 @@ import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Product } from '../types';
 import RatingDisplay from './ui/rating-display';
+import { getImageUrl } from '../utils/productUtils';
 
 interface FrequentlyBoughtTogetherProps {
   currentProduct: Product;
@@ -173,9 +175,10 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
               <div className="flex flex-col sm:flex-row">
                 <div className="relative flex-shrink-0 mb-3 sm:mb-0">
                   <ImageWithPlaceholder
-                    src={item.product.images && item.product.images.length > 0 ? item.product.images[0].url : ''}
+                    src={getImageUrl(item.product)}
                     alt={item.product.name}
                     className="w-full h-48 sm:w-24 sm:h-24 lg:w-32 lg:h-32 object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
+                    placeholderClassName="w-full h-48 sm:w-24 sm:h-24 lg:w-32 lg:h-32"
                   />
                   {selectedItems.has(item.product.id) && (
                     <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">

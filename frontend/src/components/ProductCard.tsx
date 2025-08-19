@@ -10,6 +10,7 @@ import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Eye, Star } from 'lucide-react';
 import RatingDisplay from './ui/rating-display';
+import { getImageUrl } from '../utils/productUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -19,10 +20,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToRecentlyViewed } = useUserInteractionStore();
   const { formatPrice } = useCurrency();
 
-  // Get the primary image or first image - handle cases where images might not be an array
-  const images = Array.isArray(product.images) ? product.images : [];
-  const primaryImage = images.find(img => img.isPrimary) || images[0];
-  const imageUrl = primaryImage?.url || '/placeholder-product.jpg';
+  // Get the image URL using the utility function (returns full URL)
+  const imageUrl = getImageUrl(product) || '/placeholder-product.jpg';
 
   const handleProductClick = () => {
     // Track product view

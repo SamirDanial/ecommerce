@@ -138,7 +138,12 @@ router.get('/', async (req, res) => {
       include: {
         category: true,
         variants: true,
-        images: true,
+        images: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' }
+          ]
+        },
         reviews: {
           where: {
             status: 'APPROVED',
@@ -206,7 +211,12 @@ router.get('/featured', async (req, res) => {
       include: {
         category: true,
         variants: true,
-        images: true,
+        images: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' }
+          ]
+        },
         reviews: {
           where: {
             status: 'APPROVED',

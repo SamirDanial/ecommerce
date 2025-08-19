@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { useNavigate } from 'react-router-dom';
 
 import { searchService } from '../services/api';
+import { getImageUrl } from '../utils/productUtils';
 
 interface SearchResult {
   id: number;
@@ -84,7 +85,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onResultSelect }) => {
           slug: product.slug,
           type: 'product' as const,
           description: product.shortDescription || product.description,
-          image: product.images && product.images.length > 0 ? product.images[0].url : undefined
+          image: getImageUrl(product)
         })),
         ...data.categories.map((category: any) => ({
           id: category.id,

@@ -5,6 +5,7 @@ import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { getImageUrl } from '../utils/productUtils';
 
 interface WishlistHoverOverlayProps {
   children: React.ReactNode;
@@ -168,10 +169,7 @@ const WishlistHoverOverlay: React.FC<WishlistHoverOverlayProps> = ({
                         {/* Enhanced Product Image */}
                         <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white dark:bg-gray-700 shadow-sm">
                           <ImageWithPlaceholder
-                            src={item.product?.images && Array.isArray(item.product.images) && item.product.images.length > 0 
-                              ? item.product.images[0].url 
-                              : '/placeholder-product.jpg'
-                            }
+                            src={item.product ? getImageUrl(item.product) : '/placeholder-product.jpg'}
                             alt={item.product?.name || 'Product'}
                             className="w-full h-full object-cover"
                           />

@@ -13,6 +13,7 @@ import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { categoryService } from '../services/api';
 import RatingDisplay from '../components/ui/rating-display';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { getImageUrl } from '../utils/productUtils';
 
 const Home: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -392,7 +393,7 @@ const Home: React.FC = () => {
                     <>
                       <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                         <ImageWithPlaceholder
-                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          src={getImageUrl(product)}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           placeholderClassName="w-full h-full"
@@ -434,7 +435,7 @@ const Home: React.FC = () => {
                     <div className="flex w-full p-6">
                       <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200">
                         <ImageWithPlaceholder
-                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          src={getImageUrl(product)}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           placeholderClassName="w-full h-full"
@@ -649,7 +650,7 @@ const Home: React.FC = () => {
                     <>
                       <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                         <ImageWithPlaceholder
-                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          src={getImageUrl(product)}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           placeholderClassName="w-full h-full"
@@ -689,7 +690,7 @@ const Home: React.FC = () => {
                     <div className="flex w-full p-6">
                       <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200">
                         <ImageWithPlaceholder
-                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url : '/placeholder-product.jpg'}
+                          src={getImageUrl(product)}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           placeholderClassName="w-full h-full"

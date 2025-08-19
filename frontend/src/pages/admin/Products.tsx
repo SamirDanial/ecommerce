@@ -7,10 +7,14 @@ import {
   Download,
   BarChart3,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  Trash2,
+  Package
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { useProducts } from '../../hooks/useProducts';
 import { ProductCard } from '../../components/admin/ProductCard';
 import { ProductFilters } from '../../components/admin/ProductFilters';
@@ -422,10 +426,78 @@ const Products: React.FC = () => {
         />
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              Delete Product
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-gray-700 mb-4">
+              Are you sure you want to delete this product? This action cannot be undone.
+            </p>
+            
+            {selectedProduct && (
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Package className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <p className="font-medium text-gray-900 truncate">
+                    {selectedProduct.name}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">
+                  SKU: {selectedProduct.sku || 'N/A'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Category: {selectedProduct.category?.name || 'N/A'}
+                </p>
+              </div>
+            )}
+            
+            <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-sm text-red-700 font-medium">⚠️ Warning:</p>
+              <ul className="text-sm text-red-600 mt-1 space-y-1">
+                <li>• All product data will be permanently deleted</li>
+                <li>• Product images and variants will be removed</li>
+                <li>• This action cannot be undone</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setSelectedProduct(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedProduct && handleDelete(selectedProduct)}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Product
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialogs will be implemented next */}
       {/* Edit Product Dialog */}
       {/* View Product Dialog */}
-      {/* Delete Confirmation Dialog */}
     </div>
   );
 };

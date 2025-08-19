@@ -10,6 +10,7 @@ import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { ImageWithPlaceholder } from '../components/ui/image-with-placeholder';
 import { toast } from 'sonner';
+import { getImageUrl } from '../utils/productUtils';
 
 const Wishlist: React.FC = () => {
   const [viewMode] = useState<'grid' | 'list'>('grid');
@@ -174,7 +175,7 @@ const Wishlist: React.FC = () => {
                   <Card key={item.id} className="group cursor-pointer transition-all hover:shadow-lg">
                     <div className="relative overflow-hidden">
                       <ImageWithPlaceholder
-                        src={item.product?.images && Array.isArray(item.product.images) && item.product.images.length > 0 ? item.product.images[0].url : ''}
+                        src={item.product ? getImageUrl(item.product) : ''}
                         alt={item.product?.name || 'Product'}
                         className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
                       />

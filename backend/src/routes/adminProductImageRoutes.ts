@@ -60,7 +60,10 @@ router.get('/', authenticateClerkToken, async (req, res) => {
 
     const images = await prisma.productImage.findMany({
       where: { productId },
-      orderBy: { sortOrder: 'asc' }
+      orderBy: [
+        { isPrimary: 'desc' },
+        { sortOrder: 'asc' }
+      ]
     });
 
     res.json(images);
@@ -163,6 +166,17 @@ router.post('/', authenticateClerkToken, upload.single('image'), async (req, res
         where: { id: image.id },
         data: { isPrimary: true }
       });
+      image.isPrimary = true;
+    } else {
+      // Check if any existing image is primary
+      const hasPrimary = existingImages.some(img => img.isPrimary);
+      if (!hasPrimary) {
+        await prisma.productImage.update({
+          where: { id: image.id },
+          data: { isPrimary: true }
+        });
+        image.isPrimary = true;
+      }
     }
 
     res.status(201).json({ 
@@ -172,6 +186,100 @@ router.post('/', authenticateClerkToken, upload.single('image'), async (req, res
   } catch (error) {
     console.error('Error uploading images:', error);
     res.status(500).json({ message: 'Failed to upload images', error: error });
+  }
+});
+
+// Upload multiple product images
+router.post('/multiple', authenticateClerkToken, upload.array('images', 10), async (req, res) => {
+  try {
+    console.log('=== MULTIPLE IMAGES UPLOAD DEBUG START ===');
+    console.log('Request method:', req.method);
+    console.log('Request path:', req.path);
+    console.log('Request headers:', req.headers);
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    console.log('=== MULTIPLE IMAGES UPLOAD DEBUG END ===');
+    
+    const { colors, alts, sortOrders } = req.body;
+    const files = req.files as Express.Multer.File[];
+    const productId = req.productId;
+    
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: 'No images uploaded' });
+    }
+
+    // Check if product exists
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Parse arrays from request body
+    const colorArray = colors ? JSON.parse(colors) : [];
+    const altArray = alts ? JSON.parse(alts) : [];
+    const sortOrderArray = sortOrders ? JSON.parse(sortOrders) : [];
+
+    // Get existing images count for sort order
+    const existingImages = await prisma.productImage.findMany({
+      where: { productId: productId }
+    });
+    let baseSortOrder = existingImages.length;
+
+    // Create image records for all uploaded files
+    const createdImages = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const color = colorArray[i] || null;
+      const alt = altArray[i] || file.originalname;
+      const sortOrder = sortOrderArray[i] || baseSortOrder + i;
+
+      const image = await prisma.productImage.create({
+        data: {
+          productId: productId,
+          color: color,
+          url: `/uploads/products/${file.filename}`,
+          alt: alt,
+          sortOrder: parseInt(sortOrder.toString()),
+          isPrimary: false
+        }
+      });
+
+      createdImages.push(image);
+    }
+
+    // Set first image as primary if no primary exists
+    if (existingImages.length === 0 && createdImages.length > 0) {
+      await prisma.productImage.update({
+        where: { id: createdImages[0].id },
+        data: { isPrimary: true }
+      });
+      createdImages[0].isPrimary = true;
+    } else if (existingImages.length > 0 && createdImages.length > 0) {
+      // If there are existing images but none are primary, set the first new image as primary
+      const hasPrimary = existingImages.some(img => img.isPrimary);
+      if (!hasPrimary) {
+        await prisma.productImage.update({
+          where: { id: createdImages[0].id },
+          data: { isPrimary: true }
+        });
+        createdImages[0].isPrimary = true;
+      }
+    }
+
+    res.status(201).json({ 
+      message: `${files.length} images uploaded successfully`, 
+      images: createdImages
+    });
+  } catch (error) {
+    console.error('Error uploading multiple images:', error);
+    res.status(500).json({ message: 'Failed to upload multiple images', error: error });
   }
 });
 
