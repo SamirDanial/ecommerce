@@ -16,6 +16,7 @@ import { ProductCard } from '../../components/admin/ProductCard';
 import { ProductFilters } from '../../components/admin/ProductFilters';
 import { CreateProductDialog } from '../../components/admin/CreateProductDialog';
 import { VariantManagementDialog } from '../../components/admin/VariantManagementDialog';
+import ProductImageManagerDialog from '../../components/admin/ProductImageManagerDialog';
 import { Product } from '../../types';
 import { toast } from 'sonner';
 
@@ -402,11 +403,29 @@ const Products: React.FC = () => {
         />
       )}
 
+      {/* Image Manager Dialog */}
+      {selectedProduct && (
+        <ProductImageManagerDialog
+          isOpen={isImageManagerOpen}
+          onClose={() => {
+            setIsImageManagerOpen(false);
+            setSelectedProduct(null);
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          existingImages={selectedProduct.images || []}
+          onImagesChange={() => {
+            // Refresh products to get updated image data
+            fetchProducts();
+            toast.success('Images updated successfully');
+          }}
+        />
+      )}
+
       {/* Dialogs will be implemented next */}
       {/* Edit Product Dialog */}
       {/* View Product Dialog */}
       {/* Delete Confirmation Dialog */}
-      {/* Image Manager Dialog */}
     </div>
   );
 };

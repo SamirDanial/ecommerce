@@ -8,9 +8,10 @@ logApiConfig();
 const api = axios.create({
   baseURL: getApiConfig().baseURL,
   timeout: getApiConfig().timeout,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // Remove the global Content-Type header to allow FormData to set its own
+  // headers: {
+  //   'Content-Type': 'application/json',
+  // },
 });
 
 // Request interceptor to add auth token
@@ -41,6 +42,12 @@ api.interceptors.response.use(
 export const createAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json',
+});
+
+// Helper function for file uploads (without Content-Type header)
+export const createFileUploadHeaders = (token: string) => ({
+  Authorization: `Bearer ${token}`,
+  // Don't set Content-Type - let browser set it with boundary for multipart/form-data
 });
 
 export default api;
