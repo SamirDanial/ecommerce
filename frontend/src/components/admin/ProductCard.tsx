@@ -1,11 +1,11 @@
 import React from 'react';
-import { Eye, Edit, Trash2, Image as ImageIcon, Package, MoreHorizontal, XCircle, CheckCircle } from 'lucide-react';
+import { Eye, Edit, Trash2, Image as ImageIcon, Package, XCircle, CheckCircle, BarChart3 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Card, CardContent, CardHeader } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Product } from '../../types';
-import { formatPrice, getVariantDisplay, getImageUrl, generatePlaceholderSVG, formatDate } from '../../utils/productUtils';
-import { getProductStockStatus } from '../../utils/stockUtils';
+import { formatPrice, generatePlaceholderSVG } from '../../utils/productUtils';
+
 
 interface ProductCardProps {
   product: Product;
@@ -16,6 +16,7 @@ interface ProductCardProps {
   onToggleStatus: (id: number) => void;
   onImageManager: (product: Product) => void;
   onVariantManager: (product: Product) => void;
+  onStockManager: (product: Product) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -26,11 +27,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onDelete,
   onToggleStatus,
   onImageManager,
-  onVariantManager
+  onVariantManager,
+  onStockManager
 }) => {
-  const stockStatus = getProductStockStatus(product.variants || []);
-  const imageUrl = getImageUrl(product);
+  // Since variants are loaded on demand, we can't calculate stock status here
+  // Stock status will be calculated when variants are actually loaded
+  // Convert relative URL to full URL if needed
+  const getFullImageUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url; // Already a full URL
+    
+    // Get the API base URL from environment or use default
+    const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    return `${apiBaseUrl}${url}`;
+  };
+  
+  const imageUrl = getFullImageUrl(product.primaryImage?.url || null);
   const [imageError, setImageError] = React.useState(false);
+  
+
 
   const handleImageError = () => {
     setImageError(true);
@@ -60,16 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           />
         )}
         
-        {/* Stock Status Badge */}
-        <div className={`absolute ${viewMode === 'list' ? 'top-1 right-1' : 'top-2 right-2'}`}>
-          <Badge 
-            variant={stockStatus.status === 'OUT_OF_STOCK' ? 'destructive' : 
-                     stockStatus.status === 'LOW_STOCK' ? 'secondary' : 'default'} 
-            className={`${viewMode === 'list' ? 'px-1 py-0 text-xs' : 'px-2 py-0.5 text-xs'} font-medium`}
-          >
-            {stockStatus.message}
-          </Badge>
-        </div>
+
 
         {/* Sale Badge */}
         {product.isOnSale && product.salePrice && (
@@ -148,6 +154,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
+                onStockManager(product);
+              }}
+              className="bg-white/90 hover:bg-white active:bg-white/80 text-indigo-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
+              title="Manage Stock"
+            >
+              <BarChart3 className="w-3 h-3" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
                 onDelete(product);
               }}
               className="bg-white/90 hover:bg-white active:bg-white/80 text-red-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
@@ -192,9 +210,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
               {/* Variants and Stock */}
               <div className="flex items-center gap-3 text-xs text-gray-600">
-                <span>{getVariantDisplay(product)}</span>
+                <span>Variants: {product._count?.variants || 0}</span>
                 <span>•</span>
-                <span>{product.totalStock || 0} in stock</span>
+                <span>Stock: {product.totalStock || 0}</span>
                 {!product.isActive && (
                   <>
                     <span>•</span>
@@ -259,7 +277,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             {/* Variants Summary - Compact */}
             <p className="text-xs text-gray-600 mb-2">
-              {getVariantDisplay(product)}
+              Variants: {product._count?.variants || 0} • Stock: {product.totalStock || 0}
             </p>
 
             {/* Quick Actions Row */}
@@ -267,7 +285,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {/* Stock Status with Inactive Indicator */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">
-                  {product.totalStock || 0} in stock
+                  Stock: {product.totalStock || 0}
                 </span>
                 {!product.isActive && (
                   <span className="text-xs text-red-500 font-medium">• Inactive</span>

@@ -28,7 +28,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
     status: filters.status || 'all',
     featured: filters.featured || 'all',
     onSale: filters.onSale || 'all',
-    stockStatus: filters.stockStatus || 'all',
+
     sortBy: filters.sortBy || 'createdAt',
     sortOrder: filters.sortOrder || 'desc',
     page: filters.page || 1,
@@ -42,8 +42,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
     (safeFilters.category && safeFilters.category !== 'all') || 
     (safeFilters.status && safeFilters.status !== 'all') || 
     (safeFilters.featured && safeFilters.featured !== 'all') || 
-    (safeFilters.onSale && safeFilters.onSale !== 'all') ||
-    (safeFilters.stockStatus && safeFilters.stockStatus !== 'all');
+    (safeFilters.onSale && safeFilters.onSale !== 'all');
 
   return (
     <Card className="mb-6">
@@ -163,25 +162,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </Select>
           </div>
 
-          {/* Stock Status Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Stock Status</label>
-            <Select
-              value={safeFilters.stockStatus}
-              onValueChange={(value) => onFiltersChange({ stockStatus: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Stock Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Stock Status</SelectItem>
-                <SelectItem value="in_stock">In Stock</SelectItem>
-                <SelectItem value="low_stock">Low Stock</SelectItem>
-                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                <SelectItem value="backorder">Backorder Available</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+
 
           {/* Sort By */}
           <div className="space-y-2">

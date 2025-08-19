@@ -39,6 +39,9 @@ export interface ProductVariant {
   price?: number;
   comparePrice?: number;
   isActive: boolean;
+  stockStatus?: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'BACKORDER';
+  lowStockThreshold?: number;
+  allowBackorder?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,7 +72,6 @@ export interface ProductFilters {
   status?: string;
   featured?: string;
   onSale?: string;
-  stockStatus?: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
@@ -97,6 +99,17 @@ export interface CreateProductData {
   saleEndDate?: string;
   lowStockThreshold?: number;
   allowBackorder?: boolean;
+  variants?: Array<{
+    size: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'XXXL';
+    color: string;
+    colorCode?: string;
+    stock: number;
+    sku?: string;
+    price?: number;
+    comparePrice?: number;
+    lowStockThreshold?: number;
+    allowBackorder?: boolean;
+  }>;
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {
@@ -147,8 +160,8 @@ export interface ReviewReply {
 export interface Product {
   id: number;
   name: string;
-  slug: string;
-  description: string;
+  slug: string; // Required for routing and WishlistButton
+  description?: string; // Optional for list view, required for detail view
   shortDescription?: string;
   price: number;
   comparePrice?: number;
@@ -163,17 +176,22 @@ export interface Product {
   saleEndDate?: string;
   weight?: number;
   dimensions?: string;
-  tags: string[];
+  tags?: string[]; // Optional for list view, required for detail view
   lowStockThreshold?: number;
   allowBackorder?: boolean;
   metaTitle?: string;
   metaDescription?: string;
-  createdAt: string;
-  updatedAt: string;
-  // Public page fields (required for filtering)
-  category: Category;
-  variants: ProductVariant[];
-  images: ProductImage[];
+  createdAt?: string; // Optional for list view
+  updatedAt?: string; // Optional for list view
+  // Public page fields (optional for list view, required for detail view)
+  category?: Category; // Optional for list view, required for detail view
+  variants?: ProductVariant[]; // Optional for list view, loaded on demand
+  images?: ProductImage[]; // Optional for list view, loaded on demand
+  // New fields for optimized list view
+  primaryImage?: {
+    url: string;
+    alt?: string;
+  } | null;
   reviews?: Review[];
   averageRating?: number;
   reviewCount?: number;
@@ -188,6 +206,9 @@ export interface Product {
   activeVariants?: number;
   hasLowStock?: boolean;
   hasOutOfStock?: boolean;
+  overallStockStatus?: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'BACKORDER';
+  lowStockVariants?: number;
+  outOfStockVariants?: number;
 }
 
 export interface CartItem {

@@ -103,6 +103,8 @@ model Product {
   slug             String           @unique @db.VarChar(200)
   tags             String[]         @default([])
   weight           Decimal?         @db.Decimal(8, 2)
+  lowStockThreshold Int             @default(5)
+  allowBackorder   Boolean          @default(false)
   cartItems        CartItem[]
   orderItems       OrderItem[]
   images           ProductImage[]
@@ -127,6 +129,9 @@ model ProductVariant {
   price        Decimal?    @db.Decimal(10, 2)
   comparePrice Decimal?    @db.Decimal(10, 2)
   isActive     Boolean     @default(true)
+  stockStatus  StockStatus @default(IN_STOCK)
+  lowStockThreshold Int    @default(3)
+  allowBackorder   Boolean @default(false)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   cartItems    CartItem[]
@@ -536,6 +541,13 @@ enum Size {
   XL
   XXL
   XXXL
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  BACKORDER
 }
 
 enum OrderStatus {

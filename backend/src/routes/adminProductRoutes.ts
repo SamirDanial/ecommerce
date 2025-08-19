@@ -53,7 +53,6 @@ router.get('/', authenticateClerkToken, async (req, res) => {
       status, 
       featured, 
       onSale,
-      stockStatus,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -94,28 +93,30 @@ router.get('/', authenticateClerkToken, async (req, res) => {
     let orderBy: any = {};
     orderBy[sortBy as string] = sortOrder;
 
-    // First, get all products to calculate stock status
+    // Get only essential data for product list display
     const allProducts = await prisma.product.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+        salePrice: true,
+        isOnSale: true,
+        isActive: true,
+        isFeatured: true,
         category: {
           select: { id: true, name: true, slug: true }
         },
-        variants: {
-          select: { 
-            id: true, 
-            size: true, 
-            color: true, 
-            stock: true, 
-            price: true,
-            isActive: true 
-          }
-        },
+        // Get primary image for display
         images: {
-          orderBy: [
-            { isPrimary: 'desc' },
-            { sortOrder: 'asc' }
-          ]
+          where: { isPrimary: true },
+          select: { url: true, alt: true },
+          take: 1
+        },
+        // Get variants for stock calculation
+        variants: {
+          select: { stock: true, isActive: true }
         },
         _count: {
           select: { 
@@ -129,52 +130,31 @@ router.get('/', authenticateClerkToken, async (req, res) => {
       orderBy
     });
 
-    // Convert decimals and calculate additional metrics
+    // Convert decimals and calculate stock for essential data
     let convertedProducts = allProducts.map(product => {
-      const totalStock = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
-      const activeVariants = product.variants.filter(v => v.isActive).length;
+      // Calculate total stock from variants
+      const totalStock = product.variants.reduce((sum, variant) => {
+        return sum + (variant.isActive ? variant.stock : 0);
+      }, 0);
       
-      console.log(`🏷️ Product: ${product.name}, Variants: ${product.variants.length}, Total Stock: ${totalStock}`);
-      product.variants.forEach(variant => {
-        console.log(`  └─ ${variant.size} ${variant.color}: ${variant.stock} stock`);
-      });
+      // Get primary image URL
+      const primaryImage = product.images.length > 0 ? product.images[0] : null;
+      
+      // Remove the images array since we have primaryImage
+      const { images, variants, ...productWithoutImagesAndVariants } = convertDecimalToNumber(product);
       
       return {
-        ...convertDecimalToNumber(product),
+        ...productWithoutImagesAndVariants,
         totalStock,
-        activeVariants,
-        hasLowStock: totalStock > 0 && totalStock <= 10,
-        hasOutOfStock: totalStock === 0
+        primaryImage: primaryImage ? {
+          url: primaryImage.url,
+          alt: primaryImage.alt
+        } : null
       };
     });
 
-    // Apply stock status filtering BEFORE pagination
-    if (stockStatus && stockStatus !== 'all') {
-      console.log(`🔍 Stock Status Filter: ${stockStatus}`);
-      console.log(`📦 Products before filtering: ${convertedProducts.length}`);
-      
-      convertedProducts = convertedProducts.filter(product => {
-        const matches = (() => {
-          switch (stockStatus) {
-            case 'in_stock':
-              return product.totalStock > 10;
-            case 'low_stock':
-              return product.totalStock > 0 && product.totalStock <= 10;
-            case 'out_of_stock':
-              return product.totalStock === 0;
-            case 'backorder':
-              return product.totalStock === 0;
-            default:
-              return true;
-          }
-        })();
-        
-        console.log(`📊 Product: ${product.name}, Stock: ${product.totalStock}, Matches ${stockStatus}: ${matches}`);
-        return matches;
-      });
-      
-      console.log(`✅ Products after filtering: ${convertedProducts.length}`);
-    }
+    // Stock status filtering is disabled since variants are loaded on demand
+    // Stock status will be calculated when variants are actually loaded
 
     // Now apply pagination to the filtered results
     const total = convertedProducts.length;
@@ -238,14 +218,14 @@ router.get('/:id', authenticateClerkToken, async (req, res) => {
     }
 
     // Calculate average rating
-    const avgRating = product.reviews.length > 0 
-      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length 
+    const avgRating = (product as any).reviews.length > 0 
+      ? (product as any).reviews.reduce((sum: any, review: any) => sum + review.rating, 0) / (product as any).reviews.length 
       : 0;
 
     const convertedProduct = {
       ...convertDecimalToNumber(product),
       averageRating: Math.round(avgRating * 10) / 10,
-      totalStock: product.variants.reduce((sum, variant) => sum + variant.stock, 0)
+      totalStock: (product as any).variants.reduce((sum: any, variant: any) => sum + variant.stock, 0)
     };
 
     res.json(convertedProduct);
@@ -480,6 +460,129 @@ router.patch('/:id/toggle-status', authenticateClerkToken, async (req, res) => {
   } catch (error) {
     console.error('Error toggling product status:', error);
     res.status(500).json({ message: 'Failed to toggle product status', error: error });
+  }
+});
+
+// Update stock management settings
+router.put('/:id/stock-management', authenticateClerkToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lowStockThreshold, allowBackorder, variants } = req.body;
+
+    console.log('Updating stock management for product:', id);
+    console.log('Data received:', { lowStockThreshold, allowBackorder, variants });
+
+    // Update product-level settings
+    const updatedProduct = await prisma.product.update({
+      where: { id: parseInt(id) },
+      data: {
+        lowStockThreshold: parseInt(lowStockThreshold) || 5,
+        allowBackorder: allowBackorder || false
+      } as any
+    });
+
+    console.log('Product updated:', updatedProduct.id);
+
+    // Update variant-level settings
+    if (variants && variants.length > 0) {
+      for (const variantUpdate of variants) {
+        await prisma.productVariant.update({
+          where: { id: variantUpdate.id },
+          data: {
+            lowStockThreshold: parseInt(variantUpdate.lowStockThreshold) || 3,
+            allowBackorder: variantUpdate.allowBackorder || false
+          } as any
+        });
+        console.log('Variant updated:', variantUpdate.id);
+      }
+    }
+
+    // Fetch updated product with variants
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        category: true,
+        variants: true,
+        images: true
+      }
+    });
+
+    console.log('Stock management updated successfully for product:', id);
+    res.json(convertDecimalToNumber(product));
+  } catch (error) {
+    console.error('Error updating stock management:', error);
+    res.status(500).json({ message: 'Failed to update stock management', error: error });
+  }
+});
+
+// Update stock quantities and management settings
+router.put('/:id/stock-and-settings', authenticateClerkToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lowStockThreshold, allowBackorder, variants } = req.body;
+
+    console.log('Updating stock and settings for product:', id);
+    console.log('Data received:', { lowStockThreshold, allowBackorder, variants });
+
+    // Update product-level settings
+    const updatedProduct = await prisma.product.update({
+      where: { id: parseInt(id) },
+      data: {
+        lowStockThreshold: parseInt(lowStockThreshold) || 5,
+        allowBackorder: allowBackorder || false
+      } as any
+    });
+
+    console.log('Product updated:', updatedProduct.id);
+
+    // Update variant-level settings and stock quantities
+    if (variants && variants.length > 0) {
+      for (const variantUpdate of variants) {
+        await prisma.productVariant.update({
+          where: { id: variantUpdate.id },
+          data: {
+            stock: parseInt(variantUpdate.stock) || 0,
+            lowStockThreshold: parseInt(variantUpdate.lowStockThreshold) || 3,
+            allowBackorder: variantUpdate.allowBackorder || false
+          } as any
+        });
+        console.log('Variant stock and settings updated:', variantUpdate.id, 'Stock:', variantUpdate.stock);
+      }
+    }
+
+    // Fetch updated product with variants
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        category: true,
+        variants: true,
+        images: true
+      }
+    });
+
+    console.log('Stock and settings updated successfully for product:', id);
+    res.json(convertDecimalToNumber(product));
+  } catch (error) {
+    console.error('Error updating stock and settings:', error);
+    res.status(500).json({ message: 'Failed to update stock and settings', error: error });
+  }
+});
+
+// Get product variants for stock management
+router.get('/:id/variants', authenticateClerkToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const variants = await prisma.productVariant.findMany({
+      where: { productId: parseInt(id) },
+      orderBy: [{ size: 'asc' }, { color: 'asc' }]
+    });
+
+    console.log(`Fetched ${variants.length} variants for product ${id}`);
+    res.json(convertDecimalToNumber(variants));
+  } catch (error) {
+    console.error('Error fetching product variants:', error);
+    res.status(500).json({ message: 'Failed to fetch product variants', error: error });
   }
 });
 

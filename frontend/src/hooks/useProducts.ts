@@ -17,7 +17,6 @@ export const useProducts = () => {
     status: 'all',
     featured: 'all',
     onSale: 'all',
-    stockStatus: 'all',
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
@@ -137,6 +136,63 @@ export const useProducts = () => {
     }
   }, [getToken]);
 
+  // Update stock management
+  const updateStockManagement = useCallback(async (
+    productId: number,
+    data: {
+      lowStockThreshold: number;
+      allowBackorder: boolean;
+      variants: Array<{
+        id: number;
+        lowStockThreshold: number;
+        allowBackorder: boolean;
+      }>;
+    }
+  ): Promise<Product | null> => {
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token');
+
+      const updatedProduct = await ProductService.updateStockManagement(productId, data, token);
+      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      toast.success('Stock management updated successfully!');
+      return updatedProduct;
+    } catch (error) {
+      console.error('Error updating stock management:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update stock management');
+      return null;
+    }
+  }, [getToken]);
+
+  // Update stock quantities and settings
+  const updateStockAndSettings = useCallback(async (
+    productId: number,
+    data: {
+      lowStockThreshold: number;
+      allowBackorder: boolean;
+      variants: Array<{
+        id: number;
+        stock: number;
+        lowStockThreshold: number;
+        allowBackorder: boolean;
+      }>;
+    }
+  ): Promise<Product | null> => {
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token');
+
+      const updatedProduct = await ProductService.updateStockAndSettings(productId, data, token);
+      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      toast.success('Stock and settings updated successfully!');
+      return updatedProduct;
+    } catch (error) {
+      console.error('Error updating stock and settings:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update stock and settings');
+      return null;
+    }
+  }, [getToken]);
+
   // Update filters
   const updateFilters = useCallback((newFilters: Partial<ProductFilters>) => {
     setFilters(prev => ({
@@ -156,7 +212,6 @@ export const useProducts = () => {
       status: 'all',
       featured: 'all',
       onSale: 'all',
-      stockStatus: 'all',
       sortBy: 'createdAt',
       sortOrder: 'desc'
     });
@@ -187,6 +242,8 @@ export const useProducts = () => {
     updateProduct,
     deleteProduct,
     toggleProductStatus,
+    updateStockManagement,
+    updateStockAndSettings,
     updateFilters,
     resetFilters,
     

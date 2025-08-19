@@ -4,14 +4,15 @@ import {
   ProductFilters, 
   CreateProductData, 
   UpdateProductData,
-  ProductStats 
+  ProductStats,
+  ProductVariant
 } from '../types';
 import { createAuthHeaders } from '../lib/axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export class ProductService {
-  // Fetch all products with filters
+  // Fetch all products with minimal data for list display
   static async getProducts(filters: ProductFilters, token: string): Promise<{
     products: Product[];
     totalProducts: number;
@@ -31,7 +32,7 @@ export class ProductService {
     if (filters.status) params.append('status', filters.status);
     if (filters.featured) params.append('featured', filters.featured);
     if (filters.onSale) params.append('onSale', filters.onSale);
-    if (filters.stockStatus && filters.stockStatus !== 'all') params.append('stockStatus', filters.stockStatus);
+
 
     const response = await fetch(
       `${API_BASE_URL}/api/admin/products?${params.toString()}`,
@@ -46,7 +47,7 @@ export class ProductService {
     return response.json();
   }
 
-  // Fetch a single product
+  // Fetch a single product with full details (for edit/view dialogs)
   static async getProduct(id: number, token: string): Promise<Product> {
     const headers = createAuthHeaders(token);
     
@@ -144,6 +145,96 @@ export class ProductService {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to toggle product status');
+    }
+
+    return response.json();
+  }
+
+  // Update stock management settings
+  static async updateStockManagement(
+    productId: number,
+    data: {
+      lowStockThreshold: number;
+      allowBackorder: boolean;
+      variants: Array<{
+        id: number;
+        lowStockThreshold: number;
+        allowBackorder: boolean;
+      }>;
+    },
+    token: string
+  ): Promise<Product> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/${productId}/stock-management`,
+      {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update stock management');
+    }
+
+    return response.json();
+  }
+
+  // Update stock quantities and management settings
+  static async updateStockAndSettings(
+    productId: number,
+    data: {
+      lowStockThreshold: number;
+      allowBackorder: boolean;
+      variants: Array<{
+        id: number;
+        stock: number;
+        lowStockThreshold: number;
+        allowBackorder: boolean;
+      }>;
+    },
+    token: string
+  ): Promise<Product> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/${productId}/stock-and-settings`,
+      {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update stock and settings');
+    }
+
+    return response.json();
+  }
+
+  // Get product variants for stock management
+  static async getProductVariants(productId: number, token: string): Promise<ProductVariant[]> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/${productId}/variants`,
+      { headers }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch product variants');
     }
 
     return response.json();

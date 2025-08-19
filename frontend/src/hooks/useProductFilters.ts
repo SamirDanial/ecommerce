@@ -153,6 +153,8 @@ export const useProductFilters = (products: Product[]) => {
         return a.name.localeCompare(b.name);
       case "newest":
       default:
+        // Handle case where createdAt might be undefined (from admin list)
+        if (!a.createdAt || !b.createdAt) return 0;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
   });

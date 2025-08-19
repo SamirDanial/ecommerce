@@ -83,7 +83,7 @@ const CategoryDetail: React.FC = () => {
 
   const filteredProducts = products.filter(product => {
     const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
-    const matchesTags = selectedTags.length === 0 || selectedTags.some(tag => product.tags.includes(tag));
+    const matchesTags = selectedTags.length === 0 || (product.tags && selectedTags.some(tag => product.tags!.includes(tag)));
     
     return matchesPrice && matchesTags;
   });
@@ -103,7 +103,7 @@ const CategoryDetail: React.FC = () => {
     }
   });
 
-  const allTags = Array.from(new Set(products.flatMap(p => p.tags)));
+  const allTags = Array.from(new Set(products.flatMap(p => p.tags || [])));
 
   const handleProductClick = (product: Product) => {
     addInteraction({

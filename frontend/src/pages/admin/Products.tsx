@@ -16,16 +16,20 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { useProducts } from '../../hooks/useProducts';
+import { ProductService } from '../../services/productService';
+import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { ProductCard } from '../../components/admin/ProductCard';
 import { ProductFilters } from '../../components/admin/ProductFilters';
 import { CreateProductDialog } from '../../components/admin/CreateProductDialog';
 import { EditProductDialog } from '../../components/admin/EditProductDialog';
 import { VariantManagementDialog } from '../../components/admin/VariantManagementDialog';
 import ProductImageManagerDialog from '../../components/admin/ProductImageManagerDialog';
+import { StockManagementDialog } from '../../components/admin/StockManagementDialog';
 import { Product } from '../../types';
 import { toast } from 'sonner';
 
 const Products: React.FC = () => {
+  const { getToken } = useClerkAuth();
   const {
     products,
     categories,
@@ -39,6 +43,7 @@ const Products: React.FC = () => {
     updateProduct,
     toggleProductStatus,
     deleteProduct,
+    updateStockAndSettings,
     fetchProducts
   } = useProducts();
 
@@ -50,17 +55,38 @@ const Products: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
   const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
+  const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // Dialog handlers
   const openCreateDialog = () => setIsCreateDialogOpen(true);
-  const openEditDialog = (product: Product) => {
-    setSelectedProduct(product);
-    setIsEditDialogOpen(true);
+  const openEditDialog = async (product: Product) => {
+    try {
+      // Fetch full product details for edit dialog
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token');
+      
+      const fullProduct = await ProductService.getProduct(product.id, token);
+      setSelectedProduct(fullProduct);
+      setIsEditDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      toast.error('Failed to load product details');
+    }
   };
-  const openViewDialog = (product: Product) => {
-    setSelectedProduct(product);
-    setIsViewDialogOpen(true);
+  const openViewDialog = async (product: Product) => {
+    try {
+      // Fetch full product details for view dialog
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token');
+      
+      const fullProduct = await ProductService.getProduct(product.id, token);
+      setSelectedProduct(fullProduct);
+      setIsViewDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      toast.error('Failed to load product details');
+    }
   };
   const openDeleteDialog = (product: Product) => {
     setSelectedProduct(product);
@@ -73,6 +99,10 @@ const Products: React.FC = () => {
   const openVariantManager = (product: Product) => {
     setSelectedProduct(product);
     setIsVariantManagerOpen(true);
+  };
+  const openStockManager = (product: Product) => {
+    setSelectedProduct(product);
+    setIsStockManagerOpen(true);
   };
 
   // Action handlers
@@ -306,6 +336,7 @@ const Products: React.FC = () => {
                   onToggleStatus={handleToggleStatus}
                   onImageManager={openImageManager}
                   onVariantManager={openVariantManager}
+                  onStockManager={openStockManager}
                 />
               ))}
             </div>
@@ -322,6 +353,7 @@ const Products: React.FC = () => {
                   onToggleStatus={handleToggleStatus}
                   onImageManager={openImageManager}
                   onVariantManager={openVariantManager}
+                  onStockManager={openStockManager}
                 />
               ))}
             </div>
@@ -421,6 +453,39 @@ const Products: React.FC = () => {
             fetchProducts();
             toast.success('Images updated successfully');
           }}
+        />
+      )}
+
+      {/* Stock Management Dialog */}
+      {selectedProduct && (
+        <StockManagementDialog
+          isOpen={isStockManagerOpen}
+          onClose={() => {
+            setIsStockManagerOpen(false);
+            setSelectedProduct(null);
+          }}
+          onSubmit={async (data) => {
+            try {
+              const updatedProduct = await updateStockAndSettings(
+                data.productId,
+                {
+                  lowStockThreshold: data.lowStockThreshold,
+                  allowBackorder: data.allowBackorder,
+                  variants: data.variants
+                }
+              );
+              
+              if (updatedProduct) {
+                // Close the dialog
+                setIsStockManagerOpen(false);
+                setSelectedProduct(null);
+              }
+            } catch (error) {
+              console.error('Error updating stock and settings:', error);
+              // Error handling is already done in the hook
+            }
+          }}
+          product={selectedProduct}
         />
       )}
 
@@ -724,11 +789,11 @@ const Products: React.FC = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Created:</span>
-                      <span className="font-medium">{new Date(selectedProduct.createdAt).toLocaleDateString()}</span>
+                      <span className="font-medium">{selectedProduct.createdAt ? new Date(selectedProduct.createdAt).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Updated:</span>
-                      <span className="font-medium">{new Date(selectedProduct.updatedAt).toLocaleDateString()}</span>
+                      <span className="font-medium">{selectedProduct.updatedAt ? new Date(selectedProduct.updatedAt).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     {selectedProduct.saleEndDate && (
                       <div className="flex justify-between">
