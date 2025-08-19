@@ -4,7 +4,8 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Product } from '../../types';
-import { formatPrice, getStockStatus, getVariantDisplay, getImageUrl, generatePlaceholderSVG, formatDate } from '../../utils/productUtils';
+import { formatPrice, getVariantDisplay, getImageUrl, generatePlaceholderSVG, formatDate } from '../../utils/productUtils';
+import { getProductStockStatus } from '../../utils/stockUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -27,7 +28,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onImageManager,
   onVariantManager
 }) => {
-  const stockStatus = getStockStatus(product);
+  const stockStatus = getProductStockStatus(product.variants || []);
   const imageUrl = getImageUrl(product);
   const [imageError, setImageError] = React.useState(false);
 
@@ -61,8 +62,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         
         {/* Stock Status Badge */}
         <div className={`absolute ${viewMode === 'list' ? 'top-1 right-1' : 'top-2 right-2'}`}>
-          <Badge variant={stockStatus.variant} className={`${viewMode === 'list' ? 'px-1 py-0 text-xs' : 'px-2 py-0.5 text-xs'} font-medium`}>
-            {stockStatus.label}
+          <Badge 
+            variant={stockStatus.status === 'OUT_OF_STOCK' ? 'destructive' : 
+                     stockStatus.status === 'LOW_STOCK' ? 'secondary' : 'default'} 
+            className={`${viewMode === 'list' ? 'px-1 py-0 text-xs' : 'px-2 py-0.5 text-xs'} font-medium`}
+          >
+            {stockStatus.message}
           </Badge>
         </div>
 

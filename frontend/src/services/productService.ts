@@ -31,6 +31,7 @@ export class ProductService {
     if (filters.status) params.append('status', filters.status);
     if (filters.featured) params.append('featured', filters.featured);
     if (filters.onSale) params.append('onSale', filters.onSale);
+    if (filters.stockStatus && filters.stockStatus !== 'all') params.append('stockStatus', filters.stockStatus);
 
     const response = await fetch(
       `${API_BASE_URL}/api/admin/products?${params.toString()}`,

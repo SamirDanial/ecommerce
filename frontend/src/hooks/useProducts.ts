@@ -156,6 +156,7 @@ export const useProducts = () => {
       status: 'all',
       featured: 'all',
       onSale: 'all',
+      stockStatus: 'all',
       sortBy: 'createdAt',
       sortOrder: 'desc'
     });
