@@ -40,10 +40,6 @@ const Products: React.FC = () => {
     fetchProducts
   } = useProducts();
 
-  // Debug logging
-  console.log('Products page - categories:', categories);
-  console.log('Products page - categories length:', categories?.length);
-
   // UI State
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -495,9 +491,281 @@ const Products: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* View Product Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Package className="h-6 w-6 text-blue-600" />
+              </div>
+              Product Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedProduct && (
+            <div className="py-4 space-y-6">
+              {/* Product Header - Mobile Responsive */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Product Images */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Product Images</h3>
+                  {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {selectedProduct.images.map((image, index) => (
+                        <div key={image.id} className="relative group">
+                          <img
+                            src={image.url.startsWith('http') ? image.url : `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${image.url}`}
+                            alt={image.alt || `Product image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                          />
+                          {image.isPrimary && (
+                            <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                              Primary
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <span className="text-white text-sm font-medium">View</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                      <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500">No images uploaded</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Basic Product Info */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600 min-w-[80px]">Name:</span>
+                      <span className="text-gray-900 font-medium">{selectedProduct.name}</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600 min-w-[80px]">SKU:</span>
+                      <span className="text-gray-900">{selectedProduct.sku || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600 min-w-[80px]">Category:</span>
+                      <span className="text-gray-900">{selectedProduct.category?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600 min-w-[80px]">Status:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        selectedProduct.isActive 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedProduct.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Pricing</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Regular Price</p>
+                    <p className="text-lg font-bold text-gray-900">${selectedProduct.price}</p>
+                  </div>
+                  {selectedProduct.comparePrice && (
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Compare Price</p>
+                      <p className="text-lg font-bold text-gray-500 line-through">${selectedProduct.comparePrice}</p>
+                    </div>
+                  )}
+                  {selectedProduct.salePrice && (
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Sale Price</p>
+                      <p className="text-lg font-bold text-green-600">${selectedProduct.salePrice}</p>
+                    </div>
+                  )}
+                  {selectedProduct.costPrice && (
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Cost Price</p>
+                      <p className="text-lg font-bold text-gray-900">${selectedProduct.costPrice}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Product Description */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900">Description</h3>
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <p className="text-gray-700 whitespace-pre-wrap">
+                    {selectedProduct.description || 'No description available'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Product Variants */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900">Variants</h3>
+                {selectedProduct.variants && selectedProduct.variants.length > 0 ? (
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {selectedProduct.variants.map((variant) => (
+                            <tr key={variant.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-900">{variant.size || 'N/A'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                <div className="flex items-center gap-2">
+                                  {variant.color && (
+                                    <div 
+                                      className="w-4 h-4 rounded-full border border-gray-300"
+                                      style={{ backgroundColor: variant.colorCode || variant.color }}
+                                    />
+                                  )}
+                                  <span>{variant.color || 'N/A'}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900">{variant.stock || 0}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900">{variant.sku || 'N/A'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                ${variant.price || selectedProduct.price}
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  variant.isActive 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {variant.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500">No variants configured</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Inventory</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Stock:</span>
+                      <span className="font-medium">{selectedProduct.totalStock || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Weight:</span>
+                      <span className="font-medium">{selectedProduct.weight ? `${selectedProduct.weight}g` : 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Low Stock:</span>
+                      <span className={`font-medium ${selectedProduct.hasLowStock ? 'text-orange-600' : 'text-gray-900'}`}>
+                        {selectedProduct.hasLowStock ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Out of Stock:</span>
+                      <span className={`font-medium ${selectedProduct.hasOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
+                        {selectedProduct.hasOutOfStock ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">SEO & Metadata</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Slug:</span>
+                      <span className="font-medium font-mono text-xs">{selectedProduct.slug}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Meta Title:</span>
+                      <span className="font-medium">{selectedProduct.metaTitle || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Meta Description:</span>
+                      <span className="font-medium text-xs truncate max-w-[120px]">
+                        {selectedProduct.metaDescription || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Timestamps</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Created:</span>
+                      <span className="font-medium">{new Date(selectedProduct.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Updated:</span>
+                      <span className="font-medium">{new Date(selectedProduct.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                    {selectedProduct.saleEndDate && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sale Ends:</span>
+                        <span className="font-medium">{new Date(selectedProduct.saleEndDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                setSelectedProduct(null);
+              }}
+              className="flex-1 sm:flex-none sm:px-6"
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                openEditDialog(selectedProduct!);
+              }}
+              className="flex-1 sm:flex-none sm:px-6"
+            >
+              Edit Product
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialogs will be implemented next */}
       {/* Edit Product Dialog */}
-      {/* View Product Dialog */}
     </div>
   );
 };

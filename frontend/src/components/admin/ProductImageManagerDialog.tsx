@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -41,11 +41,14 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
     sortOrder: existingImages.length
   }]);
 
+  // Use ref to track preview URLs for cleanup
+  const previewUrlsRef = useRef<string[]>([]);
+
   const fetchImages = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    
     try {
+      const token = await getToken();
+      if (!token) return;
+      
       setLoading(true);
       const fetchedImages = await ProductImageService.getProductImages(productId, token);
       console.log('Fetched images:', fetchedImages);
@@ -58,28 +61,37 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
     }
   }, [productId, getToken]);
 
+  // Sync local images state with existingImages prop
+  useEffect(() => {
+    setImages(existingImages);
+  }, [existingImages]);
+
   useEffect(() => {
     if (isOpen) {
       fetchImages();
     } else {
       // Clean up preview URL when dialog closes
-      if (previewUrls.length > 0) {
-        previewUrls.forEach(url => URL.revokeObjectURL(url));
+      if (previewUrlsRef.current.length > 0) {
+        previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+        previewUrlsRef.current = [];
       }
       setPreviewUrls([]);
+      previewUrlsRef.current = [];
       setSelectedFiles([]);
-      setUploadDataArray([{ color: '', alt: '', sortOrder: images.length }]);
+      setUploadDataArray([{ color: '', alt: '', sortOrder: existingImages.length }]);
     }
-  }, [isOpen, productId, fetchImages, previewUrls, images.length]);
+  }, [isOpen, productId, fetchImages, existingImages.length]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (previewUrls.length > 0) {
-        previewUrls.forEach(url => URL.revokeObjectURL(url));
+      // Clean up any remaining preview URLs
+      if (previewUrlsRef.current.length > 0) {
+        previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+        previewUrlsRef.current = [];
       }
     };
-  }, [previewUrls]);
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -96,6 +108,7 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       // Create new preview URLs
       const newPreviewUrls = newFiles.map(file => URL.createObjectURL(file));
       setPreviewUrls(newPreviewUrls);
+      previewUrlsRef.current = newPreviewUrls;
       
       // Create upload data for each file
       const newUploadDataArray = newFiles.map((_, index) => ({
@@ -115,7 +128,6 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       return imageUrl; // Already a full URL
     }
     const fullUrl = `${getApiBaseUrl()}${imageUrl}`;
-    console.log('Converting image URL:', imageUrl, '→', fullUrl);
     return fullUrl; // Prepend base URL
   };
 
@@ -153,6 +165,7 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       
       setSelectedFiles([]);
       setPreviewUrls([]);
+      previewUrlsRef.current = [];
       setUploadDataArray([{ color: '', alt: '', sortOrder: images.length }]);
       
       // Refresh images

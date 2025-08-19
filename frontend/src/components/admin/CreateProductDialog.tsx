@@ -26,10 +26,6 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
   categories,
   categoriesLoading = false
 }) => {
-  // Debug logging
-  console.log('CreateProductDialog - categories received:', categories);
-  console.log('CreateProductDialog - categories length:', categories?.length);
-  console.log('CreateProductDialog - categories type:', typeof categories);
   const [formData, setFormData] = useState<CreateProductData>({
     name: '',
     description: '',
