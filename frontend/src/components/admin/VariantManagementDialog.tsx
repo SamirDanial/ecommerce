@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Package } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -245,7 +246,10 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="mb-4 sm:mb-6">
-          <DialogTitle className="text-xl sm:text-2xl">Manage Variants - {productName}</DialogTitle>
+          <DialogTitle className="text-xl sm:text-2xl flex items-center gap-2">
+            <Package className="h-5 w-5 text-orange-600" />
+            Manage Variants - {productName}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 sm:space-y-6">
