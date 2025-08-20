@@ -50,6 +50,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
   const { getToken } = useClerkAuth();
   const [variants, setVariants] = useState<ProductVariant[]>(existingVariants);
   const [loading, setLoading] = useState(false);
+  const [variantsLoading, setVariantsLoading] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState<string[]>(['M', 'L']);
   const [selectedColors, setSelectedColors] = useState<string[]>(['Black', 'White']);
   const [basePrice, setBasePrice] = useState<number>(0);
@@ -62,7 +63,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
       // Reset deleted variants list
       setDeletedVariantIds([]);
       
-      if (existingVariants.length > 0) {
+      if (existingVariants && existingVariants.length > 0) {
         setVariants(existingVariants);
         // Extract unique sizes and colors from existing variants
         const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
@@ -75,6 +76,14 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
           setBasePrice(existingVariants[0].price || 0);
           setBaseStock(existingVariants[0].stock || 10);
         }
+        setVariantsLoading(false);
+      } else {
+        setVariantsLoading(true);
+        // Set default values if no variants exist
+        setSelectedSizes(['M', 'L']);
+        setSelectedColors(['Black', 'White']);
+        setBasePrice(0);
+        setBaseStock(10);
       }
     }
   }, [isOpen, existingVariants]);
@@ -234,19 +243,19 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Manage Variants - {productName}</DialogTitle>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="mb-4 sm:mb-6">
+          <DialogTitle className="text-xl sm:text-2xl">Manage Variants - {productName}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Variant Generator */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Generate Variants</CardTitle>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Generate Variants</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <Label>Sizes</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -317,7 +326,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                             setBasePrice(parsed);
                           }
                         }}
-                        className="font-mono"
+                        className="font-mono text-sm sm:text-base"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Starting price for all new variants
@@ -347,7 +356,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                             }
                           }
                         }}
-                        className="font-mono"
+                        className="font-mono text-sm sm:text-base"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Starting inventory for all new variants
@@ -365,152 +374,162 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
 
           {/* Variants List */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">
                 Variants ({variants.filter(v => v.isActive).length} active)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {variants.map(variant => (
-                  <div
-                    key={variant.id}
-                    className={`p-4 border rounded-lg ${
-                      deletedVariantIds.includes(variant.id) 
-                        ? 'bg-red-50 border-red-300' 
-                        : variant.isActive 
-                          ? 'bg-white border-gray-200' 
-                          : 'bg-gray-50 border-gray-300'
-                    }`}
-                  >
-                    {deletedVariantIds.includes(variant.id) && (
-                      <div className="mb-3 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm flex items-center justify-between">
-                        <span>⚠️ Marked for deletion</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => undoDelete(variant.id)}
-                          className="text-red-700 border-red-300 hover:bg-red-200"
-                        >
-                          Undo
-                        </Button>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        {getVariantDisplay(variant)}
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col">
-                            <Label className="text-xs text-gray-600 mb-1">Price</Label>
-                            <Input
-                              type="text"
-                              placeholder="29.99"
-                              value={variant.price || ''}
-                              disabled={deletedVariantIds.includes(variant.id)}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                // Allow numbers, decimal point, and empty string
-                                // More permissive regex to allow typing decimals
-                                if (value === '' || /^[\d.]*$/.test(value)) {
-                                  // Prevent multiple decimal points
-                                  if ((value.match(/\./g) || []).length <= 1) {
-                                    if (value === '') {
-                                      updateVariant(variant.id, 'price', undefined);
-                                    } else if (value === '.') {
-                                      // Allow typing just a decimal point
-                                      return;
-                                    } else {
-                                      const parsed = parseFloat(value);
-                                      if (!isNaN(parsed)) {
-                                        updateVariant(variant.id, 'price', parsed);
+            <CardContent className="p-3 sm:p-6">
+              {/* Loading State */}
+              {variantsLoading && (
+                <div className="py-6 sm:py-8 flex flex-col items-center justify-center">
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mb-3"></div>
+                  <p className="text-gray-600 text-sm sm:text-base">Loading variants...</p>
+                </div>
+              )}
+              
+              {/* Variants List */}
+              {!variantsLoading && (
+                <div className="space-y-3">
+                  {variants.length === 0 ? (
+                    <div className="text-center py-6 sm:py-8 text-gray-500">
+                      <p className="text-sm sm:text-base">No variants configured for this product.</p>
+                      <p className="text-xs sm:text-sm mt-1">Use the variant generator above to create variants.</p>
+                    </div>
+                  ) : (
+                    variants.map(variant => (
+                      <div
+                        key={variant.id}
+                        className={`p-3 sm:p-4 border rounded-lg ${
+                          deletedVariantIds.includes(variant.id) 
+                            ? 'bg-red-50 border-red-300' 
+                            : variant.isActive 
+                              ? 'bg-white border-gray-200' 
+                              : 'bg-gray-50 border-gray-300'
+                        }`}
+                      >
+                        {deletedVariantIds.includes(variant.id) && (
+                          <div className="mb-3 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm flex items-center justify-between">
+                            <span>⚠️ Marked for deletion</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => undoDelete(variant.id)}
+                              className="text-red-700 border-red-300 hover:bg-red-200"
+                            >
+                              Undo
+                            </Button>
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                          <div className="flex-1">
+                            {getVariantDisplay(variant)}
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2">
+                              <div className="flex flex-col min-w-0">
+                                <Label className="text-xs text-gray-600 mb-1">Price</Label>
+                                <Input
+                                  type="text"
+                                  placeholder="29.99"
+                                  value={variant.price || ''}
+                                  disabled={deletedVariantIds.includes(variant.id)}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '' || /^[\d.]*$/.test(value)) {
+                                      if ((value.match(/\./g) || []).length <= 1) {
+                                        if (value === '') {
+                                          updateVariant(variant.id, 'price', undefined);
+                                        } else if (value === '.') {
+                                          return;
+                                        } else {
+                                          const parsed = parseFloat(value);
+                                          if (!isNaN(parsed)) {
+                                            updateVariant(variant.id, 'price', parsed);
+                                          }
+                                        }
                                       }
                                     }
-                                  }
-                                }
-                              }}
-                              className="w-20 font-mono text-xs"
-                            />
-                          </div>
-                          <div className="flex flex-col">
-                            <Label className="text-xs text-gray-600 mb-1">Stock</Label>
-                            <Input
-                              type="text"
-                              placeholder="25"
-                              value={variant.stock || ''}
-                              disabled={deletedVariantIds.includes(variant.id)}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                // Only allow numbers and empty string
-                                if (value === '' || /^\d*$/.test(value)) {
-                                  if (value === '') {
-                                    updateVariant(variant.id, 'stock', 0);
-                                  } else {
-                                    const parsed = parseInt(value);
-                                    if (!isNaN(parsed)) {
-                                      updateVariant(variant.id, 'stock', parsed);
+                                  }}
+                                  className="w-16 sm:w-20 font-mono text-xs sm:text-sm"
+                                />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <Label className="text-xs text-gray-600 mb-1">Stock</Label>
+                                <Input
+                                  type="text"
+                                  placeholder="25"
+                                  value={variant.stock || ''}
+                                  disabled={deletedVariantIds.includes(variant.id)}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '' || /^\d*$/.test(value)) {
+                                      if (value === '') {
+                                        updateVariant(variant.id, 'stock', 0);
+                                      } else {
+                                        const parsed = parseInt(value);
+                                        if (!isNaN(parsed)) {
+                                          updateVariant(variant.id, 'stock', parsed);
+                                        }
+                                      }
                                     }
-                                  }
-                                }
-                              }}
-                              className="w-20 font-mono text-xs"
-                            />
-                          </div>
-                          <div className="flex flex-col">
-                            <Label className="text-xs text-gray-600 mb-1">SKU</Label>
-                            <Input
-                              placeholder="TSH-001"
-                              value={variant.sku || ''}
-                              disabled={deletedVariantIds.includes(variant.id)}
-                              onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
-                              className="w-24 text-xs"
-                            />
+                                  }}
+                                  className="w-16 sm:w-20 font-mono text-xs sm:text-sm"
+                                />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <Label className="text-xs text-gray-600 mb-1">SKU</Label>
+                                <Input
+                                  placeholder="TSH-001"
+                                  value={variant.sku || ''}
+                                  disabled={deletedVariantIds.includes(variant.id)}
+                                  onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
+                                  className="w-20 sm:w-24 text-xs sm:text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={variant.isActive}
+                                  disabled={deletedVariantIds.includes(variant.id)}
+                                  onCheckedChange={() => toggleVariantActive(variant.id)}
+                                />
+                                <Badge variant={variant.isActive ? "default" : "secondary"} className="text-xs">
+                                  {variant.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                              </div>
+
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={deletedVariantIds.includes(variant.id)}
+                                onClick={() => deleteVariant(variant.id)}
+                                className="text-xs sm:text-sm"
+                              >
+                                {deletedVariantIds.includes(variant.id) ? 'Deleting...' : 'Delete'}
+                              </Button>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            checked={variant.isActive}
-                            disabled={deletedVariantIds.includes(variant.id)}
-                            onCheckedChange={() => toggleVariantActive(variant.id)}
-                          />
-                          <Badge variant={variant.isActive ? "default" : "secondary"}>
-                            {variant.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </div>
-
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={deletedVariantIds.includes(variant.id)}
-                          onClick={() => deleteVariant(variant.id)}
-                        >
-                          {deletedVariantIds.includes(variant.id) ? 'Deleting...' : 'Delete'}
-                        </Button>
                       </div>
-                    </div>
-                  </div>
-                ))}
-
-                {variants.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No variants created yet. Use the generator above to create variants.
-                  </div>
-                )}
-              </div>
+                    ))
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+          <Button variant="outline" onClick={onClose} className="text-sm sm:text-base">
             Cancel
           </Button>
-          <Button onClick={saveVariants} disabled={loading}>
+          <Button onClick={saveVariants} disabled={loading} className="text-sm sm:text-base">
             {loading ? 'Saving...' : 'Save All Variants'}
           </Button>
         </div>

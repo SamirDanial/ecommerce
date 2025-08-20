@@ -244,15 +244,15 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) handleClose();
     }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Edit className="h-6 w-6 text-blue-600" />
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="mb-4 sm:mb-6">
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+              <Edit className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
             Edit Product
           </DialogTitle>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             {hasCompleteData 
               ? "Update product information and settings" 
               : "Loading product details..."
@@ -262,15 +262,15 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
         {/* Loading State for Incomplete Product Data */}
         {!hasCompleteData && (
-          <div className="py-12 flex flex-col items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
-            <p className="text-gray-600 font-medium">Loading product details...</p>
-            <p className="text-sm text-gray-500 mt-1">Please wait while we fetch complete product information</p>
+          <div className="py-8 sm:py-12 flex flex-col items-center justify-center">
+            <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-blue-600 mb-3 sm:mb-4" />
+            <p className="text-sm sm:text-base text-gray-600 font-medium">Loading product details...</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">Please wait while we fetch complete product information</p>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -281,8 +281,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name *</Label>
                   <Input
@@ -390,8 +390,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">Pricing & Inventory</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Regular Price *</Label>
                   <Input
@@ -446,7 +446,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dimensions">Dimensions</Label>
                   <Input
@@ -507,8 +507,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">Stock Management</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span className="text-sm font-medium text-blue-800">Stock Information</span>
@@ -519,7 +519,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="lowStockThreshold">Low Stock Threshold</Label>
                   <Input
@@ -582,7 +582,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">Sale Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="isOnSale"
@@ -593,7 +593,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               </div>
 
               {formData.isOnSale && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="salePrice">Sale Price</Label>
                     <Input
@@ -626,8 +626,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">SEO & Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="metaTitle">Meta Title</Label>
                   <Input
@@ -672,7 +672,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 sm:pt-6 border-t border-gray-200">
             <Button
               type="button"
               variant="outline"
