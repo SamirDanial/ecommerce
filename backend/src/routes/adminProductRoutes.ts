@@ -53,6 +53,7 @@ router.get('/', authenticateClerkToken, async (req, res) => {
       status, 
       featured, 
       onSale,
+      stockStatus,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -114,9 +115,15 @@ router.get('/', authenticateClerkToken, async (req, res) => {
           select: { url: true, alt: true },
           take: 1
         },
-        // Get variants for stock calculation
+        // Get variants for stock calculation and status filtering
         variants: {
-          select: { stock: true, isActive: true }
+          select: { 
+            stock: true, 
+            isActive: true, 
+            lowStockThreshold: true,
+            allowBackorder: true,
+            stockStatus: true
+          }
         },
         _count: {
           select: { 
@@ -137,15 +144,38 @@ router.get('/', authenticateClerkToken, async (req, res) => {
         return sum + (variant.isActive ? variant.stock : 0);
       }, 0);
       
+      // Calculate overall stock status based on variants
+      const activeVariants = product.variants.filter(v => v.isActive);
+      let overallStockStatus = 'IN_STOCK';
+      
+      if (activeVariants.length === 0) {
+        overallStockStatus = 'OUT_OF_STOCK';
+      } else {
+        const outOfStockVariants = activeVariants.filter(v => v.stock === 0);
+        const lowStockVariants = activeVariants.filter(v => 
+          v.stock > 0 && v.stock <= (v.lowStockThreshold || 3)
+        );
+        const backorderVariants = activeVariants.filter(v => 
+          v.stock === 0 && v.allowBackorder
+        );
+        
+        if (outOfStockVariants.length === activeVariants.length) {
+          overallStockStatus = backorderVariants.length > 0 ? 'BACKORDER' : 'OUT_OF_STOCK';
+        } else if (lowStockVariants.length > 0) {
+          overallStockStatus = 'LOW_STOCK';
+        }
+      }
+      
       // Get primary image URL
       const primaryImage = product.images.length > 0 ? product.images[0] : null;
       
-      // Remove the images array since we have primaryImage
+      // Remove the images array and variants array since we have primaryImage and totalStock
       const { images, variants, ...productWithoutImagesAndVariants } = convertDecimalToNumber(product);
       
       return {
         ...productWithoutImagesAndVariants,
         totalStock,
+        overallStockStatus,
         primaryImage: primaryImage ? {
           url: primaryImage.url,
           alt: primaryImage.alt
@@ -153,8 +183,12 @@ router.get('/', authenticateClerkToken, async (req, res) => {
       };
     });
 
-    // Stock status filtering is disabled since variants are loaded on demand
-    // Stock status will be calculated when variants are actually loaded
+    // Apply stock status filtering if specified
+    if (stockStatus && stockStatus !== 'all') {
+      convertedProducts = convertedProducts.filter(product => 
+        product.overallStockStatus === stockStatus
+      );
+    }
 
     // Now apply pagination to the filtered results
     const total = convertedProducts.length;

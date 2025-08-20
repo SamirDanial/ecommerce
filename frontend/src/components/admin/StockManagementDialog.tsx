@@ -178,7 +178,7 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
   const lowStockCount = formData.variants.filter(v => v.stock <= v.lowStockThreshold && v.stock > 0).length;
   const outOfStockCount = formData.variants.filter(v => v.stock === 0).length;
 
-  if (!product || !product.variants) return null;
+  if (!product) return null;
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
@@ -268,7 +268,7 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
                 <p className="text-gray-500">Loading variants...</p>
               </div>
-            ) : variants.length > 0 && formData.variants.length > 0 ? (
+            ) : variants.length > 0 ? (
               formData.variants.map((variantData) => {
                 const originalVariant = variants.find(v => v.id === variantData.id);
                 if (!originalVariant) return null;

@@ -1,8 +1,15 @@
 import React from 'react';
-import { Eye, Edit, Trash2, Image as ImageIcon, Package, XCircle, CheckCircle, BarChart3 } from 'lucide-react';
+import { Eye, Edit, Trash2, Image as ImageIcon, Package, XCircle, CheckCircle, BarChart3, MoreHorizontal } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { Product } from '../../types';
 import { formatPrice, generatePlaceholderSVG } from '../../utils/productUtils';
 
@@ -44,11 +51,55 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   
   const imageUrl = getFullImageUrl(product.primaryImage?.url || null);
   const [imageError, setImageError] = React.useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   
 
 
   const handleImageError = () => {
     setImageError(true);
+  };
+
+  // Helper functions to handle dropdown menu actions and close the menu
+  const handleView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onView(product);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onEdit(product);
+  };
+
+  const handleImageManager = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onImageManager(product);
+  };
+
+  const handleVariantManager = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onVariantManager(product);
+  };
+
+  const handleStockManager = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onStockManager(product);
+  };
+
+  const handleToggleStatus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onToggleStatus(product.id);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onDelete(product);
   };
 
   return (
@@ -86,94 +137,62 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Action Buttons Overlay - Compact */}
-        <div className="absolute inset-0 bg-black bg-opacity-10 sm:bg-opacity-0 sm:group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center pointer-events-none">
-          <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onView(product);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-blue-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title="View Product Details"
-            >
-              <Eye className="w-3 h-3" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(product);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-green-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title="Edit Product"
-            >
-              <Edit className="w-3 h-3" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleStatus(product.id);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-gray-700 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title={product.isActive ? 'Deactivate' : 'Activate'}
-            >
-              {product.isActive ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onImageManager(product);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-purple-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title="Manage Images"
-            >
-              <ImageIcon className="w-3 h-3" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onVariantManager(product);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-orange-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title="Manage Variants"
-            >
-              <Package className="w-3 h-3" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStockManager(product);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-indigo-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title="Manage Stock"
-            >
-              <BarChart3 className="w-3 h-3" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(product);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-red-600 shadow-lg transition-all duration-200 h-8 w-8 p-0"
-              title="Delete Product"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
+        {/* 3-Dots Menu - Clean and Elegant */}
+        <div className={`absolute ${viewMode === 'list' ? 'top-1 right-1' : 'top-2 right-2'} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleView}>
+                <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleEdit}>
+                <Edit className="mr-2 h-4 w-4 text-green-600" />
+                Edit Product
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleImageManager}>
+                <ImageIcon className="mr-2 h-4 w-4 text-purple-600" />
+                Manage Images
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleVariantManager}>
+                <Package className="mr-2 h-4 w-4 text-orange-600" />
+                Manage Variants
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStockManager}>
+                <BarChart3 className="mr-2 h-4 w-4 text-indigo-600" />
+                Manage Stock
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleToggleStatus}
+                className={product.isActive ? 'text-red-600' : 'text-green-600'}
+              >
+                {product.isActive ? (
+                  <XCircle className="mr-2 h-4 w-4" />
+                ) : (
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                )}
+                {product.isActive ? 'Deactivate' : 'Activate'}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleDelete}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Product
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

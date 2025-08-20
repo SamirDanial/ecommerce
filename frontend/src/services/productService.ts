@@ -32,6 +32,7 @@ export class ProductService {
     if (filters.status) params.append('status', filters.status);
     if (filters.featured) params.append('featured', filters.featured);
     if (filters.onSale) params.append('onSale', filters.onSale);
+    if (filters.stockStatus) params.append('stockStatus', filters.stockStatus);
 
 
     const response = await fetch(

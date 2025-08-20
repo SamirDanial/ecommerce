@@ -57,35 +57,51 @@ const Products: React.FC = () => {
   const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
   const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
+  const [isLoadingProductEdit, setIsLoadingProductEdit] = useState(false);
 
   // Dialog handlers
   const openCreateDialog = () => setIsCreateDialogOpen(true);
   const openEditDialog = async (product: Product) => {
     try {
-      // Fetch full product details for edit dialog
+      // Show edit dialog immediately with loading state
+      setSelectedProduct(product); // Set minimal product data first
+      setIsEditDialogOpen(true);
+      setIsLoadingProductEdit(true);
+      
+      // Fetch full product details in the background
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const fullProduct = await ProductService.getProduct(product.id, token);
-      setSelectedProduct(fullProduct);
-      setIsEditDialogOpen(true);
+      setSelectedProduct(fullProduct); // Update with full data
+      setIsLoadingProductEdit(false);
     } catch (error) {
       console.error('Error fetching product details:', error);
       toast.error('Failed to load product details');
+      setIsLoadingProductEdit(false);
+      // Keep dialog open with minimal data
     }
   };
   const openViewDialog = async (product: Product) => {
     try {
-      // Fetch full product details for view dialog
+      // Show dialog immediately with loading state
+      setSelectedProduct(product); // Set minimal product data first
+      setIsViewDialogOpen(true);
+      setIsLoadingProductDetails(true);
+      
+      // Fetch full product details in the background
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const fullProduct = await ProductService.getProduct(product.id, token);
-      setSelectedProduct(fullProduct);
-      setIsViewDialogOpen(true);
+      setSelectedProduct(fullProduct); // Update with full data
+      setIsLoadingProductDetails(false);
     } catch (error) {
       console.error('Error fetching product details:', error);
       toast.error('Failed to load product details');
+      setIsLoadingProductDetails(false);
+      // Keep dialog open with minimal data
     }
   };
   const openDeleteDialog = (product: Product) => {
@@ -101,8 +117,10 @@ const Products: React.FC = () => {
     setIsVariantManagerOpen(true);
   };
   const openStockManager = (product: Product) => {
+    console.log('openStockManager called with product:', product);
     setSelectedProduct(product);
     setIsStockManagerOpen(true);
+    console.log('isStockManagerOpen set to true');
   };
 
   // Action handlers
@@ -458,35 +476,39 @@ const Products: React.FC = () => {
 
       {/* Stock Management Dialog */}
       {selectedProduct && (
-        <StockManagementDialog
-          isOpen={isStockManagerOpen}
-          onClose={() => {
-            setIsStockManagerOpen(false);
-            setSelectedProduct(null);
-          }}
-          onSubmit={async (data) => {
-            try {
-              const updatedProduct = await updateStockAndSettings(
-                data.productId,
-                {
-                  lowStockThreshold: data.lowStockThreshold,
-                  allowBackorder: data.allowBackorder,
-                  variants: data.variants
+        <>
+          {console.log('Rendering StockManagementDialog with:', { isStockManagerOpen, selectedProduct: selectedProduct?.id })}
+          <StockManagementDialog
+            isOpen={isStockManagerOpen}
+            onClose={() => {
+              console.log('StockManagementDialog onClose called');
+              setIsStockManagerOpen(false);
+              setSelectedProduct(null);
+            }}
+            onSubmit={async (data) => {
+              try {
+                const updatedProduct = await updateStockAndSettings(
+                  data.productId,
+                  {
+                    lowStockThreshold: data.lowStockThreshold,
+                    allowBackorder: data.allowBackorder,
+                    variants: data.variants
+                  }
+                );
+                
+                if (updatedProduct) {
+                  // Close the dialog
+                  setIsStockManagerOpen(false);
+                  setSelectedProduct(null);
                 }
-              );
-              
-              if (updatedProduct) {
-                // Close the dialog
-                setIsStockManagerOpen(false);
-                setSelectedProduct(null);
+              } catch (error) {
+                console.error('Error updating stock and settings:', error);
+                // Error handling is already done in the hook
               }
-            } catch (error) {
-              console.error('Error updating stock and settings:', error);
-              // Error handling is already done in the hook
-            }
-          }}
-          product={selectedProduct}
-        />
+            }}
+            product={selectedProduct}
+          />
+        </>
       )}
 
       {/* Delete Confirmation Dialog */}
@@ -559,7 +581,13 @@ const Products: React.FC = () => {
       </Dialog>
 
       {/* View Product Details Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+      <Dialog open={isViewDialogOpen} onOpenChange={(open) => {
+        setIsViewDialogOpen(open);
+        if (!open) {
+          setSelectedProduct(null);
+          setIsLoadingProductDetails(false);
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
@@ -570,7 +598,14 @@ const Products: React.FC = () => {
             </DialogTitle>
           </DialogHeader>
           
-          {selectedProduct && (
+          {isLoadingProductDetails && (
+            <div className="py-12 flex flex-col items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
+              <p className="text-gray-600">Loading product details...</p>
+            </div>
+          )}
+
+          {selectedProduct && !isLoadingProductDetails && (
             <div className="py-4 space-y-6">
               {/* Product Header - Mobile Responsive */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -813,6 +848,7 @@ const Products: React.FC = () => {
               onClick={() => {
                 setIsViewDialogOpen(false);
                 setSelectedProduct(null);
+                setIsLoadingProductDetails(false);
               }}
               className="flex-1 sm:flex-none sm:px-6"
             >
@@ -821,6 +857,7 @@ const Products: React.FC = () => {
             <Button
               onClick={() => {
                 setIsViewDialogOpen(false);
+                setIsLoadingProductDetails(false);
                 openEditDialog(selectedProduct!);
               }}
               className="flex-1 sm:flex-none sm:px-6"
@@ -838,6 +875,7 @@ const Products: React.FC = () => {
           onClose={() => {
             setIsEditDialogOpen(false);
             setSelectedProduct(null);
+            setIsLoadingProductEdit(false);
           }}
           onSubmit={async (data) => {
             await updateProduct(data);
@@ -845,7 +883,7 @@ const Products: React.FC = () => {
           }}
           product={selectedProduct}
           categories={categories || []}
-          categoriesLoading={loading}
+          categoriesLoading={loading || isLoadingProductEdit}
         />
       )}
     </div>

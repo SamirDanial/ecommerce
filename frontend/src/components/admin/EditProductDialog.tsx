@@ -233,6 +233,12 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
   if (!product) return null;
 
+  // Check if we have complete product data (not just minimal data from list view)
+  const hasCompleteData = product.description !== undefined && 
+                         product.tags !== undefined && 
+                         product.variants !== undefined &&
+                         product.images !== undefined;
+
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
       {/* Backdrop */}
@@ -252,7 +258,12 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Edit Product</h2>
-                <p className="text-gray-600">Update product information and settings</p>
+                <p className="text-gray-600">
+                  {hasCompleteData 
+                    ? "Update product information and settings" 
+                    : "Loading product details..."
+                  }
+                </p>
               </div>
             </div>
             <Button
@@ -266,12 +277,28 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
           </div>
         </div>
 
+        {/* Loading Overlay for Incomplete Product Data */}
+        {!hasCompleteData && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600 font-medium">Loading product details...</p>
+              <p className="text-sm text-gray-500 mt-1">Please wait while we fetch complete product information</p>
+            </div>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900">Basic Information</CardTitle>
+              <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                Basic Information
+                {!hasCompleteData && (
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,6 +310,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                     onChange={(e) => handleNameChange(e.target.value)}
                     placeholder="Enter product name"
                     required
+                    disabled={!hasCompleteData}
+                    className={!hasCompleteData ? "opacity-60" : ""}
                   />
                 </div>
                 
@@ -296,7 +325,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                         handleInputChange('categoryId', parsedValue);
                       }
                     }}
-                    disabled={categoriesLoading}
+                    disabled={categoriesLoading || !hasCompleteData}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -673,7 +702,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             </Button>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || !hasCompleteData}
               className="flex-1 sm:flex-none sm:px-8 bg-blue-600 hover:bg-blue-700"
             >
               {loading ? (

@@ -72,6 +72,7 @@ export interface ProductFilters {
   status?: string;
   featured?: string;
   onSale?: string;
+  stockStatus?: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
