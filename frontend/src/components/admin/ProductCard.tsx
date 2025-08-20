@@ -40,8 +40,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   // Since variants are loaded on demand, we can't calculate stock status here
   // Stock status will be calculated when variants are actually loaded
   // Convert relative URL to full URL if needed
-  const getFullImageUrl = (url: string | null): string | null => {
-    if (!url) return null;
+  const getFullImageUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
     if (url.startsWith('http')) return url; // Already a full URL
     
     // Get the API base URL from environment or use default
@@ -49,7 +49,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return `${apiBaseUrl}${url}`;
   };
   
-  const imageUrl = getFullImageUrl(product.primaryImage?.url || null);
+  const imageUrl = getFullImageUrl(product.primaryImage?.url);
   const [imageError, setImageError] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   
@@ -104,161 +104,210 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <Card className={`group hover:shadow-2xl hover:bg-gradient-to-br hover:from-white/90 hover:to-white/70 hover:border-purple-200 hover:scale-[1.02] hover:shadow-purple-100/50 transition-all duration-300 border border-transparent overflow-hidden bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-xl rounded-xl ${
-      viewMode === 'list' ? 'flex-row' : ''
+      viewMode === 'list' ? 'flex-row items-center p-4' : ''
     }`}>
-      {/* Product Image */}
-      <div className={`relative overflow-hidden bg-gray-100 ${
-        viewMode === 'list' ? 'w-20 h-20 flex-shrink-0' : 'aspect-[4/3]'
-      }`}>
-        {imageUrl && !imageError ? (
-          <img
-            src={imageUrl}
-            alt={product.name}
-            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
-            onError={handleImageError}
-          />
-        ) : (
-          <div 
-            className="h-full w-full flex items-center justify-center"
-            dangerouslySetInnerHTML={{ 
-              __html: generatePlaceholderSVG(viewMode === 'list' ? 'small' : 'medium') 
-            }}
-          />
-        )}
-        
+      {/* Product Image - Only show in grid view */}
+      {viewMode !== 'list' && (
+        <div className="relative overflow-hidden bg-gray-100 aspect-[4/3]">
+          {imageUrl && !imageError ? (
+            <img
+              src={imageUrl}
+              alt={product.name}
+              className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
+              onError={handleImageError}
+            />
+          ) : (
+            <div 
+              className="h-full w-full flex items-center justify-center"
+              dangerouslySetInnerHTML={{ 
+                __html: generatePlaceholderSVG('medium') 
+              }}
+            />
+          )}
 
+          {/* Sale Badge - Only show in grid view */}
+          {product.isOnSale && product.salePrice && (
+            <div className="absolute bottom-2 left-2">
+              <Badge variant="destructive" className="px-2 py-0.5 text-xs font-medium shadow-sm">
+                🔥 SALE
+              </Badge>
+            </div>
+          )}
 
-        {/* Sale Badge */}
-        {product.isOnSale && product.salePrice && (
-          <div className={`absolute ${viewMode === 'list' ? 'bottom-1 left-1' : 'bottom-2 left-2'}`}>
-            <Badge variant="destructive" className={`${viewMode === 'list' ? 'px-1 py-0 text-xs' : 'px-2 py-0.5 text-xs'} font-medium`}>
-              SALE
-            </Badge>
+          {/* 3-Dots Menu - Clean and Elegant */}
+          <div className="absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+            <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleView}>
+                  <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Edit className="mr-2 h-4 w-4 text-green-600" />
+                  Edit Product
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleImageManager}>
+                  <ImageIcon className="mr-2 h-4 w-4 text-purple-600" />
+                  Manage Images
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleVariantManager}>
+                  <Package className="mr-2 h-4 w-4 text-orange-600" />
+                  Manage Variants
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleStockManager}>
+                  <BarChart3 className="mr-2 h-4 w-4 text-indigo-600" />
+                  Manage Stock
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleToggleStatus}
+                  className={product.isActive ? 'text-red-600' : 'text-green-600'}
+                >
+                  {product.isActive ? (
+                    <XCircle className="mr-2 h-4 w-4" />
+                  ) : (
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                  )}
+                  {product.isActive ? 'Deactivate' : 'Activate'}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleDelete}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Product
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
-
-        {/* 3-Dots Menu - Clean and Elegant */}
-        <div className={`absolute ${viewMode === 'list' ? 'top-1 right-1' : 'top-2 right-2'} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-4 w-4 text-gray-600" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleView}>
-                <Eye className="mr-2 h-4 w-4 text-blue-600" />
-                View Details
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleEdit}>
-                <Edit className="mr-2 h-4 w-4 text-green-600" />
-                Edit Product
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleImageManager}>
-                <ImageIcon className="mr-2 h-4 w-4 text-purple-600" />
-                Manage Images
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleVariantManager}>
-                <Package className="mr-2 h-4 w-4 text-orange-600" />
-                Manage Variants
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleStockManager}>
-                <BarChart3 className="mr-2 h-4 w-4 text-indigo-600" />
-                Manage Stock
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={handleToggleStatus}
-                className={product.isActive ? 'text-red-600' : 'text-green-600'}
-              >
-                {product.isActive ? (
-                  <XCircle className="mr-2 h-4 w-4" />
-                ) : (
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                )}
-                {product.isActive ? 'Deactivate' : 'Activate'}
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleDelete}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Product
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
-      </div>
+      )}
 
       {/* Product Info - Minimal */}
-      <CardContent className={`${viewMode === 'list' ? 'p-3 flex-1' : 'p-3'}`}>
-        {viewMode === 'list' ? (
-          // List View - Horizontal Layout
-          <div className="flex items-center justify-between h-full">
-            <div className="flex-1 min-w-0">
-              {/* Product Name with Featured Badge */}
-              <div className="flex items-start gap-2 mb-1">
-                <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-purple-600 transition-colors text-sm flex-1">
-                  {product.name}
-                </h3>
-                {product.isFeatured && (
-                  <Badge variant="default" className="text-xs px-1 py-0 bg-yellow-500 hover:bg-yellow-600 flex-shrink-0">
-                    ⭐
+      <CardContent className={`${viewMode === 'list' ? 'p-0 flex-1' : 'p-3'}`}>
+                {viewMode === 'list' ? (
+          // List View - Inspired by Categories Layout
+          <div className="flex items-start gap-4 h-full w-full">
+            {/* Left Section - Product Image */}
+            <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={product.primaryImage?.alt || product.name}
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <Package className="w-8 h-8" />
+                </div>
+              )}
+            </div>
+
+            {/* Middle Section - Product Information */}
+            <div className="flex-1 min-w-0 space-y-2">
+              {/* Product Name */}
+              <h3 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors text-lg">
+                {product.name}
+              </h3>
+              
+              {/* Category */}
+              <div className="text-sm text-gray-600">
+                Category: <span className="font-medium">{product.category?.name || 'No Category'}</span>
+              </div>
+              
+              {/* Metadata */}
+              <div className="flex items-center gap-4 text-xs text-gray-400">
+                <span>Stock: {product.totalStock || 0}</span>
+                {product.sku && <span>SKU: {product.sku}</span>}
+              </div>
+              
+
+            </div>
+
+            {/* Right Section - Status and Actions */}
+            <div className="flex flex-col items-end gap-3 flex-shrink-0">
+              {/* Status Badges */}
+              <div className="flex flex-col gap-2">
+                {product.isActive ? (
+                  <Badge variant="default" className="w-fit text-xs px-2 py-1 bg-blue-500 text-white font-medium">
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="w-fit text-xs px-2 py-1 bg-gray-200 text-gray-600 font-medium">
+                    Inactive
                   </Badge>
                 )}
               </div>
-
-              {/* Category and Price Row */}
-              <div className="flex items-center gap-3 mb-1">
-                <Badge variant="outline" className="text-xs">
-                  {product.category?.name || 'No Category'}
-                </Badge>
-                <span className="text-sm font-bold text-gray-900">
-                  {formatPrice(product.salePrice || product.price)}
-                </span>
-                {product.isOnSale && product.salePrice && (
-                  <span className="text-xs text-red-600 font-medium">SALE</span>
-                )}
+              
+              {/* Three Dots Menu */}
+              <div className="relative">
+                <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={handleView}>
+                      <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleEdit}>
+                      <Edit className="mr-2 h-4 w-4 text-green-600" />
+                      Edit Product
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleImageManager}>
+                      <ImageIcon className="mr-2 h-4 w-4 text-purple-600" />
+                      Manage Images
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleVariantManager}>
+                      <Package className="mr-2 h-4 w-4 text-orange-600" />
+                      Manage Variants
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleStockManager}>
+                      <BarChart3 className="mr-2 h-4 w-4 text-indigo-600" />
+                      Manage Stock
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={handleToggleStatus}
+                      className={product.isActive ? 'text-red-600' : 'text-green-600'}
+                    >
+                      {product.isActive ? (
+                        <XCircle className="mr-2 h-4 w-4" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4" />
+                      )}
+                      {product.isActive ? 'Deactivate' : 'Activate'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handleDelete}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Product
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-
-              {/* Variants and Stock */}
-              <div className="flex items-center gap-3 text-xs text-gray-600">
-                <span>Variants: {product._count?.variants || 0}</span>
-                <span>•</span>
-                <span>Stock: {product.totalStock || 0}</span>
-                {!product.isActive && (
-                  <>
-                    <span>•</span>
-                    <span className="text-red-500 font-medium">Inactive</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Actions for List View */}
-            <div className="flex items-center gap-2 ml-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onView(product)}
-                className="h-7 px-2 text-xs border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200"
-              >
-                View
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onEdit(product)}
-                className="h-7 px-2 text-xs border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 transition-all duration-200"
-              >
-                Edit
-              </Button>
             </div>
           </div>
         ) : (

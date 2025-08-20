@@ -25,6 +25,7 @@ import { EditProductDialog } from '../../components/admin/EditProductDialog';
 import { VariantManagementDialog } from '../../components/admin/VariantManagementDialog';
 import ProductImageManagerDialog from '../../components/admin/ProductImageManagerDialog';
 import { StockManagementDialog } from '../../components/admin/StockManagementDialog';
+import ProductHeader from '../../components/admin/ProductHeader';
 import { Product } from '../../types';
 import { toast } from 'sonner';
 
@@ -142,122 +143,69 @@ const Products: React.FC = () => {
   const outOfStockProducts = products.filter(p => p.hasOutOfStock || false).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-3 md:p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Product Management</h1>
-            <p className="text-gray-600">Manage your product catalog, inventory, and variants</p>
-          </div>
-          
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="flex items-center gap-2"
-            >
-              <Grid3X3 className="h-4 w-4" />
-              Grid
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="flex items-center gap-2"
-            >
-              <List className="h-4 w-4" />
-              List
-            </Button>
-            
-            {/* Refresh Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchProducts}
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Refresh
-            </Button>
-            
-            {/* Create Product Button */}
-            <Button
-              onClick={openCreateDialog}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              Create Product
-            </Button>
-          </div>
-        </div>
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <ProductHeader
+          onAddProduct={openCreateDialog}
+          onRefresh={fetchProducts}
+          loading={loading}
+        />
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 md:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Products</p>
-                <p className="text-2xl font-bold text-gray-900">{totalProducts}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{totalProducts}</p>
               </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-blue-600" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 md:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Products</p>
-                <p className="text-2xl font-bold text-green-600">{activeProducts}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{activeProducts}</p>
               </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-green-600" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 md:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Low Stock</p>
-                <p className="text-2xl font-bold text-yellow-600">{lowStockProducts}</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{lowStockProducts}</p>
               </div>
-              <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-yellow-600" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 md:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-                <p className="text-2xl font-bold text-red-600">{outOfStockProducts}</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-600">{outOfStockProducts}</p>
               </div>
-              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-red-600" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
               </div>
             </div>
           </CardContent>
@@ -265,16 +213,8 @@ const Products: React.FC = () => {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
-          <Button
-            onClick={openCreateDialog}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Product
-          </Button>
-          
           <Button variant="outline">
             <Upload className="h-4 w-4 mr-2" />
             Import
@@ -289,17 +229,25 @@ const Products: React.FC = () => {
         <div className="flex items-center gap-2">
           <Button
             variant={viewMode === 'grid' ? 'default' : 'outline'}
-            size="sm"
             onClick={() => setViewMode('grid')}
+            className={`h-10 px-3 rounded-lg transition-all duration-300 ${
+              viewMode === 'grid'
+                ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600'
+                : 'bg-white/80 backdrop-blur-sm border-slate-200/50 hover:border-purple-500 text-slate-700'
+            }`}
           >
-            <Grid3X3 className="h-4 w-4" />
+            <Grid3X3 className="w-4 h-4" />
           </Button>
           <Button
             variant={viewMode === 'list' ? 'default' : 'outline'}
-            size="sm"
             onClick={() => setViewMode('list')}
+            className={`h-10 px-3 rounded-lg transition-all duration-300 ${
+              viewMode === 'list'
+                ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600'
+                : 'bg-white/80 backdrop-blur-sm border-slate-200/50 hover:border-purple-500 text-slate-700'
+            }`}
           >
-            <List className="h-4 w-4" />
+            <List className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -359,7 +307,7 @@ const Products: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-4">
               {products.map(product => (
                 <ProductCard
                   key={product.id}
@@ -408,19 +356,7 @@ const Products: React.FC = () => {
         </>
       )}
 
-      {/* Floating Action Button - Mobile Only */}
-      <Button
-        onClick={openCreateDialog}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 md:hidden"
-        size="lg"
-        disabled={loading}
-      >
-        {loading ? (
-          <Loader2 className="h-6 w-6 animate-spin" />
-        ) : (
-          <Plus className="h-6 w-6" />
-        )}
-      </Button>
+
 
       {/* Create Product Dialog */}
       <CreateProductDialog
