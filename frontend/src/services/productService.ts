@@ -277,6 +277,98 @@ export class ProductService {
 
     return response.json();
   }
+
+  // Validate products for import
+  static async validateImport(products: any[], token: string): Promise<{
+    valid: boolean;
+    results: any[];
+    totalProducts: number;
+    validProducts: number;
+    invalidProducts: number;
+  }> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/import/validate`,
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ products })
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to validate import data');
+    }
+
+    return response.json();
+  }
+
+  // Execute product import
+  static async executeImport(products: any[], options: {
+    skipDuplicates?: boolean;
+    createMissingCategories?: boolean;
+    updateExisting?: boolean;
+  }, token: string): Promise<{
+    success: boolean;
+    results: any[];
+    summary: {
+      total: number;
+      imported: number;
+      updated: number;
+      skipped: number;
+      errors: number;
+    };
+  }> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/import/execute`,
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ products, options })
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to execute import');
+    }
+
+    return response.json();
+  }
+
+  // Get import template
+  static async getImportTemplate(token: string): Promise<{
+    description: string;
+    required_fields: string[];
+    optional_fields: string[];
+    sample_data: any;
+    available_categories: Array<{ id: number; name: string }>;
+    notes: string[];
+  }> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/import/template`,
+      { headers }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get import template');
+    }
+
+    return response.json();
+  }
 }
 
 export class CategoryService {

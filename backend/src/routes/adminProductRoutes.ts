@@ -42,6 +42,57 @@ const convertDecimalToNumber = (obj: any): any => {
   return obj;
 };
 
+// Helper function to generate unique slug
+const generateUniqueSlug = async (name: string, existingSlug?: string): Promise<string> => {
+  let baseSlug = name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  
+  // If this is an update and the slug hasn't changed, return the existing one
+  if (existingSlug && baseSlug === existingSlug) {
+    return existingSlug;
+  }
+  
+  let slug = baseSlug;
+  let counter = 1;
+  
+  // Keep checking until we find a unique slug
+  while (true) {
+    const existingProduct = await prisma.product.findUnique({
+      where: { slug }
+    });
+    
+    if (!existingProduct) {
+      return slug;
+    }
+    
+    // If slug exists, append a number
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+};
+
+// Helper function to generate unique SKU
+const generateUniqueSku = async (baseSku: string): Promise<string> => {
+  let sku = baseSku;
+  let counter = 1;
+  
+  // Keep checking until we find a unique SKU
+  while (true) {
+    const existingProduct = await prisma.product.findUnique({
+      where: { sku }
+    });
+    
+    if (!existingProduct) {
+      return sku;
+    }
+    
+    // If SKU exists, append a number
+    sku = `${baseSku}-${counter}`;
+    counter++;
+  }
+};
+
 // Get all products with advanced filtering and pagination
 router.get('/', authenticateClerkToken, async (req, res) => {
   try {
@@ -120,8 +171,6 @@ router.get('/', authenticateClerkToken, async (req, res) => {
           select: { 
             stock: true, 
             isActive: true, 
-            lowStockThreshold: true,
-            allowBackorder: true,
             stockStatus: true
           }
         },
@@ -140,23 +189,23 @@ router.get('/', authenticateClerkToken, async (req, res) => {
     // Convert decimals and calculate stock for essential data
     let convertedProducts = allProducts.map(product => {
       // Calculate total stock from variants
-      const totalStock = product.variants.reduce((sum, variant) => {
+      const totalStock = (product as any).variants.reduce((sum: number, variant: any) => {
         return sum + (variant.isActive ? variant.stock : 0);
       }, 0);
       
       // Calculate overall stock status based on variants
-      const activeVariants = product.variants.filter(v => v.isActive);
+      const activeVariants = (product as any).variants.filter((v: any) => v.isActive);
       let overallStockStatus = 'IN_STOCK';
       
       if (activeVariants.length === 0) {
         overallStockStatus = 'OUT_OF_STOCK';
       } else {
-        const outOfStockVariants = activeVariants.filter(v => v.stock === 0);
-        const lowStockVariants = activeVariants.filter(v => 
-          v.stock > 0 && v.stock <= (v.lowStockThreshold || 3)
+        const outOfStockVariants = activeVariants.filter((v: any) => v.stock === 0);
+        const lowStockVariants = activeVariants.filter((v: any) => 
+          v.stock > 0 && v.stock <= 3
         );
-        const backorderVariants = activeVariants.filter(v => 
-          v.stock === 0 && v.allowBackorder
+        const backorderVariants = activeVariants.filter((v: any) => 
+          v.stock === 0 && false // Simplified for now
         );
         
         if (outOfStockVariants.length === activeVariants.length) {
@@ -167,7 +216,7 @@ router.get('/', authenticateClerkToken, async (req, res) => {
       }
       
       // Get primary image URL
-      const primaryImage = product.images.length > 0 ? product.images[0] : null;
+      const primaryImage = (product as any).images.length > 0 ? (product as any).images[0] : null;
       
       // Remove the images array and variants array since we have primaryImage and totalStock
       const { images, variants, ...productWithoutImagesAndVariants } = convertDecimalToNumber(product);
@@ -401,10 +450,8 @@ router.post('/', authenticateClerkToken, async (req, res) => {
       }
     }
 
-    // Generate slug from name
-    const slug = name.toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+    // Generate unique slug from name
+    const slug = await generateUniqueSlug(name);
 
     // Create product
     const product = await prisma.product.create({
@@ -500,9 +547,12 @@ router.put('/:id', authenticateClerkToken, async (req, res) => {
 
     // Generate new slug if name changed
     if (updateData.name) {
-      updateData.slug = updateData.name.toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
+      const currentProduct = await prisma.product.findUnique({
+        where: { id: parseInt(id) }
+      });
+      if (currentProduct) {
+        updateData.slug = await generateUniqueSlug(updateData.name, currentProduct.slug);
+      }
     }
 
     const product = await prisma.product.update({
@@ -718,5 +768,489 @@ router.use('/:id/stats', (req, res, next) => {
   req.productId = parseInt(req.params.id);
   next();
 }, adminProductStatsRoutes);
+
+// Import products from JSON
+router.post('/import/validate', authenticateClerkToken, async (req, res) => {
+  try {
+    const { products } = req.body;
+    
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ 
+        message: 'Invalid format: products must be an array',
+        valid: false 
+      });
+    }
+
+    const validationResults = [];
+    let hasErrors = false;
+
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      const errors = [];
+      
+      // Required field validation
+      if (!product.name || typeof product.name !== 'string') {
+        errors.push('Name is required and must be a string');
+      }
+      if (!product.price || typeof product.price !== 'number') {
+        errors.push('Price is required and must be a number');
+      }
+      if (!product.categoryId || typeof product.categoryId !== 'number') {
+        errors.push('Category ID is required and must be a number');
+      }
+      if (!product.description || typeof product.description !== 'string') {
+        errors.push('Description is required and must be a string');
+      }
+
+      // Data type validation
+      if (product.isActive !== undefined && typeof product.isActive !== 'boolean') {
+        errors.push('isActive must be a boolean');
+      }
+      if (product.isFeatured !== undefined && typeof product.isFeatured !== 'boolean') {
+        errors.push('isFeatured must be a boolean');
+      }
+      if (product.isOnSale !== undefined && typeof product.isOnSale !== 'boolean') {
+        errors.push('isOnSale must be a boolean');
+      }
+
+      // Price validation
+      if (product.price < 0) {
+        errors.push('Price cannot be negative');
+      }
+      if (product.comparePrice && product.comparePrice < 0) {
+        errors.push('Compare price cannot be negative');
+      }
+      if (product.costPrice && product.costPrice < 0) {
+        errors.push('Cost price cannot be negative');
+      }
+
+      // Category existence validation
+      if (product.categoryId) {
+        const category = await prisma.category.findUnique({
+          where: { id: product.categoryId }
+        });
+        if (!category) {
+          errors.push(`Category with ID ${product.categoryId} does not exist`);
+        }
+      }
+
+      // SKU uniqueness validation - now just a warning since backend handles duplicates
+      let skuWarning = null;
+      if (product.sku) {
+        const existingProduct = await prisma.product.findUnique({
+          where: { sku: product.sku }
+        });
+        if (existingProduct) {
+          skuWarning = `SKU ${product.sku} already exists - will be automatically made unique`;
+        }
+      }
+
+      // Variant validation
+      if (product.variants && Array.isArray(product.variants)) {
+        for (let j = 0; j < product.variants.length; j++) {
+          const variant = product.variants[j];
+          if (!variant.size || !variant.color || typeof variant.stock !== 'number') {
+            errors.push(`Variant ${j + 1}: size, color, and stock are required`);
+          }
+          if (variant.stock < 0) {
+            errors.push(`Variant ${j + 1}: stock cannot be negative`);
+          }
+        }
+      }
+
+      validationResults.push({
+        index: i,
+        product: { name: product.name, sku: product.sku },
+        errors,
+        warnings: skuWarning ? [skuWarning] : [],
+        valid: errors.length === 0
+      });
+
+      if (errors.length > 0) {
+        hasErrors = true;
+      }
+    }
+
+    res.json({
+      valid: !hasErrors,
+      results: validationResults,
+      totalProducts: products.length,
+      validProducts: validationResults.filter(r => r.valid).length,
+      invalidProducts: validationResults.filter(r => !r.valid).length
+    });
+
+  } catch (error) {
+    console.error('Import validation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to validate import data', 
+      error: error.message,
+      valid: false 
+    });
+  }
+});
+
+// Execute import after validation
+router.post('/import/execute', authenticateClerkToken, async (req, res) => {
+  try {
+    const { products, options = {} } = req.body;
+    const { 
+      skipDuplicates = true, 
+      createMissingCategories = false,
+      updateExisting = false 
+    } = options;
+
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ 
+        message: 'Invalid format: products must be an array',
+        success: false 
+      });
+    }
+
+    const importResults = [];
+    let importedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
+    for (const productData of products) {
+      try {
+        // Check for existing product and handle duplicate SKUs
+        let existingProduct = null;
+        let finalSku = productData.sku;
+        let shouldCreateNew = false;
+        
+        if (productData.sku) {
+          existingProduct = await prisma.product.findUnique({
+            where: { sku: productData.sku }
+          });
+          
+          // If SKU exists and we're not updating, generate a unique one and create new product
+          if (existingProduct && !updateExisting) {
+            finalSku = await generateUniqueSku(productData.sku);
+            console.log(`Generated unique SKU: ${productData.sku} → ${finalSku}`);
+            shouldCreateNew = true; // We'll create a new product with the unique SKU
+            existingProduct = null; // Reset this so we go to the create new product path
+          }
+        }
+
+        if (existingProduct && updateExisting) {
+            // Update existing product
+            const slug = await generateUniqueSlug(productData.name, existingProduct.slug);
+            const updatedProduct = await prisma.product.update({
+              where: { id: existingProduct.id },
+              data: {
+                name: productData.name,
+                description: productData.description,
+                price: productData.price,
+                comparePrice: productData.comparePrice,
+                costPrice: productData.costPrice,
+                shortDescription: productData.shortDescription,
+                weight: productData.weight,
+                dimensions: productData.dimensions,
+                tags: productData.tags || [],
+                metaTitle: productData.metaTitle,
+                metaDescription: productData.metaDescription,
+                isActive: productData.isActive,
+                isFeatured: productData.isFeatured,
+                isOnSale: productData.isOnSale,
+                salePrice: productData.salePrice,
+                saleEndDate: productData.saleEndDate,
+                lowStockThreshold: productData.lowStockThreshold,
+                allowBackorder: productData.allowBackorder,
+                slug
+              }
+            });
+
+            // Update variants if provided
+            if (productData.variants && Array.isArray(productData.variants)) {
+              // Delete existing variants
+              await prisma.productVariant.deleteMany({
+                where: { productId: existingProduct.id }
+              });
+
+              // Create new variants
+              for (const variantData of productData.variants) {
+                await prisma.productVariant.create({
+                  data: {
+                    productId: existingProduct.id,
+                    size: variantData.size,
+                    color: variantData.color,
+                    colorCode: variantData.colorCode,
+                    stock: variantData.stock,
+                    sku: variantData.sku,
+                    price: variantData.price,
+                    comparePrice: variantData.comparePrice,
+                    isActive: variantData.isActive !== false,
+                    lowStockThreshold: variantData.lowStockThreshold || 3,
+                    allowBackorder: variantData.allowBackorder || false
+                  }
+                });
+              }
+            }
+
+            // Update images if provided
+            if (productData.images && Array.isArray(productData.images)) {
+              // Delete existing images
+              await prisma.productImage.deleteMany({
+                where: { productId: existingProduct.id }
+              });
+
+              // Create new images
+              for (const imageData of productData.images) {
+                await prisma.productImage.create({
+                  data: {
+                    productId: existingProduct.id,
+                    url: imageData.url,
+                    alt: imageData.alt || '',
+                    isPrimary: imageData.isPrimary || false,
+                    sortOrder: imageData.sortOrder || 0
+                  }
+                });
+              }
+            }
+
+            importResults.push({
+              name: productData.name,
+              sku: productData.sku,
+              status: 'updated',
+              productId: existingProduct.id
+            });
+            importedCount++;
+        } else if (existingProduct && !updateExisting) {
+            // Skip duplicate product
+            importResults.push({
+              name: productData.name,
+              sku: productData.sku,
+              status: 'skipped',
+              reason: 'Product with this SKU already exists'
+            });
+            skippedCount++;
+        } else {
+          // Create new product
+          const slug = await generateUniqueSlug(productData.name);
+          const newProduct = await prisma.product.create({
+            data: {
+              name: productData.name,
+              description: productData.description,
+              price: productData.price,
+              comparePrice: productData.comparePrice,
+              costPrice: productData.costPrice,
+              categoryId: productData.categoryId,
+              sku: finalSku,
+              barcode: productData.barcode,
+              weight: productData.weight,
+              dimensions: productData.dimensions,
+              tags: productData.tags || [],
+              metaTitle: productData.metaTitle,
+              metaDescription: productData.metaDescription,
+              isActive: productData.isActive !== false,
+              isFeatured: productData.isFeatured || false,
+              isOnSale: productData.isOnSale || false,
+              salePrice: productData.salePrice,
+              saleEndDate: productData.saleEndDate,
+              lowStockThreshold: productData.lowStockThreshold || 5,
+              allowBackorder: productData.allowBackorder || false,
+              slug
+            }
+          });
+
+          // Create variants if provided
+          if (productData.variants && Array.isArray(productData.variants)) {
+            for (const variantData of productData.variants) {
+              await prisma.productVariant.create({
+                data: {
+                  productId: newProduct.id,
+                  size: variantData.size,
+                  color: variantData.color,
+                  colorCode: variantData.colorCode,
+                  stock: variantData.stock,
+                  sku: variantData.sku,
+                  price: variantData.price,
+                  comparePrice: variantData.comparePrice,
+                  isActive: variantData.isActive !== false,
+                  lowStockThreshold: variantData.lowStockThreshold || 3,
+                  allowBackorder: variantData.allowBackorder || false
+                }
+              });
+            }
+          }
+
+          // Create images if provided
+          if (productData.images && Array.isArray(productData.images)) {
+            for (const imageData of productData.images) {
+              await prisma.productImage.create({
+                data: {
+                  productId: newProduct.id,
+                  url: imageData.url,
+                  alt: imageData.alt || '',
+                  isPrimary: imageData.isPrimary || false,
+                  sortOrder: imageData.sortOrder || 0
+                }
+              });
+            }
+          }
+
+          importResults.push({
+            name: productData.name,
+            sku: finalSku,
+            status: 'created',
+            productId: newProduct.id,
+            originalSku: productData.sku !== finalSku ? productData.sku : undefined,
+            skuChanged: productData.sku !== finalSku
+          });
+          importedCount++;
+        }
+      } catch (error) {
+        console.error(`Error importing product ${productData.name}:`, error);
+        
+        // Provide more detailed error information
+        let errorReason = 'Unknown error occurred';
+        let errorDetails = '';
+        
+        if (error instanceof Error) {
+          errorReason = error.message;
+          errorDetails = error.stack || '';
+        } else if (typeof error === 'string') {
+          errorReason = error;
+        } else if (error && typeof error === 'object') {
+          errorReason = (error as any).message || 'Database or validation error';
+          errorDetails = (error as any).code || '';
+        }
+        
+        importResults.push({
+          name: productData.name,
+          sku: productData.sku,
+          status: 'error',
+          reason: errorReason,
+          details: errorDetails
+        });
+        errorCount++;
+      }
+    }
+
+    // Determine overall success based on results
+    const hasErrors = errorCount > 0;
+    const hasFailures = importResults.some(r => r.status === 'error');
+    const overallSuccess = !hasErrors && !hasFailures && importedCount > 0;
+    
+    // Set appropriate HTTP status
+    const statusCode = overallSuccess ? 200 : (hasErrors ? 400 : 207); // 207 = Multi-Status
+    
+    res.status(statusCode).json({
+      success: overallSuccess,
+      results: importResults,
+      summary: {
+        total: products.length,
+        imported: importedCount,
+        updated: importResults.filter(r => r.status === 'updated').length,
+        skipped: skippedCount,
+        errors: errorCount
+      },
+      message: overallSuccess 
+        ? `Import completed successfully! ${importedCount} products imported.`
+        : hasErrors 
+          ? `Import completed with errors. ${errorCount} products failed to import.`
+          : `Import completed with mixed results. ${importedCount} products imported, ${errorCount} failed.`
+    });
+
+  } catch (error) {
+    console.error('Import execution error:', error);
+    res.status(500).json({ 
+      message: 'Failed to execute import', 
+      error: error.message,
+      success: false 
+    });
+  }
+});
+
+// Get import template
+router.get('/import/template', authenticateClerkToken, async (req, res) => {
+  try {
+    // Get sample categories for the template
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true },
+      take: 5
+    });
+
+    const template = {
+      description: "Product import template. Copy this structure and fill in your data.",
+      required_fields: ["name", "description", "price", "categoryId"],
+      optional_fields: [
+        "shortDescription", "comparePrice", "costPrice", "sku", "barcode",
+        "weight", "dimensions", "tags", "metaTitle", "metaDescription",
+        "isActive", "isFeatured", "isOnSale", "salePrice", "saleEndDate",
+        "lowStockThreshold", "allowBackorder", "variants", "images"
+      ],
+      sample_data: {
+        name: "Sample Product",
+        description: "This is a sample product description",
+        shortDescription: "Short description for the product",
+        price: 29.99,
+        comparePrice: 39.99,
+        costPrice: 15.00,
+        categoryId: categories[0]?.id || 1,
+        sku: "SAMPLE-001",
+        barcode: "1234567890123",
+        weight: 0.5,
+        dimensions: "10x5x2 cm",
+        tags: ["sample", "demo", "test"],
+        metaTitle: "Sample Product - SEO Title",
+        metaDescription: "SEO description for the sample product",
+        isActive: true,
+        isFeatured: false,
+        isOnSale: false,
+        salePrice: null,
+        saleEndDate: null,
+        lowStockThreshold: 5,
+        allowBackorder: false,
+        variants: [
+          {
+            size: "M",
+            color: "Blue",
+            colorCode: "#0000FF",
+            stock: 100,
+            sku: "SAMPLE-001-M-BLUE",
+            price: 29.99,
+            comparePrice: 39.99,
+            isActive: true,
+            lowStockThreshold: 3,
+            allowBackorder: false
+          }
+        ],
+        images: [
+          {
+            url: "https://example.com/image1.jpg",
+            alt: "Sample Product Front View",
+            isPrimary: true,
+            sortOrder: 1
+          },
+          {
+            url: "https://example.com/image2.jpg",
+            alt: "Sample Product Back View",
+            isPrimary: false,
+            sortOrder: 2
+          }
+        ]
+      },
+      available_categories: categories,
+      notes: [
+        "All prices should be numbers (no currency symbols)",
+        "Category ID must reference an existing category",
+        "SKU must be unique across all products (duplicates will be automatically made unique)",
+        "Variants are optional but recommended for products with multiple options",
+        "Dates should be in ISO format (YYYY-MM-DD)",
+        "Boolean fields accept true/false values",
+        "If a SKU already exists, the system will automatically generate a unique one by appending a number"
+      ]
+    };
+
+    res.json(template);
+  } catch (error) {
+    console.error('Template generation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to generate template', 
+      error: error.message 
+    });
+  }
+});
 
 export default router;

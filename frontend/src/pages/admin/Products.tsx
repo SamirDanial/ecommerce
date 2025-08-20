@@ -27,6 +27,7 @@ import ProductImageManagerDialog from '../../components/admin/ProductImageManage
 import { StockManagementDialog } from '../../components/admin/StockManagementDialog';
 import ProductHeader from '../../components/admin/ProductHeader';
 import ExportDialog from '../../components/admin/ExportDialog';
+import ImportDialog from '../../components/admin/ImportDialog';
 import { Product } from '../../types';
 import { toast } from 'sonner';
 
@@ -59,6 +60,7 @@ const Products: React.FC = () => {
   const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
   const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
   const [isLoadingProductEdit, setIsLoadingProductEdit] = useState(false);
@@ -232,7 +234,10 @@ const Products: React.FC = () => {
       {/* Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => setIsImportDialogOpen(true)}
+          >
             <Upload className="h-4 w-4 mr-2" />
             Import
           </Button>
@@ -847,6 +852,16 @@ const Products: React.FC = () => {
             <ExportDialog 
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
+      />
+      
+      {/* Import Dialog */}
+      <ImportDialog 
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImportComplete={() => {
+          setIsImportDialogOpen(false);
+          fetchProducts(); // Refresh the product list
+        }}
       />
     </div>
   );

@@ -22,10 +22,6 @@ declare global {
 
 export const authenticateClerkToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('=== AUTHENTICATION ATTEMPT ===');
-    console.log('Headers:', req.headers);
-    console.log('IP:', req.ip || req.connection.remoteAddress || 'unknown');
-    
     // Rate limiting check
     const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
     const now = Date.now();
@@ -37,7 +33,6 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
       if (lastAttempt && now - lastAttempt < timeWindow) {
         if (count >= 5) {
           const remainingTime = Math.ceil((timeWindow - (now - lastAttempt)) / 1000);
-          console.log(`Rate limited IP: ${clientIP}, attempts: ${count}`);
           return res.status(429).json({ 
             message: `Too many failed authentication attempts. Try again in ${remainingTime} seconds.`,
             retryAfter: remainingTime 
@@ -51,7 +46,6 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
 
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('No valid authorization header found');
       const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
       attempts.count++;
       attempts.lastAttempt = now;
@@ -60,15 +54,12 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
     }
 
     const token = authHeader.substring(7);
-    console.log('Token received (first 20 chars):', token.substring(0, 20) + '...');
     
     try {
       // Verify JWT token
-      console.log('Verifying JWT token...');
       const payload = await JWTService.verifyToken(token);
       
       if (!payload) {
-        console.log('JWT verification failed - no payload returned');
         const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
         attempts.count++;
         attempts.lastAttempt = now;
@@ -76,53 +67,37 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      console.log('JWT payload:', JSON.stringify(payload, null, 2));
-
       // Get user data from Clerk API
       let clerkUserEmail: string | undefined;
       
       try {
-        console.log('Getting Clerk user data for ID:', payload.sub);
         const clerkUser = await ClerkService.getUserByClerkId(payload.sub);
         if (clerkUser && clerkUser.email) {
           clerkUserEmail = clerkUser.email;
-          console.log('Found Clerk user email:', clerkUserEmail);
         } else {
-          console.log('No Clerk user email found');
         }
       } catch (clerkError) {
-        console.log('Clerk API error (continuing):', clerkError);
         // Continue without Clerk API data if there's an error
       }
 
       // Extract clerk user ID
       const clerkUserId = payload.sub;
       if (!clerkUserId) {
-        console.log('No clerkUserId in JWT payload');
         const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
         attempts.count++;
         attempts.lastAttempt = now;
         failedAuthAttempts.set(clientIP, attempts);
         return res.status(401).json({ message: 'Invalid token payload' });
       }
-
-      console.log('Looking up user in database with clerkId:', clerkUserId);
       
       // Look up user in database
       let user = await ClerkService.getUserByClerkId(clerkUserId);
       
       if (!user) {
-        console.log('User not found in database. Checking if we should create them...');
-        console.log('Available payload data:', {
-          sub: payload.sub,
-          email: payload.email,
-          clerkId: clerkUserId
-        });
         
         // For now, let's create a basic user if they don't exist
         // This is a temporary fix - normally this should happen via webhook
         try {
-          console.log('Attempting to create user in database...');
           const { prisma } = await import('../lib/prisma');
           
           user = await prisma.user.create({
@@ -135,8 +110,6 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
               isEmailVerified: payload.email_verified || false
             }
           });
-          
-          console.log('User created successfully:', user.id);
           
           // Create default profile and preferences
           await Promise.all([
@@ -154,7 +127,6 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
             })
           ]);
           
-          console.log('User profile and preferences created');
         } catch (createError) {
           console.error('Failed to create user:', createError);
           const attempts = failedAuthAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
@@ -164,7 +136,6 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
           return res.status(401).json({ message: 'User account not found. Please complete registration first.' });
         }
       } else {
-        console.log('User found in database:', user.id);
       }
 
       // Create user object for request
@@ -176,15 +147,12 @@ export const authenticateClerkToken = async (req: Request, res: Response, next: 
         isEmailVerified: user.isEmailVerified || false
       };
 
-      console.log('Setting user in request:', userObject);
-
       // Set user in request
       (req as any).user = userObject;
       
       // Clear failed attempts on success
       failedAuthAttempts.delete(clientIP);
       
-      console.log('=== AUTHENTICATION SUCCESS ===');
       next();
     } catch (jwtError: any) {
       console.error('JWT verification error:', jwtError);
