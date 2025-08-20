@@ -36,11 +36,8 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-purple-200 rounded-full animate-spin"></div>
-          <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-purple-600 rounded-full animate-spin"></div>
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
