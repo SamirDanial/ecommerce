@@ -500,6 +500,9 @@ const Products: React.FC = () => {
                   // Close the dialog
                   setIsStockManagerOpen(false);
                   setSelectedProduct(null);
+                  
+                  // Refresh the products list to ensure all data is up to date
+                  await fetchProducts();
                 }
               } catch (error) {
                 console.error('Error updating stock and settings:', error);

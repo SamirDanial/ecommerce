@@ -184,7 +184,22 @@ export const useProducts = () => {
       if (!token) throw new Error('No authentication token');
 
       const updatedProduct = await ProductService.updateStockAndSettings(productId, data, token);
-      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      
+      // Convert the full product data to match the minimal structure used in the product list
+      const convertedProduct = {
+        ...updatedProduct,
+        // Calculate totalStock from variants
+        totalStock: updatedProduct.variants?.reduce((sum, variant) => 
+          sum + (variant.isActive ? variant.stock : 0), 0) || 0,
+        // Extract primaryImage from images array
+        primaryImage: updatedProduct.images?.find(img => img.isPrimary) || 
+                     (updatedProduct.images && updatedProduct.images.length > 0 ? updatedProduct.images[0] : null),
+        // Remove the full images and variants arrays to match the minimal structure
+        images: undefined,
+        variants: undefined
+      };
+      
+      setProducts(prev => prev.map(p => p.id === productId ? convertedProduct : p));
       toast.success('Stock and settings updated successfully!');
       return updatedProduct;
     } catch (error) {

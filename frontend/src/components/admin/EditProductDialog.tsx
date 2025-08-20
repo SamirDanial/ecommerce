@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Edit } from 'lucide-react';
+import { Save, Loader2, Edit } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from '../ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Category, Product, UpdateProductData } from '../../types';
 import { toast } from 'sonner';
 
@@ -240,51 +241,31 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                          product.images !== undefined;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      
-      {/* Dialog */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl mx-4">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Edit className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Edit Product</h2>
-                <p className="text-gray-600">
-                  {hasCompleteData 
-                    ? "Update product information and settings" 
-                    : "Loading product details..."
-                  }
-                </p>
-              </div>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) handleClose();
+    }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Edit className="h-6 w-6 text-blue-600" />
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-8 w-8 p-0 hover:bg-gray-100"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+            Edit Product
+          </DialogTitle>
+          <p className="text-gray-600">
+            {hasCompleteData 
+              ? "Update product information and settings" 
+              : "Loading product details..."
+            }
+          </p>
+        </DialogHeader>
 
-        {/* Loading Overlay for Incomplete Product Data */}
+        {/* Loading State for Incomplete Product Data */}
         {!hasCompleteData && (
-          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">Loading product details...</p>
-              <p className="text-sm text-gray-500 mt-1">Please wait while we fetch complete product information</p>
-            </div>
+          <div className="py-12 flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
+            <p className="text-gray-600 font-medium">Loading product details...</p>
+            <p className="text-sm text-gray-500 mt-1">Please wait while we fetch complete product information</p>
           </div>
         )}
 
@@ -719,7 +700,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
