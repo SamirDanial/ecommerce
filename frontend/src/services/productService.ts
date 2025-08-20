@@ -257,6 +257,26 @@ export class ProductService {
 
     return response.json();
   }
+
+  // Get all products for export (complete data)
+  static async getProductsForExport(token: string): Promise<{
+    products: Product[];
+    totalProducts: number;
+  }> {
+    const headers = createAuthHeaders(token);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/products/export`,
+      { headers }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch products for export');
+    }
+
+    return response.json();
+  }
 }
 
 export class CategoryService {

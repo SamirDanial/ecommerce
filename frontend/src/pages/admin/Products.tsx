@@ -26,6 +26,7 @@ import { VariantManagementDialog } from '../../components/admin/VariantManagemen
 import ProductImageManagerDialog from '../../components/admin/ProductImageManagerDialog';
 import { StockManagementDialog } from '../../components/admin/StockManagementDialog';
 import ProductHeader from '../../components/admin/ProductHeader';
+import ExportDialog from '../../components/admin/ExportDialog';
 import { Product } from '../../types';
 import { toast } from 'sonner';
 
@@ -57,12 +58,14 @@ const Products: React.FC = () => {
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
   const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
   const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
   const [isLoadingProductEdit, setIsLoadingProductEdit] = useState(false);
 
   // Dialog handlers
   const openCreateDialog = () => setIsCreateDialogOpen(true);
+  const openExportDialog = () => setIsExportDialogOpen(true);
   const openEditDialog = async (product: Product) => {
     try {
       // Show edit dialog immediately with loading state
@@ -234,7 +237,7 @@ const Products: React.FC = () => {
             Import
           </Button>
           
-          <Button variant="outline">
+          <Button variant="outline" onClick={openExportDialog}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -839,6 +842,12 @@ const Products: React.FC = () => {
           categoriesLoading={loading || isLoadingProductEdit}
         />
       )}
+
+      {/* Export Dialog */}
+            <ExportDialog 
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+      />
     </div>
   );
 };

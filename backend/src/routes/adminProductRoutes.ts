@@ -207,6 +207,89 @@ router.get('/', authenticateClerkToken, async (req, res) => {
   }
 });
 
+// Get all products for export (returns complete product data)
+router.get('/export', authenticateClerkToken, async (req, res) => {
+  try {
+    console.log('Export endpoint called');
+    
+    // Get all products with complete data (no pagination for export)
+    const products = await prisma.product.findMany({
+      include: {
+        category: {
+          select: { id: true, name: true, slug: true }
+        },
+        variants: {
+          select: { 
+            id: true,
+            size: true,
+            color: true,
+            colorCode: true,
+            stock: true, 
+            isActive: true, 
+            lowStockThreshold: true,
+            allowBackorder: true,
+            stockStatus: true,
+            price: true,
+            comparePrice: true,
+            sku: true
+          }
+        },
+        images: {
+          select: { 
+            id: true,
+            url: true, 
+            alt: true,
+            isPrimary: true,
+            sortOrder: true
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' }
+          ]
+        },
+        _count: {
+          select: { 
+            variants: true, 
+            images: true,
+            reviews: true,
+            orderItems: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Convert decimals and add calculated fields
+    const convertedProducts = products.map(product => {
+      // Calculate total stock from variants
+      const totalStock = product.variants.reduce((sum, variant) => {
+        return sum + (variant.isActive ? variant.stock : 0);
+      }, 0);
+      
+      // Get primary image URL
+      const primaryImage = product.images.find(img => img.isPrimary) || product.images[0] || null;
+      
+      return {
+        ...convertDecimalToNumber(product),
+        totalStock,
+        primaryImage: primaryImage ? {
+          url: primaryImage.url,
+          alt: primaryImage.alt
+        } : null
+      };
+    });
+
+    console.log(`Export endpoint returning ${convertedProducts.length} products`);
+    res.json({
+      products: convertedProducts,
+      totalProducts: convertedProducts.length
+    });
+  } catch (error) {
+    console.error('Error fetching products for export:', error);
+    res.status(500).json({ message: 'Failed to fetch products for export', error: error });
+  }
+});
+
 // Get single product with full details
 router.get('/:id', authenticateClerkToken, async (req, res) => {
   try {
