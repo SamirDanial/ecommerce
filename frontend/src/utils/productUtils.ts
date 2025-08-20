@@ -1,4 +1,5 @@
 import { Product } from '../types';
+import { getFullImageUrl } from './imageUtils';
 
 // Format price as currency
 export const formatPrice = (price: number): string => {
@@ -63,25 +64,13 @@ export const getImageUrl = (product: Product): string => {
   // First try to find the primary image
   const primaryImage = product.images.find(img => img.isPrimary && isValidImageUrl(img.url));
   if (primaryImage) {
-    // Convert relative URL to full URL
-    if (primaryImage.url.startsWith('http')) {
-      return primaryImage.url; // Already a full URL
-    }
-    // Get the API base URL from environment or use default
-    const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    return `${apiBaseUrl}${primaryImage.url}`;
+    return getFullImageUrl(primaryImage.url);
   }
   
   // Then try to find any valid image
   const validImage = product.images.find(img => isValidImageUrl(img.url));
   if (validImage) {
-    // Convert relative URL to full URL
-    if (validImage.url.startsWith('http')) {
-      return validImage.url; // Already a full URL
-    }
-    // Get the API base URL from environment or use default
-    const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    return `${apiBaseUrl}${validImage.url}`;
+    return getFullImageUrl(validImage.url);
   }
   
   // Return empty string if no valid images

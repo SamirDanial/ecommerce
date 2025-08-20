@@ -12,6 +12,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Product } from '../../types';
 import { formatPrice, generatePlaceholderSVG } from '../../utils/productUtils';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 
 interface ProductCardProps {
@@ -39,17 +40,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   // Since variants are loaded on demand, we can't calculate stock status here
   // Stock status will be calculated when variants are actually loaded
-  // Convert relative URL to full URL if needed
-  const getFullImageUrl = (url: string | undefined): string | undefined => {
-    if (!url) return undefined;
-    if (url.startsWith('http')) return url; // Already a full URL
-    
-    // Get the API base URL from environment or use default
-    const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    return `${apiBaseUrl}${url}`;
-  };
   
-  const imageUrl = getFullImageUrl(product.primaryImage?.url);
+  const imageUrl = product.primaryImage?.url ? getFullImageUrl(product.primaryImage.url) : undefined;
   const [imageError, setImageError] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   

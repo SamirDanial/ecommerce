@@ -73,81 +73,80 @@ const CategoryExportDialog: React.FC<CategoryExportDialogProps> = ({
     );
   };
 
-  const exportToJSON = async () => {
-    try {
-      let categoriesToExport = selectedCategories || categories;
-      
-      console.log('exportToJSON called with:', {
-        selectedCategories: selectedCategories?.length,
-        categories: categories?.length,
-        includeProducts,
-        exportFormat
-      });
-      
-      // If including products, fetch complete data from backend
-      if (includeProducts) {
-        const token = await getToken();
-        if (!token) {
-          toast.error('Authentication required');
-          return;
-        }
-        
-        // Get category IDs to fetch
-        const categoryIds = selectedCategories ? selectedCategories.map(cat => cat.id) : categories.map(cat => cat.id);
-        console.log('Fetching categories with IDs:', categoryIds);
-        
-        const response = await CategoryService.getCategoriesForExport(token, categoryIds, true);
-        console.log('Backend response:', response);
-        categoriesToExport = response.categories;
+    const exportToJSON = async () => {
+    let categoriesToExport = selectedCategories || categories;
+    
+    console.log('exportToJSON called with:', {
+      selectedCategories: selectedCategories?.length,
+      categories: categories?.length,
+      includeProducts,
+      exportFormat
+    });
+    
+    // If including products, fetch complete data from backend
+    if (includeProducts) {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication required');
       }
       
-      console.log('Categories to export before filtering:', categoriesToExport);
+      // Get category IDs to fetch
+      const categoryIds = selectedCategories ? selectedCategories.map(cat => cat.id) : categories.map(cat => cat.id);
+      console.log('Fetching categories with IDs:', categoryIds);
       
-      const filteredCategories = categoriesToExport.map((category: any) => {
-        const filtered: any = {};
-        
-        // Add selected fields
-        selectedFields.forEach(field => {
-          if (category.hasOwnProperty(field)) {
-            filtered[field] = category[field];
-          }
-        });
-        
-        // If products are included, preserve them regardless of field selection
-        if (includeProducts && category.products) {
-          filtered.products = category.products;
+      const response = await CategoryService.getCategoriesForExport(token, categoryIds, true);
+      console.log('Backend response:', response);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch categories from backend');
+      }
+      
+      categoriesToExport = response.categories;
+    }
+    
+    console.log('Categories to export before filtering:', categoriesToExport);
+    
+    const filteredCategories = categoriesToExport.map((category: any) => {
+      const filtered: any = {};
+      
+      // Add selected fields
+      selectedFields.forEach(field => {
+        if (category.hasOwnProperty(field)) {
+          filtered[field] = category[field];
         }
-        
-        // If variants are included, preserve them
-        if (includeProducts && category.variants) {
-          filtered.variants = category.variants;
-        }
-        
-        // If images are included, preserve them
-        if (includeProducts && category.images) {
-          filtered.images = category.images;
-        }
-        
-                return filtered;
       });
       
-      console.log('Filtered categories for export:', filteredCategories);
-      console.log('First category products count:', filteredCategories[0]?.products?.length);
+      // If products are included, preserve them regardless of field selection
+      if (includeProducts && category.products) {
+        filtered.products = category.products;
+      }
       
-      const dataStr = JSON.stringify(filteredCategories, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `categories-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error exporting categories:', error);
-      toast.error('Failed to export categories');
-    }
+      // If variants are included, preserve them
+      if (includeProducts && category.variants) {
+        filtered.variants = category.variants;
+      }
+      
+      // If images are included, preserve them
+      if (includeProducts && category.images) {
+        filtered.images = category.images;
+      }
+      
+      return filtered;
+    });
+    
+    console.log('Filtered categories for export:', filteredCategories);
+    console.log('First category products count:', filteredCategories[0]?.products?.length);
+    
+    const dataStr = JSON.stringify(filteredCategories, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `categories-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const exportToCSV = () => {
@@ -216,9 +215,22 @@ const CategoryExportDialog: React.FC<CategoryExportDialogProps> = ({
       }
       toast.success(`Exported ${categoriesToExport.length} categories successfully!`);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export error:', error);
-      toast.error('Failed to export categories');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to export categories';
+      if (error.message) {
+        if (error.message.includes('Authentication required')) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else if (error.message.includes('Failed to fetch categories from backend')) {
+          errorMessage = 'Failed to fetch data from server. Please try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setExporting(false);
     }

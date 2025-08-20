@@ -30,6 +30,7 @@ import ExportDialog from '../../components/admin/ExportDialog';
 import ImportDialog from '../../components/admin/ImportDialog';
 import { Product } from '../../types';
 import { toast } from 'sonner';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 const Products: React.FC = () => {
   const { getToken } = useClerkAuth();
@@ -578,7 +579,7 @@ const Products: React.FC = () => {
                       {selectedProduct.images.map((image, index) => (
                         <div key={image.id} className="relative group">
                           <img
-                            src={image.url.startsWith('http') ? image.url : `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${image.url}`}
+                            src={getFullImageUrl(image.url)}
                             alt={image.alt || `Product image ${index + 1}`}
                             className="w-full h-20 sm:h-24 object-cover rounded-lg border border-gray-200"
                           />

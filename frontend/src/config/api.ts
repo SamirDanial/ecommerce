@@ -14,7 +14,7 @@ export const API_CONFIG = {
   
   // Test
   test: {
-    baseURL: 'http://localhost:5000',
+    baseURL: 'http://localhost:5000/api',
     timeout: 5000,
   }
 };

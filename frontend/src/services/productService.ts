@@ -9,7 +9,7 @@ import {
 } from '../types';
 import { createAuthHeaders } from '../lib/axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export class ProductService {
   // Fetch all products with minimal data for list display
@@ -118,7 +118,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${id}`,
+      `${API_BASE_URL}/admin/products/${id}`,
       {
         method: 'DELETE',
         headers
@@ -136,7 +136,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${id}/toggle-status`,
+      `${API_BASE_URL}/admin/products/${id}/toggle-status`,
       {
         method: 'PATCH',
         headers
@@ -168,7 +168,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${productId}/stock-management`,
+      `${API_BASE_URL}/admin/products/${productId}/stock-management`,
       {
         method: 'PUT',
         headers: {
@@ -205,7 +205,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${productId}/stock-and-settings`,
+      `${API_BASE_URL}/admin/products/${productId}/stock-and-settings`,
       {
         method: 'PUT',
         headers: {
@@ -229,7 +229,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${productId}/variants`,
+      `${API_BASE_URL}/admin/products/${productId}/variants`,
       { headers }
     );
 
@@ -246,7 +246,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/stats`,
+      `${API_BASE_URL}/admin/products/stats`,
       { headers }
     );
 
@@ -266,7 +266,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/export`,
+      `${API_BASE_URL}/admin/products/export`,
       { headers }
     );
 
@@ -289,7 +289,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/import/validate`,
+      `${API_BASE_URL}/admin/products/import/validate`,
       {
         method: 'POST',
         headers: {
@@ -327,7 +327,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/import/execute`,
+      `${API_BASE_URL}/admin/products/import/execute`,
       {
         method: 'POST',
         headers: {
@@ -358,7 +358,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/import/template`,
+      `${API_BASE_URL}/admin/products/import/template`,
       { headers }
     );
 
