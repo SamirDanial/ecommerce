@@ -17,6 +17,131 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get categories for export (with optional products)
+router.get('/export', async (req, res) => {
+  try {
+    const { includeProducts } = req.query;
+    const shouldIncludeProducts = includeProducts === 'true';
+
+    if (shouldIncludeProducts) {
+      // Fetch categories with products for comprehensive export
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        include: {
+          products: {
+            where: { isActive: true },
+            include: {
+              variants: {
+                select: {
+                  id: true,
+                  size: true,
+                  color: true,
+                  colorCode: true,
+                  stock: true,
+                  isActive: true,
+                  lowStockThreshold: true,
+                  allowBackorder: true,
+                  stockStatus: true,
+                  price: true,
+                  comparePrice: true,
+                  sku: true
+                }
+              },
+              images: {
+                select: {
+                  id: true,
+                  url: true,
+                  alt: true,
+                  isPrimary: true,
+                  sortOrder: true
+                },
+                orderBy: [
+                  { isPrimary: 'desc' },
+                  { sortOrder: 'asc' }
+                ]
+              },
+              _count: {
+                select: {
+                  variants: true,
+                  images: true,
+                  reviews: true,
+                  orderItems: true
+                }
+              }
+            }
+          },
+          _count: {
+            select: {
+              products: true
+            }
+          }
+        },
+        orderBy: { sortOrder: 'asc' }
+      });
+
+      // Transform the data for export
+      const transformedCategories = categories.map(category => ({
+        ...category,
+        products: category.products.map((product: any) => ({
+          ...product,
+          // Convert Decimal to number for JSON serialization
+          price: Number(product.price),
+          comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+          costPrice: product.costPrice ? Number(product.costPrice) : null,
+          variants: product.variants.map((variant: any) => ({
+            ...variant,
+            price: Number(variant.price),
+            comparePrice: variant.comparePrice ? Number(variant.comparePrice) : null
+          }))
+        }))
+      }));
+
+      res.json({
+        success: true,
+        categories: transformedCategories,
+        totalCategories: transformedCategories.length,
+        includesProducts: true
+      });
+    } else {
+      // Fetch categories without products for basic export
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        include: {
+          _count: {
+            select: {
+              products: true
+            }
+          }
+        },
+        orderBy: { sortOrder: 'asc' }
+      });
+
+      // Transform the data for export
+      const transformedCategories = categories.map(category => ({
+        ...category,
+        // Convert Decimal to number for JSON serialization
+        createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString()
+      }));
+
+      res.json({
+        success: true,
+        categories: transformedCategories,
+        totalCategories: transformedCategories.length,
+        includesProducts: false
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching categories for export:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch categories for export', 
+      error: errorMessage 
+    });
+  }
+});
+
 // Get category by slug
 router.get('/:slug', async (req, res) => {
   try {

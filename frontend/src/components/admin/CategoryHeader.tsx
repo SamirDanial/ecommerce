@@ -1,12 +1,14 @@
 import React from 'react';
-import { Plus, Grid3X3 } from 'lucide-react';
+import { Plus, Grid3X3, Download, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface CategoryHeaderProps {
   onAddCategory: () => void;
+  onExportCategories: () => void;
+  onImportCategories: () => void;
 }
 
-const CategoryHeader: React.FC<CategoryHeaderProps> = ({ onAddCategory }) => {
+const CategoryHeader: React.FC<CategoryHeaderProps> = ({ onAddCategory, onExportCategories, onImportCategories }) => {
   return (
     <>
       <div className="relative group">
@@ -32,14 +34,32 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({ onAddCategory }) => {
               </div>
             </div>
             
-            {/* Desktop Button */}
-            <Button 
-              onClick={onAddCategory} 
-              className="hidden sm:flex bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              Add Category
-            </Button>
+            {/* Desktop Buttons */}
+            <div className="hidden sm:flex items-center gap-3">
+              <Button 
+                onClick={onExportCategories} 
+                variant="outline"
+                className="border-purple-200 text-purple-600 hover:bg-purple-50 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+              <Button 
+                onClick={onImportCategories} 
+                variant="outline"
+                className="border-blue-200 text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import
+              </Button>
+              <Button 
+                onClick={onAddCategory} 
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:w-5 mr-2" />
+                Add Category
+              </Button>
+            </div>
           </div>
         </div>
       </div>

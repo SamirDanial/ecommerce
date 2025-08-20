@@ -36,7 +36,7 @@ export class ProductService {
 
 
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products?${params.toString()}`,
+      `${API_BASE_URL}/admin/products?${params.toString()}`,
       { headers }
     );
 
@@ -53,7 +53,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${id}`,
+      `${API_BASE_URL}/admin/products/${id}`,
       { headers }
     );
 
@@ -70,7 +70,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products`,
+      `${API_BASE_URL}/admin/products`,
       {
         method: 'POST',
         headers: {
@@ -94,7 +94,7 @@ export class ProductService {
     const headers = createAuthHeaders(token);
     
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/products/${data.id}`,
+      `${API_BASE_URL}/admin/products/${data.id}`,
       {
         method: 'PUT',
         headers: {
@@ -375,7 +375,7 @@ export class CategoryService {
   // Fetch all categories (public endpoint, no auth required)
   static async getCategories(token?: string): Promise<Category[]> {
     // Categories endpoint is public, no auth required
-    const response = await fetch(`${API_BASE_URL}/api/categories`);
+    const response = await fetch(`${API_BASE_URL}/categories`);
 
     if (!response.ok) {
       const error = await response.json();

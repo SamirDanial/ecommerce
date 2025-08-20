@@ -15,7 +15,7 @@ export interface UpdateImageData {
 }
 
 class ProductImageService {
-  private static baseUrl = '/api/admin/products';
+  private static baseUrl = '/admin/products';
 
   static async getProductImages(productId: number, token: string): Promise<ProductImage[]> {
     const response = await api.get(`${this.baseUrl}/${productId}/images`, {

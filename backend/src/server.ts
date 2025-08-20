@@ -22,6 +22,7 @@ import trackingRoutes from './routes/trackingRoutes';
 import adminRoutes from './routes/adminRoutes';
 import adminLocalizationRoutes from './routes/adminLocalizationRoutes';
 import adminProductRoutes from './routes/adminProductRoutes';
+import adminCategoryRoutes from './routes/adminCategoryRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import currencyRoutes from './routes/currencyRoutes';
 import languageRoutes from './routes/languageRoutes';
@@ -97,6 +98,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/localization', adminLocalizationRoutes);
 app.use('/api/admin/products', adminProductRoutes);
+app.use('/api/admin/categories', adminCategoryRoutes);
 app.use('/api/categories', categoryRoutes);
 // These routes come AFTER admin routes to avoid conflicts
 app.use('/api/currencies', currencyRoutes);

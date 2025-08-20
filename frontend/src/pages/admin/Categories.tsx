@@ -16,6 +16,9 @@ import { createAuthHeaders } from '../../lib/axios';
 import CategoryHeader from '../../components/admin/CategoryHeader';
 import CategoryFilters from '../../components/admin/CategoryFilters';
 import CategoryContent from '../../components/admin/CategoryContent';
+import CategoryExportDialog from '../../components/admin/CategoryExportDialog';
+import CategoryImportDialog from '../../components/admin/CategoryImportDialog';
+import CategorySelectionDialog from '../../components/admin/CategorySelectionDialog';
 
 interface Category {
   id: number;
@@ -58,6 +61,12 @@ const Categories: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
   
+  // Import/Export dialog state
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isCategorySelectionDialogOpen, setIsCategorySelectionDialogOpen] = useState(false);
+  const [selectedCategoriesForExport, setSelectedCategoriesForExport] = useState<any[]>([]);
+  
   // Loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -86,7 +95,7 @@ const Categories: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/categories`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/categories`, {
         headers: createAuthHeaders(token)
       });
 
@@ -109,6 +118,11 @@ const Categories: React.FC = () => {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  // Debug: Monitor selectedCategoriesForExport changes
+  useEffect(() => {
+    console.log('selectedCategoriesForExport state changed:', selectedCategoriesForExport);
+  }, [selectedCategoriesForExport]);
 
   // Generate slug from name
   const generateSlug = (name: string) => {
@@ -194,7 +208,7 @@ const Categories: React.FC = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/categories/${categoryId}/upload-image`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/categories/${categoryId}/upload-image`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -236,7 +250,7 @@ const Categories: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/categories/${categoryId}/image`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/categories/${categoryId}/image`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -292,6 +306,24 @@ const Categories: React.FC = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  // Open category selection dialog for export
+  const openCategorySelectionDialog = () => {
+    setIsCategorySelectionDialogOpen(true);
+  };
+
+  // Handle export from selection dialog
+  const handleExportSelectedCategories = (selectedCategories: any[]) => {
+    // Store selected categories and open export dialog
+    console.log('handleExportSelectedCategories called with:', selectedCategories);
+    setSelectedCategoriesForExport(selectedCategories);
+    setIsExportDialogOpen(true);
+  };
+
+  // Open import dialog
+  const openImportDialog = () => {
+    setIsImportDialogOpen(true);
+  };
+
   // Create category
   const handleCreate = async () => {
     try {
@@ -311,7 +343,7 @@ const Categories: React.FC = () => {
       }
 
       // Create category first
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/categories`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/categories`, {
         method: 'POST',
         headers: createAuthHeaders(token),
         body: JSON.stringify(formData)
@@ -381,7 +413,7 @@ const Categories: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/categories/${editingCategory!.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/categories/${editingCategory!.id}`, {
         method: 'PUT',
         headers: createAuthHeaders(token),
         body: JSON.stringify(formData)
@@ -462,7 +494,7 @@ const Categories: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/categories/${deletingCategory.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/categories/${deletingCategory.id}`, {
         method: 'DELETE',
         headers: createAuthHeaders(token)
       });
@@ -618,7 +650,11 @@ const Categories: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-1 sm:p-3 md:p-6">
       <div className="w-full space-y-3 sm:space-y-6 md:space-y-8">
         {/* Category Header */}
-        <CategoryHeader onAddCategory={openCreateDialog} />
+        <CategoryHeader 
+          onAddCategory={openCreateDialog}
+          onExportCategories={openCategorySelectionDialog}
+          onImportCategories={openImportDialog}
+        />
 
         {/* Category Filters */}
         <CategoryFilters
@@ -1343,6 +1379,45 @@ const Categories: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Category Selection Dialog */}
+      <CategorySelectionDialog
+        isOpen={isCategorySelectionDialogOpen}
+        onClose={() => {
+          setIsCategorySelectionDialogOpen(false);
+          setSelectedCategoriesForExport([]);
+        }}
+        onProceed={() => {
+          setIsCategorySelectionDialogOpen(false);
+        }}
+        categories={categories}
+        onExport={handleExportSelectedCategories}
+      />
+
+      {/* Category Export Dialog */}
+      <CategoryExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => {
+          console.log('Export dialog closing, clearing selectedCategoriesForExport');
+          setIsExportDialogOpen(false);
+          setSelectedCategoriesForExport([]);
+        }}
+        onBack={() => {
+          console.log('Going back to selection dialog');
+          setIsExportDialogOpen(false);
+          // Don't clear selectedCategoriesForExport when going back
+          setIsCategorySelectionDialogOpen(true);
+        }}
+        categories={categories}
+        selectedCategories={selectedCategoriesForExport}
+      />
+
+      {/* Category Import Dialog */}
+      <CategoryImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImportComplete={loadCategories}
+      />
     </div>
   );
 };
