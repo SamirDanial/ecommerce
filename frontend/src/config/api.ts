@@ -2,7 +2,7 @@
 export const API_CONFIG = {
   // Development
   development: {
-    baseURL: 'http://localhost:5000',
+    baseURL: 'http://localhost:5000/api',
     timeout: 10000,
   },
   

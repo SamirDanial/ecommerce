@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import ProductImageService, { UploadImageData, UpdateImageData } from '../../services/productImageService';
 import { ProductImage } from '../../types';
-import { getApiBaseUrl } from '../../config/api';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 interface ProductImageManagerDialogProps {
   isOpen: boolean;
@@ -121,14 +121,7 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
 
 
 
-  // Helper function to get full image URL
-  const getFullImageUrl = (imageUrl: string) => {
-    if (imageUrl.startsWith('http')) {
-      return imageUrl; // Already a full URL
-    }
-    const fullUrl = `${getApiBaseUrl()}${imageUrl}`;
-    return fullUrl; // Prepend base URL
-  };
+
 
   const handleUpload = async () => {
     const token = await getToken();

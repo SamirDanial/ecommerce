@@ -883,7 +883,7 @@ router.post('/import/validate', authenticateClerkToken, async (req, res) => {
     console.error('Import validation error:', error);
     res.status(500).json({ 
       message: 'Failed to validate import data', 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       valid: false 
     });
   }
@@ -1156,7 +1156,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
     console.error('Import execution error:', error);
     res.status(500).json({ 
       message: 'Failed to execute import', 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       success: false 
     });
   }
@@ -1248,7 +1248,7 @@ router.get('/import/template', authenticateClerkToken, async (req, res) => {
     console.error('Template generation error:', error);
     res.status(500).json({ 
       message: 'Failed to generate template', 
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

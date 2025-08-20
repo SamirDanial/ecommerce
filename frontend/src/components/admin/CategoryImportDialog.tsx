@@ -1,16 +1,28 @@
-import React, { useState } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
-} from '../ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
-import { Upload, FileText, Info, AlertCircle } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { 
+  Download, 
+  Upload, 
+  FileText, 
+  CheckCircle, 
+  XCircle, 
+  AlertTriangle, 
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  Info,
+  FileJson,
+  Eye,
+  AlertCircle
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { CategoryService } from '../../services/categoryService';
+import { useClerkAuth } from '../../hooks/useClerkAuth';
 
 interface CategoryImportDialogProps {
   isOpen: boolean;
@@ -18,291 +30,832 @@ interface CategoryImportDialogProps {
   onImportComplete?: () => void;
 }
 
-const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({ 
-  isOpen, 
-  onClose, 
-  onImportComplete 
-}) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
+interface ValidationResult {
+  index: number;
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  data: any;
+}
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type === 'application/json' || file.name.endsWith('.json')) {
-        setSelectedFile(file);
-        toast.success(`Selected file: ${file.name}`);
-      } else {
-        toast.error('Please select a JSON file');
-      }
+interface ImportResult {
+  index: number;
+  success: boolean;
+  action: 'created' | 'updated' | 'skipped' | 'error' | 'unknown';
+  categoryId: number | null;
+  message: string;
+  data: any;
+}
+
+// Category import template and field information
+const CATEGORY_IMPORT_INFO = {
+  description: "Category import template. Copy this structure and fill in your data.",
+  required_fields: ["name"],
+  optional_fields: [
+    "slug", "description", "image", "isActive", "sortOrder"
+  ],
+  sample_data: {
+    name: "Electronics",
+    slug: "electronics",
+    description: "All electronic devices and accessories",
+    image: "https://example.com/images/electronics.jpg",
+    isActive: true,
+    sortOrder: 1
+  },
+  notes: [
+    "Name is the only required field - all others are optional",
+    "Slug will be auto-generated from name if not provided",
+    "Image URLs should be valid HTTP URLs or relative paths starting with /",
+    "isActive defaults to true if not specified",
+    "sortOrder will be auto-generated if not provided",
+    "Duplicate names will be handled based on your import options",
+    "All text fields have length limits (name: 100 chars, description: 500 chars)",
+    "Boolean fields accept true/false values only"
+  ]
+};
+
+// Product field requirements when included in categories
+const PRODUCT_IMPORT_INFO = {
+  required_fields: ["name", "description", "price"],
+  optional_fields: [
+    "shortDescription", "comparePrice", "costPrice", "sku", "barcode",
+    "weight", "dimensions", "tags", "metaTitle", "metaDescription",
+    "isActive", "isFeatured", "isOnSale", "salePrice", "saleEndDate",
+    "lowStockThreshold", "allowBackorder", "variants", "images"
+  ],
+  notes: [
+    "categoryId will be automatically set to the parent category if missing",
+    "SKU will be auto-generated if not provided or if duplicate exists",
+    "Product variants and images will automatically link to the created product",
+    "All prices should be numbers (no currency symbols)",
+    "Dates should be in ISO format (YYYY-MM-DD)",
+    "Boolean fields accept true/false values only"
+  ]
+};
+
+const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
+  isOpen,
+  onClose,
+  onImportComplete
+}) => {
+  const { getToken } = useClerkAuth();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [file, setFile] = useState<File | null>(null);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
+  const [importResults, setImportResults] = useState<ImportResult[]>([]);
+
+  const [isImporting, setIsImporting] = useState(false);
+  const [importOptions, setImportOptions] = useState({
+    skipDuplicates: false,
+    updateExisting: false,
+    generateSlugs: true,
+    generateSortOrder: true,
+    importProducts: true
+  });
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const totalSteps = 5;
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentStep(1);
+      setFile(null);
+      setCategories([]);
+      setValidationResults([]);
+      setImportResults([]);
+      setIsImporting(false);
+      setImportOptions({
+        skipDuplicates: false,
+        updateExisting: false,
+        generateSlugs: true,
+        generateSortOrder: true,
+        importProducts: true
+      });
     }
+  }, [isOpen]);
+
+  const getStepStatus = (step: number) => {
+    if (step < currentStep) return 'completed';
+    if (step === currentStep) return 'current';
+    return 'upcoming';
   };
 
-  const handleDrag = (e: React.DragEvent) => {
+  const handleFileSelect = useCallback((selectedFile: File) => {
+    if (selectedFile.type !== 'application/json' && !selectedFile.name.endsWith('.json')) {
+      toast.error('Please select a valid JSON file');
+      return;
+    }
+
+    setFile(selectedFile);
+    readFile(selectedFile);
+  }, []);
+
+  const readFile = (selectedFile: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+        
+        if (!data.categories || !Array.isArray(data.categories)) {
+          toast.error('Invalid file format. File must contain a "categories" array.');
+          return;
+        }
+
+        setCategories(data.categories);
+        toast.success(`Successfully loaded ${data.categories.length} categories`);
+        setCurrentStep(2);
+      } catch (error) {
+        toast.error('Failed to parse JSON file. Please check the file format.');
+      }
+    };
+    reader.readAsText(selectedFile);
+  };
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
-  };
+  }, []);
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === 'application/json' || file.name.endsWith('.json')) {
-        setSelectedFile(file);
-        toast.success(`Selected file: ${file.name}`);
-      } else {
-        toast.error('Please select a JSON file');
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  }, [handleFileSelect]);
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
       }
+
+      const template = await CategoryService.getImportTemplate(token);
+      const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'category-import-template.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Template downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to download template');
+    }
+  };
+
+  const handleValidation = async () => {
+    if (categories.length === 0) {
+      toast.error('No categories to validate');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const result = await CategoryService.validateImport(categories, token);
+      setValidationResults(result.validationResults);
+      setCurrentStep(3);
+      toast.success(`Validation completed. ${result.summary.valid} valid, ${result.summary.invalid} invalid`);
+    } catch (error: any) {
+      toast.error(error.message || 'Validation failed');
     }
   };
 
   const handleImport = async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file to import');
+    if (validationResults.filter(r => !r.valid).length > 0) {
+      toast.error('Cannot proceed with invalid data. Please fix validation errors first.');
       return;
     }
 
-    setLoading(true);
+    setIsImporting(true);
     try {
-      // For now, just show a success message
-      // TODO: Implement actual import logic
-      toast.success('Category import feature coming soon!');
-      onClose();
-      onImportComplete?.();
-    } catch (error) {
-      console.error('Import error:', error);
-      toast.error('Failed to import categories');
+      const token = await getToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const validCategories = categories.filter((_, index) => 
+        validationResults[index]?.valid
+      );
+
+      const result = await CategoryService.executeImport(validCategories, importOptions, token);
+      setImportResults(result.results);
+      setCurrentStep(5);
+
+      // Show appropriate message based on import results
+      if (result.success) {
+        toast.success(result.message || `Import completed! ${result.summary.imported} categories imported`);
+        onImportComplete?.();
+      } else {
+        // Show warning for partial success or error
+        if (result.summary.imported > 0) {
+          toast.warning(result.message || `Import completed with mixed results. ${result.summary.imported} imported, ${result.summary.errors} failed.`);
+        } else {
+          toast.error(result.message || `Import failed! ${result.summary.errors} categories failed to import.`);
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Import failed');
     } finally {
-      setLoading(false);
+      setIsImporting(false);
     }
   };
 
-  const downloadTemplate = () => {
-    const template = [
-      {
-        "name": "Sample Category",
-        "slug": "sample-category",
-        "description": "This is a sample category description",
-        "isActive": true,
-        "sortOrder": 1
-      },
-      {
-        "name": "Another Category",
-        "slug": "another-category",
-        "description": "Another sample category",
-        "isActive": true,
-        "sortOrder": 2
-      }
-    ];
-
-    const blob = new Blob([JSON.stringify(template, null, 2)], { 
-      type: 'application/json' 
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'category-import-template.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast.success('Template downloaded successfully!');
-  };
+  const canProceedToValidation = categories.length > 0;
+  const canProceedToImport = validationResults.length > 0 && validationResults.filter(r => !r.valid).length === 0;
+  const hasWarnings = validationResults.some(r => r.warnings.length > 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="mb-6">
-          <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Upload className="h-6 w-6 text-green-600" />
-            </div>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileJson className="w-5 h-5" />
             Import Categories
           </DialogTitle>
-          <p className="text-sm text-gray-600">
-            Import categories from a JSON file. Download the template to see the required format.
-          </p>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Template Information */}
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Info className="w-5 h-5 text-blue-600" />
-                Import Template & Requirements
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Required Fields</h4>
-                  <ul className="space-y-1 text-sm text-gray-600">
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      name
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      slug
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Optional Fields</h4>
-                  <ul className="space-y-1 text-sm text-gray-600">
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      description
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      isActive
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      sortOrder
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={downloadTemplate}
-                  className="flex items-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  Download Template
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* File Upload */}
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-lg">Upload JSON File</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div 
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive 
-                    ? 'border-blue-400 bg-blue-50' 
-                    : selectedFile 
-                      ? 'border-green-400 bg-green-50' 
-                      : 'border-gray-300 bg-gray-50'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                {selectedFile ? (
-                  <div className="space-y-3">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                      <FileText className="w-8 h-8 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{selectedFile.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {(selectedFile.size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedFile(null)}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      Remove File
-                    </Button>
-                  </div>
+        {/* Step Indicators */}
+        <div className="flex items-center justify-between mb-6">
+          {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
+            <div key={step} className="flex items-center">
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                getStepStatus(step) === 'completed' 
+                  ? 'bg-green-500 border-green-500 text-white' 
+                  : getStepStatus(step) === 'current'
+                  ? 'bg-blue-500 border-blue-500 text-white'
+                  : 'bg-gray-200 border-gray-300 text-gray-500'
+              }`}>
+                {getStepStatus(step) === 'completed' ? (
+                  <CheckCircle className="w-5 h-5" />
                 ) : (
-                  <div className="space-y-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                      <Upload className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Drop your JSON file here, or click to browse
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Only JSON files are supported
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => document.getElementById('file-upload')?.click()}
-                      className="mx-auto"
-                    >
-                      Select JSON File
-                    </Button>
-                  </div>
+                  step
                 )}
               </div>
-              
-              <Input
-                id="file-upload"
-                type="file"
-                accept=".json,application/json"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Coming Soon Notice */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-amber-800">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-medium">Feature Coming Soon</span>
-                </div>
-                <p className="text-sm text-amber-700 mt-2">
-                  Category import functionality is currently under development. 
-                  You can download the template and prepare your data for when the feature is ready.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleImport}
-              disabled={loading || !selectedFile}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import Categories
-                </>
+              {step < totalSteps && (
+                <ChevronRight className={`w-4 h-4 mx-2 ${
+                  getStepStatus(step) === 'completed' ? 'text-green-500' : 'text-gray-300'
+                }`} />
               )}
-            </Button>
-          </div>
+            </div>
+          ))}
         </div>
+
+        {/* Step Content */}
+        {currentStep === 1 && (
+          <div className="space-y-6">
+            {/* Template Information */}
+            <Card>
+              <CardHeader className="p-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Info className="w-5 h-5 text-blue-600" />
+                  Import Template & Requirements
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Required Fields</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      {CATEGORY_IMPORT_INFO.required_fields.map((field: string) => (
+                        <li key={field} className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-red-500" />
+                          {field}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Optional Fields</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      {CATEGORY_IMPORT_INFO.optional_fields.map((field: string) => (
+                        <li key={field} className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-gray-400" />
+                          {field}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadTemplate}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Template
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentStep(2)}
+                    disabled={categories.length === 0}
+                    className="flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Sample Data
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* File Upload */}
+            <Card>
+              <CardHeader className="p-4">
+                <CardTitle className="text-lg">Upload JSON File</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    dragActive 
+                      ? 'border-blue-400 bg-blue-50' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <div className="text-lg font-medium text-gray-900 mb-2">
+                    Choose a JSON file or drag and drop
+                  </div>
+                  <div className="text-sm text-gray-500 mb-4">
+                    Only JSON files are supported. File should contain a "categories" array.
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center gap-2 mx-auto"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <FileText className="w-4 h-4" />
+                    Select JSON File
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                    className="hidden"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Import Notes */}
+            <Card>
+              <CardHeader className="p-4">
+                <CardTitle className="text-lg">Important Notes</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <ul className="space-y-2 text-sm text-gray-600">
+                  {CATEGORY_IMPORT_INFO.notes.map((note: string, index: number) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Product Requirements (when products are included) */}
+            <Card>
+              <CardHeader className="p-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Info className="w-5 h-5 text-blue-600" />
+                  Product Requirements (When Including Products)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Required Product Fields</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      {PRODUCT_IMPORT_INFO.required_fields.map((field: string) => (
+                        <li key={field} className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-red-500" />
+                          {field}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Optional Product Fields</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      {PRODUCT_IMPORT_INFO.optional_fields.slice(0, 8).map((field: string) => (
+                        <li key={field} className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-gray-400" />
+                          {field}
+                        </li>
+                      ))}
+                      {PRODUCT_IMPORT_INFO.optional_fields.length > 8 && (
+                        <li className="text-xs text-gray-500">
+                          +{PRODUCT_IMPORT_INFO.optional_fields.length - 8} more fields
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Product Import Notes</h4>
+                  <ul className="space-y-1 text-sm text-gray-600">
+                    {PRODUCT_IMPORT_INFO.notes.map((note: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                        {note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            {file && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-green-600" />
+                      <span className="font-medium text-green-800">{file.name}</span>
+                      <span className="text-green-600">({(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {currentStep === 2 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Data Preview</h3>
+              <Badge variant="secondary">{categories.length} categories loaded</Badge>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto border rounded-lg">
+              <table className="w-full">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Slug</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Description</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {categories.slice(0, 10).map((category, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-sm">{category.name || 'N/A'}</td>
+                      <td className="px-4 py-2 text-sm font-mono text-gray-600">
+                        {category.slug || 'Auto-generated'}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-600 max-w-xs truncate">
+                        {category.description || 'No description'}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        <Badge variant={category.isActive ? 'default' : 'secondary'}>
+                          {category.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                  {categories.length > 10 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-2 text-sm text-gray-500 text-center">
+                        ... and {categories.length - 10} more categories
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <Button onClick={handleValidation} disabled={!canProceedToValidation}>
+                Continue to Validation
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 3 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Validation Results</h3>
+              <div className="flex gap-4">
+                <Badge variant="default">
+                  ✓ {validationResults.filter(r => r.valid).length} Valid
+                </Badge>
+                <Badge variant="destructive">
+                  ✗ {validationResults.filter(r => !r.valid).length} Invalid
+                </Badge>
+                {hasWarnings && (
+                  <Badge variant="secondary">
+                    ⚠ {validationResults.reduce((sum, r) => sum + r.warnings.length, 0)} Warnings
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-4">
+              {validationResults.map((result, index) => (
+                <div
+                  key={index}
+                  className={`border rounded-lg p-4 ${
+                    result.valid ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-1">
+                      {result.valid ? (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-gray-900">
+                          Category {index + 1}: {result.data.name || 'Unnamed'}
+                        </span>
+                        <Badge variant={result.valid ? 'default' : 'destructive'}>
+                          {result.valid ? 'Valid' : 'Invalid'}
+                        </Badge>
+                      </div>
+
+                      {result.errors.length > 0 && (
+                        <div className="space-y-1 mb-2">
+                          {result.errors.map((error, errorIndex) => (
+                            <div key={errorIndex} className="text-sm text-red-600 flex items-center gap-2">
+                              <XCircle className="w-4 h-4" />
+                              {error}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {result.warnings.length > 0 && (
+                        <div className="space-y-1">
+                          {result.warnings.map((warning, warningIndex) => (
+                            <div key={warningIndex} className="text-sm text-amber-600 flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4" />
+                              {warning}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setCurrentStep(2)}>
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <Button 
+                onClick={() => setCurrentStep(4)} 
+                disabled={!canProceedToImport}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Continue to Import Options
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 4 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Import Options</h3>
+              <p className="text-gray-600 mb-6">
+                Configure how the import should handle existing categories and generate missing data.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="importProducts"
+                  checked={importOptions.importProducts}
+                  onCheckedChange={(checked) => 
+                    setImportOptions(prev => ({ ...prev, importProducts: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="importProducts" className="text-sm font-medium">
+                  Import products within categories
+                </Label>
+                <Info className="w-4 h-4 text-gray-400" />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="skipDuplicates"
+                  checked={importOptions.skipDuplicates}
+                  onCheckedChange={(checked) => 
+                    setImportOptions(prev => ({ ...prev, skipDuplicates: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="skipDuplicates" className="text-sm font-medium">
+                  Skip duplicate categories
+                </Label>
+                <Info className="w-4 h-4 text-gray-400" />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="updateExisting"
+                  checked={importOptions.updateExisting}
+                  onCheckedChange={(checked) => 
+                    setImportOptions(prev => ({ ...prev, updateExisting: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="updateExisting" className="text-sm font-medium">
+                  Update existing categories
+                </Label>
+                <Info className="w-4 h-4 text-gray-400" />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="generateSlugs"
+                  checked={importOptions.generateSlugs}
+                  onCheckedChange={(checked) => 
+                    setImportOptions(prev => ({ ...prev, generateSlugs: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="generateSlugs" className="text-sm font-medium">
+                  Auto-generate slugs for missing values
+                </Label>
+                <Info className="w-4 h-4 text-gray-400" />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="generateSortOrder"
+                  checked={importOptions.generateSortOrder}
+                  onCheckedChange={(checked) => 
+                    setImportOptions(prev => ({ ...prev, generateSortOrder: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="generateSortOrder" className="text-sm font-medium">
+                  Auto-generate sort order for missing values
+                </Label>
+                <Info className="w-4 h-4 text-gray-400" />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Import Summary:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Total categories to process: {categories.length}</li>
+                    <li>Valid categories: {validationResults.filter(r => r.valid).length}</li>
+                    <li>Categories with warnings: {validationResults.filter(r => r.warnings.length > 0).length}</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setCurrentStep(3)}>
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <Button 
+                onClick={handleImport}
+                disabled={isImporting}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isImporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    Start Import
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 5 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Import Results</h3>
+              <div className="flex gap-4">
+                <Badge variant="default">
+                  ✓ {importResults.filter(r => r.success && r.action === 'created').length} Created
+                </Badge>
+                <Badge variant="secondary">
+                  ↻ {importResults.filter(r => r.success && r.action === 'updated').length} Updated
+                </Badge>
+                <Badge variant="outline">
+                  ⏭ {importResults.filter(r => r.action === 'skipped').length} Skipped
+                </Badge>
+                <Badge variant="destructive">
+                  ✗ {importResults.filter(r => !r.success).length} Errors
+                </Badge>
+              </div>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-4">
+              {importResults.map((result, index) => (
+                <div
+                  key={index}
+                  className={`border rounded-lg p-4 ${
+                    result.success 
+                      ? result.action === 'created' 
+                        ? 'border-green-200 bg-green-50'
+                        : 'border-blue-200 bg-blue-50'
+                      : 'border-red-200 bg-red-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-1">
+                      {result.success ? (
+                        result.action === 'created' ? (
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <CheckCircle className="w-5 h-5 text-blue-600" />
+                        )
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-gray-900">
+                          Category {index + 1}: {result.data.name || 'Unnamed'}
+                        </span>
+                        <Badge variant={
+                          result.success 
+                            ? result.action === 'created' 
+                              ? 'default'
+                              : 'secondary'
+                            : 'destructive'
+                        }>
+                          {result.action === 'created' ? 'Created' : 
+                           result.action === 'updated' ? 'Updated' :
+                           result.action === 'skipped' ? 'Skipped' : 'Error'}
+                        </Badge>
+                        {result.categoryId && (
+                          <Badge variant="outline">ID: {result.categoryId}</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">{result.message}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-center">
+              <Button onClick={onClose} className="bg-blue-600 hover:bg-blue-700">
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

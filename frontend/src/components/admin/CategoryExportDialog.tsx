@@ -137,7 +137,12 @@ const CategoryExportDialog: React.FC<CategoryExportDialogProps> = ({
     console.log('Filtered categories for export:', filteredCategories);
     console.log('First category products count:', filteredCategories[0]?.products?.length);
     
-    const dataStr = JSON.stringify(filteredCategories, null, 2);
+    // Wrap categories in object to match import format
+    const exportData = {
+      categories: filteredCategories
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
