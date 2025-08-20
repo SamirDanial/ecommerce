@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Card, CardContent } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Upload, Trash2, Star, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -239,17 +239,21 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
+              <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+            </div>
             Manage Images for "{productName}"
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Upload Section */}
           <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Upload New Images</h3>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Upload New Images</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6">
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
@@ -387,9 +391,11 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
 
           {/* Images Grid */}
           <Card>
-            <CardContent className="p-6">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Current Images ({images.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Current Images ({images.length})</h3>
                 <div className="text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded-lg">
                   <Star className="h-4 w-4 inline mr-1 text-yellow-500" />
                   Primary image will be displayed on product pages and listings

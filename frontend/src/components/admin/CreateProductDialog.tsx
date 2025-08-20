@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Save, Loader2 } from 'lucide-react';
+import { Plus, Save, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from '../ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Category, CreateProductData } from '../../types';
 import { toast } from 'sonner';
 
@@ -173,28 +174,24 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Product</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="mb-4 sm:mb-6">
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
+              <Plus className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+            </div>
+            Create New Product
+          </DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Basic Information */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Basic Information</CardTitle>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Basic Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name *</Label>
@@ -323,10 +320,10 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
 
           {/* Pricing */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Pricing</CardTitle>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Pricing</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Regular Price *</Label>
@@ -415,10 +412,10 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
 
           {/* Product Details */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Product Details</CardTitle>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Product Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sku">SKU</Label>
@@ -504,10 +501,10 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
 
           {/* SEO & Settings */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">SEO & Settings</CardTitle>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">SEO & Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
               <div className="space-y-2">
                 <Label htmlFor="metaTitle">Meta Title</Label>
                 <Input
@@ -580,7 +577,7 @@ export const CreateProductDialog: React.FC<CreateProductDialogProps> = ({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

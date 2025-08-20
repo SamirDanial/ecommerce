@@ -246,8 +246,10 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="mb-4 sm:mb-6">
-          <DialogTitle className="text-xl sm:text-2xl flex items-center gap-2">
-            <Package className="h-5 w-5 text-orange-600" />
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-orange-100 rounded-lg">
+              <Package className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+            </div>
             Manage Variants - {productName}
           </DialogTitle>
         </DialogHeader>
