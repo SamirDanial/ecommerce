@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertCircle, Edit, XCircle, Trash2, Eye } from 'lucide-react';
+import { AlertCircle, Edit, XCircle, Trash2, Eye, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+
 import { Badge } from '../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { toast } from 'sonner';
 import { useAuth } from '@clerk/clerk-react';
 import { createAuthHeaders } from '../../lib/axios';
@@ -649,17 +650,24 @@ const Categories: React.FC = () => {
 
                   {/* Create Category Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="pb-6 flex-shrink-0">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="mb-4 sm:mb-6">
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
+                <Plus className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+              </div>
               Create New Category
             </DialogTitle>
-            <p className="text-slate-600 mt-2">Add a new category to organize your products</p>
+            <p className="text-sm sm:text-base text-gray-600">Add a new category to organize your products</p>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-                         {/* Top Section - Image Upload */}
-             <div className="mb-8">
+                    <div className="space-y-4 sm:space-y-6">
+            {/* Image Upload Section */}
+            <Card>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Category Image</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
               
               {/* Centered Image Container */}
               <div className="flex justify-center">
@@ -751,95 +759,103 @@ const Categories: React.FC = () => {
                   <p>JPG, PNG, GIF • Max size: 5MB</p>
                 </div>
               </div>
-            </div>
+              </CardContent>
+            </Card>
             
-            {/* Bottom Section - Form Inputs in Two Columns */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column */}
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-semibold text-slate-700">
-                    Category Name *
-                  </Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Enter category name"
-                    className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all duration-200"
-                  />
-                </div>
+            {/* Basic Information Section */}
+            <Card>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  {/* Left Column */}
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-sm font-semibold text-slate-700">
+                        Category Name *
+                      </Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        placeholder="Enter category name"
+                        className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all duration-200"
+                      />
+                    </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="slug" className="text-sm font-semibold text-slate-700">
-                    URL Slug *
-                  </Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => handleInputChange('slug', e.target.value)}
-                    placeholder="category-url-slug"
-                    className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all duration-200"
-                  />
-                  <p className="text-xs text-slate-500">This will be used in the URL: /categories/category-url-slug</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-semibold text-slate-700">
-                    Description
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Describe what this category is about..."
-                    rows={4}
-                    className="border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl resize-none transition-all duration-200"
-                  />
-                </div>
-              </div>
-              
-              {/* Right Column */}
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="sortOrder" className="text-sm font-semibold text-slate-700">
-                    Sort Order
-                  </Label>
-                  <Input
-                    id="sortOrder"
-                    type="text"
-                    value={formData.sortOrder}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Only allow numbers
-                      if (value === '' || /^\d+$/.test(value)) {
-                        handleInputChange('sortOrder', value === '' ? 0 : parseInt(value));
-                      }
-                    }}
-                    placeholder="0"
-                    className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all duration-200"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">
-                    Status
-                  </Label>
-                  <div className="flex items-center space-x-3 pt-3">
-                    <input
-                      id="isActive"
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={(e) => handleInputChange('isActive', e.target.checked)}
-                      className="w-5 h-5 rounded border-2 border-slate-300 focus:border-purple-500 focus:ring-purple-500/20"
-                    />
-                    <Label htmlFor="isActive" className="text-sm font-medium text-slate-700">
-                      Active
-                    </Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="slug" className="text-sm font-semibold text-slate-700">
+                        URL Slug *
+                      </Label>
+                      <Input
+                        id="slug"
+                        value={formData.slug}
+                        onChange={(e) => handleInputChange('slug', e.target.value)}
+                        placeholder="category-url-slug"
+                        className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all duration-200"
+                      />
+                      <p className="text-xs text-slate-500">This will be used in the URL: /categories/category-url-slug</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="text-sm font-semibold text-slate-700">
+                        Description
+                      </Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        placeholder="Describe what this category is about..."
+                        rows={4}
+                        className="border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl resize-none transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Right Column */}
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                                        <Label htmlFor="sortOrder" className="text-sm font-semibold text-slate-700">
+                        Sort Order
+                      </Label>
+                      <Input
+                        id="sortOrder"
+                        type="text"
+                        value={formData.sortOrder}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow numbers
+                          if (value === '' || /^\d+$/.test(value)) {
+                            handleInputChange('sortOrder', value === '' ? 0 : parseInt(value));
+                          }
+                        }}
+                        placeholder="0"
+                        className="h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all duration-200"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-slate-700">
+                        Status
+                      </Label>
+                      <div className="flex items-center space-x-3 pt-3">
+                        <input
+                          id="isActive"
+                          type="checkbox"
+                          checked={formData.isActive}
+                          onChange={(e) => handleInputChange('isActive', e.target.checked)}
+                          className="w-5 h-5 rounded border-2 border-slate-300 focus:border-purple-500 focus:ring-purple-500/20"
+                        />
+                        <Label htmlFor="isActive" className="text-sm font-medium text-slate-700">
+                          Active
+                        </Label>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
           
           <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 flex-shrink-0 bg-white">
@@ -875,18 +891,25 @@ const Categories: React.FC = () => {
           resetEditDialogImages();
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="pb-6 flex-shrink-0">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="mb-4 sm:mb-6">
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                <Edit className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+              </div>
               Edit Category
             </DialogTitle>
-            <p className="text-slate-600 mt-2">Update details for {editingCategory?.name || 'this category'}</p>
+            <p className="text-sm sm:text-base text-gray-600">Update details for {editingCategory?.name || 'this category'}</p>
           </DialogHeader>
           
           {editingCategory && (
-            <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-              {/* Top Section - Image Management */}
-              <div className="mb-8">
+            <div className="space-y-4 sm:space-y-6">
+              {/* Image Management Section */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Category Image</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6">
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Image Display - Shows current image OR new image preview */}
@@ -977,18 +1000,17 @@ const Categories: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              {/* Form Fields */}
-              <div className="space-y-6 mb-8">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span>Basic Information</span>
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Basic Information Section */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Basic Information</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Category Name *</label>
                       <Input
@@ -1013,16 +1035,18 @@ const Categories: React.FC = () => {
                       <p className="text-xs text-slate-500 mt-1">Used in the category URL</p>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Description - Full Width */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span>Description</span>
-                  </h3>
-                  
-                  <div>
+              {/* Description Section */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Description</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6">
+                  <div className="space-y-4">
+                    <div>
                     <Textarea
                       value={formData.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
@@ -1032,16 +1056,18 @@ const Categories: React.FC = () => {
                     />
                     <p className="text-xs text-slate-500 mt-1">Optional but helps with SEO and customer understanding</p>
                   </div>
-                </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>Settings</span>
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Settings Section */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Sort Order</label>
                       <Input
@@ -1076,9 +1102,9 @@ const Categories: React.FC = () => {
                       <p className="text-xs text-slate-500 mt-1">Active categories are visible to customers</p>
                     </div>
                   </div>
-                </div>
-              </div>
-
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
           
@@ -1113,12 +1139,15 @@ const Categories: React.FC = () => {
 
       {/* View Category Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="pb-6 flex-shrink-0">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="mb-4 sm:mb-6">
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+              </div>
               Category Details
             </DialogTitle>
-            <p className="text-slate-600 mt-2">View complete information about this category</p>
+            <p className="text-sm sm:text-base text-gray-600">View complete information about this category</p>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto pr-2 min-h-0">
@@ -1186,10 +1215,7 @@ const Categories: React.FC = () => {
 
                   {/* Quick Actions */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span>Quick Actions</span>
-                    </h3>
+
                     
                     <div className="space-y-3">
                       <Button
@@ -1206,8 +1232,7 @@ const Categories: React.FC = () => {
                       </Button>
                       
                       <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200/50">
-                        <h4 className="font-semibold text-slate-800 mb-2 flex items-center">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                        <h4 className="font-semibold text-slate-800 mb-2">
                           Quick Info
                         </h4>
                         <p className="text-sm text-slate-600">
@@ -1221,9 +1246,8 @@ const Categories: React.FC = () => {
                 {/* Description Section */}
                 {viewingCategory.description && (
                   <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-2xl p-6 border border-slate-200/50">
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Description</span>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                      Description
                     </h3>
                     <p className="text-base text-slate-700 leading-relaxed">{viewingCategory.description}</p>
                   </div>
@@ -1255,12 +1279,15 @@ const Categories: React.FC = () => {
 
       {/* Delete Category Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader className="pb-6">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+        <DialogContent className="max-w-2xl p-4 sm:p-6">
+          <DialogHeader className="mb-4 sm:mb-6">
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
+                <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
+              </div>
               Delete Category
             </DialogTitle>
-            <p className="text-slate-600 mt-2">This action cannot be undone</p>
+            <p className="text-sm sm:text-base text-gray-600">This action cannot be undone</p>
           </DialogHeader>
           
           <div className="space-y-6">

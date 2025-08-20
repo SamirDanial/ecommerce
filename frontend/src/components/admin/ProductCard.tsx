@@ -109,43 +109,43 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Product Image - Only show in grid view */}
       {viewMode !== 'list' && (
         <div className="relative overflow-hidden bg-gray-100 aspect-[4/3]">
-          {imageUrl && !imageError ? (
-            <img
-              src={imageUrl}
-              alt={product.name}
-              className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
-              onError={handleImageError}
-            />
-          ) : (
-            <div 
-              className="h-full w-full flex items-center justify-center"
-              dangerouslySetInnerHTML={{ 
+        {imageUrl && !imageError ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
+            onError={handleImageError}
+          />
+        ) : (
+          <div 
+            className="h-full w-full flex items-center justify-center"
+            dangerouslySetInnerHTML={{ 
                 __html: generatePlaceholderSVG('medium') 
-              }}
-            />
-          )}
-
+            }}
+          />
+        )}
+        
           {/* Sale Badge - Only show in grid view */}
-          {product.isOnSale && product.salePrice && (
+        {product.isOnSale && product.salePrice && (
             <div className="absolute bottom-2 left-2">
               <Badge variant="destructive" className="px-2 py-0.5 text-xs font-medium shadow-sm">
                 🔥 SALE
-              </Badge>
-            </div>
-          )}
+            </Badge>
+          </div>
+        )}
 
           {/* 3-Dots Menu - Clean and Elegant */}
           <div className="absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
             <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button
+            <Button
                   variant="ghost"
-                  size="sm"
+              size="sm"
                   className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-4 w-4 text-gray-600" />
-                </Button>
+            </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={handleView}>
@@ -196,7 +196,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Product Info - Minimal */}
       <CardContent className={`${viewMode === 'list' ? 'p-0 flex-1' : 'p-3'}`}>
-                {viewMode === 'list' ? (
+        {viewMode === 'list' ? (
           // List View - Inspired by Categories Layout
           <div className="flex items-start gap-4 h-full w-full">
             {/* Left Section - Product Image */}
@@ -219,8 +219,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <div className="flex-1 min-w-0 space-y-2">
               {/* Product Name */}
               <h3 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors text-lg">
-                {product.name}
-              </h3>
+                  {product.name}
+                </h3>
               
               {/* Category */}
               <div className="text-sm text-gray-600">
@@ -257,13 +257,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   )}
                 </div>
               </div>
-              
+
               {/* Metadata */}
               <div className="flex items-center gap-4 text-xs text-gray-400">
                 <span>Stock: {product.totalStock || 0}</span>
                 {product.sku && <span>SKU: {product.sku}</span>}
               </div>
-              
+
 
             </div>
 
@@ -280,20 +280,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     Inactive
                   </Badge>
                 )}
-              </div>
-              
+            </div>
+
               {/* Three Dots Menu */}
               <div className="relative">
                 <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button
+              <Button
                       variant="ghost"
-                      size="sm"
+                size="sm"
                       className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
                       onClick={(e) => e.stopPropagation()}
-                    >
+              >
                       <MoreHorizontal className="h-4 w-4 text-gray-600" />
-                    </Button>
+              </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={handleView}>

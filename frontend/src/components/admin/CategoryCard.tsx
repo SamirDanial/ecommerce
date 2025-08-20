@@ -1,8 +1,15 @@
-import React from 'react';
-import { Edit, Trash2, Eye, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Edit, Trash2, Eye, CheckCircle, XCircle, MoreHorizontal } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 interface Category {
   id: number;
@@ -32,6 +39,32 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   onToggleStatus,
   onDelete
 }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Helper functions to handle dropdown menu actions and close the menu
+  const handleView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onView(category);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onEdit(category);
+  };
+
+  const handleToggleStatus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onToggleStatus(category);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    onDelete(category);
+  };
 
 
   return (
@@ -60,62 +93,50 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
           </Badge>
         </div>
 
-        {/* Action Buttons Overlay */}
-        <div className="absolute inset-0 bg-black bg-opacity-10 sm:bg-opacity-0 sm:group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center pointer-events-none">
-          <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onView(category);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-blue-600 shadow-lg transition-all duration-200"
-              title="View Category Details"
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(category);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-green-600 shadow-lg transition-all duration-200"
-              title="Edit Category"
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleStatus(category);
-              }}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-gray-700 shadow-lg transition-all duration-200"
-              title={category.isActive ? 'Deactivate' : 'Activate'}
-            >
-              {category.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-            </Button>
-            
-
-            
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(category);
-              }}
-              disabled={category.productCount > 0}
-              className="bg-white/90 hover:bg-white active:bg-white/80 text-red-600 shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Delete Category"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+        {/* 3-Dots Menu - Clean and Elegant */}
+        <div className="absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 bg-white/90 hover:bg-white/95 shadow-lg border border-gray-200/50"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4 text-gray-600" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleView}>
+                <Eye className="mr-2 h-4 w-4 text-blue-600" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleEdit}>
+                <Edit className="mr-2 h-4 w-4 text-green-600" />
+                Edit Category
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleToggleStatus}
+                className={category.isActive ? 'text-red-600' : 'text-green-600'}
+              >
+                {category.isActive ? (
+                  <XCircle className="mr-2 h-4 w-4" />
+                ) : (
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                )}
+                {category.isActive ? 'Deactivate' : 'Activate'}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleDelete}
+                disabled={category.productCount > 0}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Category
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
