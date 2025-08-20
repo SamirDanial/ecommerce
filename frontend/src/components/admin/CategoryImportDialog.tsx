@@ -41,10 +41,12 @@ interface ValidationResult {
 interface ImportResult {
   index: number;
   success: boolean;
-  action: 'created' | 'updated' | 'skipped' | 'error' | 'unknown';
+  action: 'created' | 'updated' | 'skipped' | 'error' | 'replaced' | 'unknown';
   categoryId: number | null;
   message: string;
   data: any;
+  productsImported?: number;
+  productsErrors?: number;
 }
 
 // Category import template and field information
@@ -111,7 +113,8 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     updateExisting: false,
     generateSlugs: true,
     generateSortOrder: true,
-    importProducts: true
+    importProducts: true,
+    existingCategories: 'error' as 'error' | 'skip' | 'replace'
   });
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,7 +135,8 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
         updateExisting: false,
         generateSlugs: true,
         generateSortOrder: true,
-        importProducts: true
+        importProducts: true,
+        existingCategories: 'error'
       });
     }
   }, [isOpen]);
@@ -260,19 +264,47 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
       );
 
       const result = await CategoryService.executeImport(validCategories, importOptions, token);
-      setImportResults(result.results);
-      setCurrentStep(5);
-
-      // Show appropriate message based on import results
+      
       if (result.success) {
+        // Success - show results and let admin review
+        setImportResults(result.results);
+        setCurrentStep(5);
         toast.success(result.message || `Import completed! ${result.summary.imported} categories imported`);
-        onImportComplete?.();
+        // Don't call onImportComplete here as it resets the dialog state
       } else {
-        // Show warning for partial success or error
-        if (result.summary.imported > 0) {
-          toast.warning(result.message || `Import completed with mixed results. ${result.summary.imported} imported, ${result.summary.errors} failed.`);
+        // Handle specific error cases
+        if (result.message && (result.message.includes('already exists') || result.message.includes('Import stopped due to existing categories'))) {
+          // Error & Stop case - show detailed error and stay on current step
+          toast.error('Import stopped: Existing categories found', {
+            description: result.message,
+            duration: 10000 // Show for 10 seconds
+          });
+          
+          // Show the error in the current step with clear instructions
+          setValidationResults([{
+            index: 0,
+            valid: false,
+            errors: [
+              'Import cannot proceed due to existing categories.',
+              'Please change the "Existing Category Handling" option to:',
+              '• "Keep Categories, Import New Products" to skip existing categories, or',
+              '• "Replace Categories & Products" to remove existing categories and import fresh'
+            ],
+            warnings: [],
+            data: categories[0]
+          }]);
+          
+          // Stay on current step to let user change options
+          toast.info('Please change your import options and try again', {
+            duration: 8000
+          });
         } else {
-          toast.error(result.message || `Import failed! ${result.summary.errors} categories failed to import.`);
+          // Other errors - show warning for partial success or error
+          if (result.summary.imported > 0) {
+            toast.warning(result.message || `Import completed with mixed results. ${result.summary.imported} imported, ${result.summary.errors} failed.`);
+          } else {
+            toast.error(result.message || `Import failed! ${result.summary.errors} categories failed to import.`);
+          }
         }
       }
     } catch (error: any) {
@@ -681,6 +713,62 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                 <Info className="w-4 h-4 text-gray-400" />
               </div>
 
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Existing Category Handling:</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="existingCategoriesError"
+                      name="existingCategories"
+                      value="error"
+                      checked={importOptions.existingCategories === 'error'}
+                      onChange={(e) => setImportOptions(prev => ({ 
+                        ...prev, 
+                        existingCategories: e.target.value as 'error' | 'skip' | 'replace' 
+                      }))}
+                    />
+                    <Label htmlFor="existingCategoriesError" className="text-sm">
+                      ❌ Error & Stop - Don't allow import if categories exist
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="existingCategoriesSkip"
+                      name="existingCategories"
+                      value="skip"
+                      checked={importOptions.existingCategories === 'skip'}
+                      onChange={(e) => setImportOptions(prev => ({ 
+                        ...prev, 
+                        existingCategories: e.target.value as 'error' | 'skip' | 'replace' 
+                      }))}
+                    />
+                    <Label htmlFor="existingCategoriesSkip" className="text-sm">
+                      🔄 Keep Categories, Import New Products - Skip existing categories, only import products that don't exist
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="existingCategoriesReplace"
+                      name="existingCategories"
+                      value="replace"
+                      checked={importOptions.existingCategories === 'replace'}
+                      onChange={(e) => setImportOptions(prev => ({ 
+                        ...prev, 
+                        existingCategories: e.target.value as 'error' | 'skip' | 'replace' 
+                      }))}
+                    />
+                    <Label htmlFor="existingCategoriesReplace" className="text-sm">
+                      🗑️ Replace Categories & Products - Remove existing categories and all their products, then import everything fresh
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="skipDuplicates"
@@ -690,7 +778,7 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                   }
                 />
                 <Label htmlFor="skipDuplicates" className="text-sm font-medium">
-                  Skip duplicate categories
+                  Skip duplicate products (when keeping existing categories)
                 </Label>
                 <Info className="w-4 h-4 text-gray-400" />
               </div>
@@ -793,9 +881,70 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                   ⏭ {importResults.filter(r => r.action === 'skipped').length} Skipped
                 </Badge>
                 <Badge variant="destructive">
+                  🗑️ {importResults.filter(r => r.success && r.action === 'replaced').length} Replaced
+                </Badge>
+                <Badge variant="destructive">
                   ✗ {importResults.filter(r => !r.success).length} Errors
                 </Badge>
               </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+              <h4 className="font-semibold text-gray-900 mb-2">Import Summary</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {importResults.filter(r => r.success && r.action === 'created').length}
+                  </div>
+                  <div className="text-gray-600">Created</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {importResults.filter(r => r.success && r.action === 'updated').length}
+                  </div>
+                  <div className="text-gray-600">Updated</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {importResults.filter(r => r.action === 'skipped').length}
+                  </div>
+                  <div className="text-gray-600">Skipped</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {importResults.filter(r => r.success && r.action === 'replaced').length}
+                  </div>
+                  <div className="text-gray-600">Replaced</div>
+                </div>
+              </div>
+              
+              {/* Product Import Summary */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h5 className="font-medium text-gray-900 mb-2 text-center">Product Import Summary</h5>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-600">
+                      {importResults.reduce((sum, r) => sum + (r.productsImported || 0), 0)}
+                    </div>
+                    <div className="text-gray-600">Products Imported</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-red-600">
+                      {importResults.reduce((sum, r) => sum + (r.productsErrors || 0), 0)}
+                    </div>
+                    <div className="text-gray-600">Product Errors</div>
+                  </div>
+                </div>
+              </div>
+              
+              {importResults.some(r => !r.success) && (
+                <div className="mt-3 text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {importResults.filter(r => !r.success).length}
+                  </div>
+                  <div className="text-gray-600">Errors</div>
+                </div>
+              )}
             </div>
 
             <div className="max-h-96 overflow-y-auto space-y-4">
@@ -831,11 +980,14 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                           result.success 
                             ? result.action === 'created' 
                               ? 'default'
+                              : result.action === 'replaced'
+                              ? 'destructive'
                               : 'secondary'
                             : 'destructive'
                         }>
                           {result.action === 'created' ? 'Created' : 
                            result.action === 'updated' ? 'Updated' :
+                           result.action === 'replaced' ? 'Replaced' :
                            result.action === 'skipped' ? 'Skipped' : 'Error'}
                         </Badge>
                         {result.categoryId && (
@@ -843,14 +995,59 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                         )}
                       </div>
                       <p className="text-sm text-gray-600">{result.message}</p>
+                      
+                      {/* Show product import details */}
+                      {((result.productsImported && result.productsImported > 0) || (result.productsErrors && result.productsErrors > 0)) && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="text-sm font-medium text-gray-700 mb-2">Product Import Summary:</div>
+                          <div className="flex gap-4 text-sm">
+                            {result.productsImported && result.productsImported > 0 && (
+                              <div className="flex items-center gap-1 text-green-600">
+                                <CheckCircle className="w-4 h-4" />
+                                <span>{result.productsImported} products imported</span>
+                              </div>
+                            )}
+                            {result.productsErrors && result.productsErrors > 0 && (
+                              <div className="flex items-center gap-1 text-red-600">
+                                <XCircle className="w-4 h-4" />
+                                <span>{result.productsErrors} product errors</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Show additional details for different actions */}
+                      {result.action === 'skipped' && (
+                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                          ℹ️ Category already exists - products will be imported if they don't exist
+                        </div>
+                      )}
+                      
+                      {result.action === 'replaced' && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
+                          🔄 Category and all products replaced with fresh data
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex justify-center">
-              <Button onClick={onClose} className="bg-blue-600 hover:bg-blue-700">
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => {
+                  // Refresh categories section first
+                  if (onImportComplete) {
+                    onImportComplete();
+                  }
+                  // Then close the dialog
+                  onClose();
+                }} 
+                variant="outline" 
+                className="bg-transparent hover:bg-gray-50"
+              >
                 Close
               </Button>
             </div>

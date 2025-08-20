@@ -243,7 +243,8 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
       updateExisting = false, 
       generateSlugs = true,
       generateSortOrder = true,
-      importProducts = true // Enable product import by default
+      importProducts = true, // Enable product import by default
+      existingCategories = 'error' // 'error' | 'skip' | 'replace'
     } = options;
 
     if (!Array.isArray(categories)) {
@@ -256,7 +257,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
     const results: Array<{
       index: number;
       success: boolean;
-      action: 'created' | 'updated' | 'skipped' | 'error' | 'unknown';
+      action: 'created' | 'updated' | 'skipped' | 'error' | 'replaced' | 'unknown';
       categoryId: number | null;
       message: string;
       data: any;
@@ -275,7 +276,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
               const result: {
           index: number;
           success: boolean;
-          action: 'created' | 'updated' | 'skipped' | 'error' | 'unknown';
+          action: 'created' | 'updated' | 'skipped' | 'error' | 'replaced' | 'unknown';
           categoryId: number | null;
           message: string;
           data: any;
@@ -323,13 +324,72 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
         let productsErrors = 0;
 
         if (existingCategory) {
-          if (skipDuplicates) {
+          if (existingCategories === 'error') {
+            // Error and stop - don't allow import
+            result.success = false;
+            result.action = 'error';
+            result.message = `Category "${category.name}" already exists. Cannot proceed with import.`;
+            errors++;
+            break; // Stop processing more categories
+          } else if (existingCategories === 'skip') {
+            // Skip this category but continue with others
+            result.success = true;
+            result.action = 'skipped';
+            result.message = `Category already exists (ID: ${existingCategory.id}), skipping`;
+            result.categoryId = existingCategory.id;
+            categoryId = existingCategory.id; // Set categoryId for product import
+            skipped++;
+            // Don't continue - we want to process products for existing categories
+          } else if (existingCategories === 'replace') {
+            // Remove existing category and all its products
+            console.log(`Replacing existing category: ${existingCategory.name} (ID: ${existingCategory.id})`);
+            
+            // Delete all products in this category first (cascade will handle variants/images)
+            const productsToDelete = await prisma.product.findMany({
+              where: { categoryId: existingCategory.id }
+            });
+            
+            if (productsToDelete.length > 0) {
+              console.log(`Deleting ${productsToDelete.length} products from category ${existingCategory.name}`);
+              await prisma.product.deleteMany({
+                where: { categoryId: existingCategory.id }
+              });
+            }
+            
+            // Delete the category
+            await prisma.category.delete({
+              where: { id: existingCategory.id }
+            });
+            
+            console.log(`Category ${existingCategory.name} and all its products deleted`);
+            
+            // Now create the new category
+            const newCategory = await prisma.category.create({
+              data: {
+                name: category.name,
+                slug: finalSlug,
+                description: category.description || null,
+                image: category.image || null,
+                isActive: category.isActive !== undefined ? category.isActive : true,
+                sortOrder: finalSortOrder
+              }
+            });
+
+            categoryId = newCategory.id;
+            result.success = true;
+            result.action = 'replaced';
+            result.categoryId = categoryId;
+            result.message = `Category replaced successfully (${productsToDelete.length} products removed)`;
+            imported++;
+          } else if (skipDuplicates) {
+            // Legacy behavior - skip this category
             result.action = 'skipped';
             result.message = `Category already exists (ID: ${existingCategory.id})`;
             result.categoryId = existingCategory.id;
+            categoryId = existingCategory.id; // Set categoryId for product import
             skipped++;
           } else if (updateExisting) {
-            // Update existing category
+            // Legacy behavior - update existing category
             const updatedCategory = await prisma.category.update({
               where: { id: existingCategory.id },
               data: {
@@ -349,7 +409,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
             result.message = 'Category updated successfully';
             updated++;
           } else {
-            // Generate unique name and slug for new category
+            // Legacy behavior - generate unique name and slug
             const uniqueName = await generateUniqueName(category.name);
             const uniqueSlug = await generateUniqueSlug(uniqueName);
             const newCategory = await prisma.category.create({
@@ -432,7 +492,10 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
     };
 
     // Determine overall success
-    const overallSuccess = errors === 0 || (imported + updated) > 0;
+    // If we have the "Error & Stop" option and any errors occurred, it's a failure
+    // Otherwise, success if we have any successful imports or no errors
+    const hasErrorAndStop = options.existingCategories === 'error' && errors > 0;
+    const overallSuccess = !hasErrorAndStop && (errors === 0 || (imported + updated + skipped) > 0);
     const statusCode = overallSuccess ? (errors > 0 ? 207 : 200) : 400;
 
     res.status(statusCode).json({
@@ -441,6 +504,8 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
       summary,
       message: overallSuccess 
         ? `Import completed successfully. ${imported} created, ${updated} updated, ${skipped} skipped. ${totalProductsImported} products imported.`
+        : hasErrorAndStop
+        ? `Import stopped due to existing categories. ${errors} categories found that cannot be imported.`
         : `Import failed with ${errors} errors.`
     });
 
