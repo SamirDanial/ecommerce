@@ -5,6 +5,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Product, ProductVariant } from '../../types';
 import { getVariantStockStatus, getStockStatusBadgeVariant, getStockStatusColor } from '../../utils/stockUtils';
 import { ProductService } from '../../services/productService';
@@ -181,94 +183,99 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
   if (!product) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'block' : 'hidden'}`}>
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Dialog */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl mx-4">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Package className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Stock Manager</h2>
-                <p className="text-sm text-gray-600">{product.name}</p>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="text-center">
-                  <div className="font-bold text-lg text-blue-600">{totalStock}</div>
-                  <div className="text-gray-500">Total</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-bold text-lg text-gray-600">{variants.length}</div>
-                  <div className="text-gray-500">Variants</div>
-                </div>
-                {lowStockCount > 0 && (
-                  <div className="text-center">
-                    <div className="font-bold text-lg text-yellow-600">{lowStockCount}</div>
-                    <div className="text-gray-500">Low</div>
-                  </div>
-                )}
-                {outOfStockCount > 0 && (
-                  <div className="text-center">
-                    <div className="font-bold text-lg text-red-600">{outOfStockCount}</div>
-                    <div className="text-gray-500">Out</div>
-                  </div>
-                )}
-              </div>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="mb-4 sm:mb-6">
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+              <Package className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0 hover:bg-gray-100"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+            Manage Stock - {product?.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <Card>
+            <CardContent className="p-3 sm:p-4 text-center">
+              <div className="font-bold text-lg sm:text-xl text-blue-600">{totalStock}</div>
+              <div className="text-xs sm:text-sm text-gray-500">Total Stock</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4 text-center">
+              <div className="font-bold text-lg sm:text-xl text-gray-600">{variants.length}</div>
+              <div className="text-xs sm:text-sm text-gray-500">Variants</div>
+            </CardContent>
+          </Card>
+          {lowStockCount > 0 && (
+            <Card>
+              <CardContent className="p-3 sm:p-4 text-center">
+                <div className="font-bold text-lg sm:text-xl text-yellow-600">{lowStockCount}</div>
+                <div className="text-xs sm:text-sm text-gray-500">Low Stock</div>
+              </CardContent>
+            </Card>
+          )}
+          {outOfStockCount > 0 && (
+            <Card>
+              <CardContent className="p-3 sm:p-4 text-center">
+                <div className="font-bold text-lg sm:text-xl text-red-600">{outOfStockCount}</div>
+                <div className="text-xs sm:text-sm text-gray-500">Out of Stock</div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Quick Settings */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Low Stock Alert</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={formData.lowStockThreshold}
-                  onChange={(e) => handleProductThresholdChange(e.target.value)}
-                  className="mt-1 h-9"
-                />
+          <Card>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Product Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Low Stock Alert</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={formData.lowStockThreshold}
+                    onChange={(e) => handleProductThresholdChange(e.target.value)}
+                    className="mt-1 h-9 text-sm sm:text-base"
+                  />
+                </div>
+                
+                <div className="flex items-center space-x-2 pt-6">
+                  <Checkbox
+                    checked={formData.allowBackorder}
+                    onCheckedChange={handleProductBackorderChange}
+                  />
+                  <Label className="text-sm">Allow backorders when out of stock</Label>
+                </div>
               </div>
-              
-              <div className="flex items-center space-x-2 pt-6">
-                <Checkbox
-                  checked={formData.allowBackorder}
-                  onCheckedChange={handleProductBackorderChange}
-                />
-                <Label className="text-sm">Allow backorders when out of stock</Label>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Variants */}
-          <div className="space-y-3">
-            {variantsLoading ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-500">Loading variants...</p>
-              </div>
-            ) : variants.length > 0 ? (
+          <Card>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <div className="p-1.5 sm:p-2 bg-red-100 border border-red-300 rounded-lg">
+                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                </div>
+                Variant Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6">
+              {variantsLoading ? (
+                <div className="text-center py-6 sm:py-8">
+                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin mx-auto mb-3 sm:mb-4 text-gray-400" />
+                  <p className="text-sm sm:text-base text-gray-500">Loading variants...</p>
+                </div>
+              ) : variants.length > 0 ? (
               formData.variants.map((variantData) => {
                 const originalVariant = variants.find(v => v.id === variantData.id);
                 if (!originalVariant) return null;
@@ -281,8 +288,87 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
                 } as ProductVariant);
                 
                 return (
-                  <div key={variantData.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="grid grid-cols-12 gap-4 items-center">
+                  <div key={variantData.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                    {/* Mobile Layout */}
+                    <div className="sm:hidden space-y-3">
+                      {/* Top Row: Variant Info + Status */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">
+                            {originalVariant.size} - {originalVariant.color}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-0.5">
+                            ${originalVariant.price || product.price}
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={getStockStatusBadgeVariant(stockStatus.status)}
+                          className={`text-xs ${getStockStatusColor(stockStatus.status)}`}
+                        >
+                          {stockStatus.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      
+                      {/* Bottom Row: Stock Controls + Alert + Backorder */}
+                      <div className="flex items-center justify-between gap-3">
+                        {/* Stock Controls */}
+                        <div className="flex-1">
+                          <Label className="text-xs text-gray-500 uppercase tracking-wide block mb-1">Stock</Label>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => adjustStock(variantData.id, -1)}
+                              disabled={variantData.stock <= 0}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={variantData.stock}
+                              onChange={(e) => handleVariantStockChange(variantData.id, e.target.value)}
+                              className="h-7 w-14 text-center font-mono text-sm"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => adjustStock(variantData.id, 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {/* Alert Threshold */}
+                        <div className="flex-1">
+                          <Label className="text-xs text-gray-500 uppercase tracking-wide block mb-1">Alert</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={variantData.lowStockThreshold}
+                            onChange={(e) => handleVariantThresholdChange(variantData.id, e.target.value)}
+                            className="h-7 font-mono text-sm"
+                          />
+                        </div>
+                        
+                        {/* Backorder Toggle */}
+                        <div className="flex flex-col items-center">
+                          <Label className="text-xs text-gray-500 uppercase tracking-wide block mb-1">BO</Label>
+                          <Checkbox
+                            checked={variantData.allowBackorder}
+                            onCheckedChange={(checked) => handleVariantBackorderChange(variantData.id, checked as boolean)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop Layout */}
+                    <div className="hidden sm:grid sm:grid-cols-12 gap-4 items-center">
                       {/* Variant Info */}
                       <div className="col-span-2">
                         <div className="font-medium text-gray-900 text-sm">
@@ -322,7 +408,7 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
                             min="0"
                             value={variantData.stock}
                             onChange={(e) => handleVariantStockChange(variantData.id, e.target.value)}
-                            className="h-8 w-16 text-center font-mono"
+                            className="h-8 w-16 text-center font-mono text-sm"
                           />
                           <Button
                             type="button"
@@ -344,7 +430,7 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
                           min="1"
                           value={variantData.lowStockThreshold}
                           onChange={(e) => handleVariantThresholdChange(variantData.id, e.target.value)}
-                          className="h-8 mt-1 font-mono"
+                          className="h-8 mt-1 font-mono text-sm"
                         />
                       </div>
                       
@@ -369,43 +455,46 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
                 );
               })
             ) : (
-              <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
-                <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No variants found for this product</p>
+              <div className="text-center py-6 sm:py-8 text-gray-500 border border-gray-200 rounded-lg">
+                <Package className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-300" />
+                <p className="text-sm sm:text-base">No variants found for this product</p>
               </div>
             )}
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
         </form>
-      </div>
-    </div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="text-sm sm:text-base"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base"
+            onClick={handleSubmit}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Changes
+              </>
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Edit, Trash2, Image as ImageIcon, Package, XCircle, CheckCircle, BarChart3, MoreHorizontal } from 'lucide-react';
+import { Eye, Edit, Trash2, Image as ImageIcon, Package, XCircle, CheckCircle, BarChart3, MoreHorizontal, Tag, Star } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
@@ -225,6 +225,37 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {/* Category */}
               <div className="text-sm text-gray-600">
                 Category: <span className="font-medium">{product.category?.name || 'No Category'}</span>
+              </div>
+              
+              {/* Sale & Featured Status with Pricing */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {/* Sale Badge */}
+                {product.isOnSale && (
+                  <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 px-2 py-1 rounded-md border border-orange-200">
+                    <Tag className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline text-sm font-medium">On Sale</span>
+                  </div>
+                )}
+                
+                {/* Featured Badge */}
+                {product.isFeatured && (
+                  <div className="flex items-center gap-1.5 bg-purple-100 text-purple-700 px-2 py-1 rounded-md border border-purple-200">
+                    <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline text-sm font-medium">Featured</span>
+                  </div>
+                )}
+                
+                {/* Pricing Information */}
+                <div className="flex items-center gap-2 text-sm">
+                  {product.isOnSale && product.salePrice ? (
+                    <>
+                      <span className="text-gray-400 line-through">${product.price}</span>
+                      <span className="font-semibold text-orange-600">${product.salePrice}</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-gray-900">${product.price}</span>
+                  )}
+                </div>
               </div>
               
               {/* Metadata */}
