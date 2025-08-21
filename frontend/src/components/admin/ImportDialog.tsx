@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Checkbox } from '../ui/checkbox';
+
 import { 
   Upload, 
   FileText, 
@@ -82,8 +82,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
   const [validating, setValidating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importOptions, setImportOptions] = useState({
-    skipDuplicates: true,
-    updateExisting: false
+    orphanCategoryStrategy: 'create' as 'skip' | 'create',
+    productDuplicateStrategy: 'generate_unique' as 'skip' | 'replace' | 'update' | 'generate_unique'
   });
   const [dragActive, setDragActive] = useState(false);
   const [showSample, setShowSample] = useState(false);
@@ -214,14 +214,15 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       const result: ImportResponse = await ProductService.executeImport(validProducts, importOptions, token);
       setImportResults(result.results);
       
-      // Ensure we move to summary step
+      // Always move to summary step after import (success or failure)
       setCurrentStep('summary');
       console.log('Import completed, moving to summary step');
       
       // Show appropriate message based on import results
       if (result.success) {
         toast.success(result.message || `Import completed! ${result.summary.imported} products imported`);
-        onImportComplete?.();
+        // Don't call onImportComplete here - let user close dialog manually
+        // This ensures the dialog stays open to show the summary
       } else {
         // Show warning for partial success or error
         if (result.summary.imported > 0) {
@@ -286,8 +287,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
     setValidationResults([]);
     setImportResults([]);
     setImportOptions({
-      skipDuplicates: true,
-      updateExisting: false
+      orphanCategoryStrategy: 'create',
+      productDuplicateStrategy: 'generate_unique'
     });
     setLoading(false);
     setValidating(false);
@@ -379,8 +380,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
               className="w-full sm:w-auto flex items-center justify-center gap-2 h-10 sm:h-9"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Download Template</span>
-              <span className="sm:hidden">Download</span>
+              Download Template
             </Button>
             <Button
               variant="outline"
@@ -465,34 +465,72 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       <Card>
         <CardHeader className="p-3 sm:p-4">
           <CardTitle className="text-base sm:text-lg text-center sm:text-left">Data Preview</CardTitle>
-          <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-            <span className="hidden sm:inline">Review your data before validation. Found {products.length} products.</span>
-            <span className="sm:hidden">Found {products.length} products</span>
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+              <span className="hidden sm:inline">Review your data before validation. Found {products.length} products.</span>
+              <span className="sm:hidden">Found {products.length} products</span>
+            </p>
+            <div className="flex justify-center sm:justify-start">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {products.length} Products
+              </span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-4">
           <div className="max-h-60 overflow-y-auto space-y-3">
             {products.slice(0, 5).map((product, index) => (
-              <div key={index} className="border rounded-lg p-3 bg-gray-50">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-gray-900 text-sm sm:text-base">
+              <div key={index} className="border rounded-lg p-3 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-all duration-200">
+                {/* Header Row */}
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate flex-1 mr-2">
                     {product.name || `Product ${index + 1}`}
                   </h4>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
                     #{index + 1}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-600">
-                  <div>Price: ${product.price || 'N/A'}</div>
-                  <div>Category ID: {product.categoryId || 'N/A'}</div>
-                  <div>SKU: {product.sku || 'N/A'}</div>
-                  <div>Variants: {product.variants?.length || 0}</div>
+                
+                {/* Product Details Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-medium">Price:</span>
+                    <span className="font-semibold text-green-600">${product.price || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-medium">SKU:</span>
+                    <span className="font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                      {product.sku || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-medium">Category:</span>
+                    <span className="text-gray-700">{product.categoryId || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-medium">Variants:</span>
+                    <span className="font-semibold text-blue-600">{product.variants?.length || 0}</span>
+                  </div>
                 </div>
+                
+                {/* Additional Info Row */}
+                {product.description && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      {product.description}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
             {products.length > 5 && (
-              <div className="text-center text-xs sm:text-sm text-gray-500 py-2">
-                ... and {products.length - 5} more products
+              <div className="text-center py-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    <span className="hidden sm:inline">... and {products.length - 5} more products</span>
+                    <span className="sm:hidden">+{products.length - 5} more</span>
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -500,14 +538,14 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       </Card>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep('upload')} className="w-full sm:w-auto order-2 sm:order-1">
+        <Button variant="outline" onClick={() => setCurrentStep('upload')} className="w-full sm:w-auto order-2 sm:order-1 h-11">
           <span className="hidden sm:inline">Back to Upload</span>
           <span className="sm:hidden">Back</span>
         </Button>
         <Button 
           onClick={handleValidation}
           disabled={validating}
-          className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto order-1 sm:order-2"
+          className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto order-1 sm:order-2 h-11"
         >
           {validating ? (
             <>
@@ -532,52 +570,138 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       <Card>
         <CardHeader className="p-3 sm:p-4">
           <CardTitle className="text-base sm:text-lg text-center sm:text-left">Validation Results</CardTitle>
-          <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-4 text-xs sm:text-sm">
-            <span className="text-green-600 bg-green-100 px-2 py-1 rounded-full">
-              ✓ {validationResults.filter(r => r.valid).length} Valid
-            </span>
-            <span className="text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
-              ⚠ {validationResults.filter(r => r.warnings && r.warnings.length > 0).length} Warnings
-            </span>
-            <span className="text-red-600 bg-red-100 px-2 py-1 rounded-full">
-              ✗ {validationResults.filter(r => !r.valid).length} Invalid
-            </span>
+          {/* Summary Stats - Mobile Optimized */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex justify-center sm:justify-start gap-2 sm:gap-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <CheckCircle className="w-3.5 h-3.5" />
+                {validationResults.filter(r => r.valid).length} Valid
+              </span>
+              {validationResults.filter(r => r.warnings && r.warnings.length > 0).length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {validationResults.filter(r => r.warnings && r.warnings.length > 0).length} Warnings
+                </span>
+              )}
+              {validationResults.filter(r => !r.valid).length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  <XCircle className="w-3.5 h-3.5" />
+                  {validationResults.filter(r => !r.valid).length} Invalid
+                </span>
+              )}
+            </div>
+            
+            {/* Status Summary */}
+            <div className="text-center sm:text-left">
+              <p className="text-xs sm:text-sm text-gray-600">
+                {validationResults.filter(r => !r.valid).length === 0 
+                  ? 'All products validated successfully!'
+                  : (() => {
+                      const totalInvalid = validationResults.filter(r => !r.valid).length;
+                      const onlyCategoryIssues = validationResults.filter(r => {
+                        if (!r.valid) {
+                          return r.errors.every(error => 
+                            error.toLowerCase().includes('category') || 
+                            error.toLowerCase().includes('categoryid') ||
+                            error.toLowerCase().includes('invalid category')
+                          );
+                        }
+                        return false;
+                      }).length;
+                      
+                      if (onlyCategoryIssues === totalInvalid) {
+                        return `${totalInvalid} product${totalInvalid !== 1 ? 's' : ''} have category issues (can be handled during import)`;
+                      } else if (onlyCategoryIssues > 0) {
+                        return `${totalInvalid} product${totalInvalid !== 1 ? 's' : ''} need attention (${onlyCategoryIssues} have category issues)`;
+                      } else {
+                        return `${totalInvalid} product${totalInvalid !== 1 ? 's' : ''} need attention`;
+                      }
+                    })()
+                }
+              </p>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-4">
           <div className="max-h-60 overflow-y-auto space-y-3">
             {validationResults.map((result) => (
-              <div key={result.index} className={`border rounded-lg p-3 ${
-                result.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+              <div key={result.index} className={`border rounded-lg p-3 transition-all duration-200 ${
+                result.valid 
+                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:from-green-100 hover:to-emerald-100' 
+                  : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200 hover:from-red-100 hover:to-rose-100'
               }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-gray-900 text-sm sm:text-base">
-                    {result.product.name || `Product ${result.index + 1}`}
-                  </h4>
-                  {result.valid ? (
-                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                  ) : (
-                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-                  )}
-                </div>
-                {!result.valid && (
-                  <div className="space-y-1">
-                    {result.errors.map((error, errorIndex) => (
-                      <div key={errorIndex} className="text-xs sm:text-sm text-red-600 flex items-start gap-2">
-                        <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
-                        <span className="break-words leading-relaxed">{error}</span>
+                {/* Product Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                      {result.product.name || `Product ${result.index + 1}`}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Row {result.index + 1} • {result.product.sku || 'No SKU'}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 ml-2">
+                    {result.valid ? (
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
                       </div>
-                    ))}
+                    ) : (
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <XCircle className="w-4 h-4 text-red-600" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Errors Section */}
+                {!result.valid && result.errors.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <AlertCircle className="w-3 h-3 text-red-600" />
+                      </div>
+                      <span className="text-xs font-medium text-red-700 uppercase tracking-wide">
+                        Errors ({result.errors.length})
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 ml-7">
+                      {result.errors.map((error, errorIndex) => (
+                        <div key={errorIndex} className="text-xs sm:text-sm text-red-700 bg-white border border-red-200 rounded-lg p-2">
+                          <span className="text-red-500 font-medium mr-2">•</span>
+                          <span className="break-words leading-relaxed">{error}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
+
+                {/* Warnings Section */}
                 {result.warnings && result.warnings.length > 0 && (
-                  <div className="space-y-1 mt-2">
-                    {result.warnings.map((warning, warningIndex) => (
-                      <div key={warningIndex} className="text-xs sm:text-sm text-amber-600 flex items-start gap-2">
-                        <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
-                        <span className="break-words leading-relaxed">{warning}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" />
                       </div>
-                    ))}
+                      <span className="text-xs font-medium text-amber-700 uppercase tracking-wide">
+                        Warnings ({result.warnings.length})
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 ml-7">
+                      {result.warnings.map((warning, warningIndex) => (
+                        <div key={warningIndex} className="text-xs sm:text-sm text-amber-700 bg-white border border-amber-200 rounded-lg p-2">
+                          <span className="text-amber-500 font-medium mr-2">•</span>
+                          <span className="break-words leading-relaxed">{warning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Message for Valid Products */}
+                {result.valid && result.warnings && result.warnings.length === 0 && (
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium">Product validated successfully</span>
                   </div>
                 )}
               </div>
@@ -587,14 +711,27 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       </Card>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep('preview')} className="w-full sm:w-auto order-2 sm:order-1">
+        <Button variant="outline" onClick={() => setCurrentStep('preview')} className="w-full sm:w-auto order-2 sm:order-1 h-11">
           <span className="hidden sm:inline">Back to Preview</span>
           <span className="sm:hidden">Back</span>
         </Button>
         <Button 
           onClick={() => setCurrentStep('execution')}
-          disabled={validationResults.filter(r => !r.valid).length > 0}
-          className="bg-green-600 hover:bg-green-700 w-full sm:w-auto order-1 sm:order-2"
+          disabled={validationResults.filter(r => {
+            // Allow proceeding if the only issues are orphan products (invalid category IDs)
+            // These can be handled by the import strategies in Step 4
+            if (!r.valid) {
+              // Check if the only errors are related to category IDs
+              const hasOnlyCategoryIssues = r.errors.every(error => 
+                error.toLowerCase().includes('category') || 
+                error.toLowerCase().includes('categoryid') ||
+                error.toLowerCase().includes('invalid category')
+              );
+              return !hasOnlyCategoryIssues; // Block only if there are non-category errors
+            }
+            return false; // Product is valid, allow proceeding
+          }).length > 0}
+          className="bg-green-600 hover:bg-green-700 w-full sm:w-auto order-1 sm:order-2 h-11"
         >
           <span className="hidden sm:inline">Continue to Import</span>
           <span className="sm:hidden">Continue</span>
@@ -608,61 +745,206 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       <Card>
         <CardHeader className="p-3 sm:p-4">
           <CardTitle className="text-base sm:text-lg text-center sm:text-left">Import Options</CardTitle>
+          <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+            <span className="hidden sm:inline">Configure how the import should handle existing products and invalid categories.</span>
+            <span className="sm:hidden">Configure import handling for products and categories.</span>
+          </p>
         </CardHeader>
         <CardContent className="p-3 sm:p-4 space-y-4">
+
+
+          {/* Orphan Category Strategy */}
           <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="skipDuplicates"
-                checked={importOptions.skipDuplicates}
-                onCheckedChange={(checked) => 
-                  setImportOptions(prev => ({ ...prev, skipDuplicates: !!checked }))
-                }
-              />
-              <Label htmlFor="skipDuplicates" className="text-xs sm:text-sm">
-                <span className="hidden sm:inline">Skip duplicate products (based on SKU)</span>
-                <span className="sm:hidden">Skip duplicates (SKU-based)</span>
-              </Label>
+            <h4 className="font-medium text-gray-900 text-sm sm:text-base text-center sm:text-left">Orphan Products Handling:</h4>
+            <p className="text-xs text-gray-600 text-center sm:text-left mb-3">
+              <span className="hidden sm:inline">What to do with products that have invalid or missing category IDs</span>
+              <span className="sm:hidden">Handle products with invalid categories</span>
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  id="orphanCategorySkip"
+                  name="orphanCategoryStrategy"
+                  value="skip"
+                  checked={importOptions.orphanCategoryStrategy === 'skip'}
+                  onChange={(e) => setImportOptions(prev => ({ 
+                    ...prev, 
+                    orphanCategoryStrategy: e.target.value as 'skip' | 'create' 
+                  }))}
+                  className="mt-1 flex-shrink-0"
+                />
+                <Label htmlFor="orphanCategorySkip" className="text-xs sm:text-sm flex-1">
+                  <span className="hidden sm:inline">⏭️ Skip products with invalid categories</span>
+                  <span className="sm:hidden">⏭️ Skip invalid categories</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  id="orphanCategoryCreate"
+                  name="orphanCategoryStrategy"
+                  value="create"
+                  checked={importOptions.orphanCategoryStrategy === 'create'}
+                  onChange={(e) => setImportOptions(prev => ({ 
+                    ...prev, 
+                    orphanCategoryStrategy: e.target.value as 'skip' | 'create' 
+                  }))}
+                  className="mt-1 flex-shrink-0"
+                />
+                <Label htmlFor="orphanCategoryCreate" className="text-xs sm:text-sm flex-1">
+                  <span className="hidden sm:inline">📁 Create 'Orphan Products' category (Recommended) - Assign all products with invalid categories to a special category</span>
+                  <span className="sm:hidden">📁 Create 'Orphan Products' category (Recommended)</span>
+                </Label>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="updateExisting"
-                checked={importOptions.updateExisting}
-                onCheckedChange={(checked) => 
-                  setImportOptions(prev => ({ ...prev, updateExisting: !!checked }))
-                }
-              />
-              <Label htmlFor="updateExisting" className="text-xs sm:text-sm">
-                <span className="hidden sm:inline">Update existing products instead of skipping</span>
-                <span className="sm:hidden">Update existing products</span>
-              </Label>
+          </div>
+
+          {/* Product Duplicate Strategy */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-gray-900 text-sm sm:text-base text-center sm:text-left">Product Duplicate Handling:</h4>
+            <p className="text-xs text-gray-600 text-center sm:text-left mb-3">
+              <span className="hidden sm:inline">How to handle products that already exist in the system (based on SKU)</span>
+              <span className="sm:hidden">Handle existing products</span>
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  id="productDuplicateSkip"
+                  name="productDuplicateStrategy"
+                  value="skip"
+                  checked={importOptions.productDuplicateStrategy === 'skip'}
+                  onChange={(e) => setImportOptions(prev => ({ 
+                    ...prev, 
+                    productDuplicateStrategy: e.target.value as 'skip' | 'replace' | 'update' | 'generate_unique' 
+                  }))}
+                  className="mt-1 flex-shrink-0"
+                />
+                <Label htmlFor="productDuplicateSkip" className="text-xs sm:text-sm flex-1">
+                  <span className="hidden sm:inline">⏭️ Skip existing products</span>
+                  <span className="sm:hidden">⏭️ Skip existing</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  id="productDuplicateReplace"
+                  name="productDuplicateStrategy"
+                  value="replace"
+                  checked={importOptions.productDuplicateStrategy === 'replace'}
+                  onChange={(e) => setImportOptions(prev => ({ 
+                    ...prev, 
+                    productDuplicateStrategy: e.target.value as 'skip' | 'replace' | 'update' | 'generate_unique' 
+                  }))}
+                  className="mt-1 flex-shrink-0"
+                />
+                <Label htmlFor="productDuplicateReplace" className="text-xs sm:text-sm flex-1">
+                  <span className="hidden sm:inline">🗑️ Replace existing products (Risky - loses all history, variants, images)</span>
+                  <span className="sm:hidden">🗑️ Replace existing (Risky)</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  id="productDuplicateUpdate"
+                  name="productDuplicateStrategy"
+                  value="update"
+                  checked={importOptions.productDuplicateStrategy === 'update'}
+                  onChange={(e) => setImportOptions(prev => ({ 
+                    ...prev, 
+                    productDuplicateStrategy: e.target.value as 'skip' | 'replace' | 'update' | 'generate_unique' 
+                  }))}
+                  className="mt-1 flex-shrink-0"
+                />
+                <Label htmlFor="productDuplicateUpdate" className="text-xs sm:text-sm flex-1">
+                  <span className="hidden sm:inline">🔄 Update existing products (Recommended) - Merge new data with existing</span>
+                  <span className="sm:hidden">🔄 Update existing (Recommended)</span>
+                </Label>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  id="productDuplicateGenerateUnique"
+                  name="productDuplicateStrategy"
+                  value="generate_unique"
+                  checked={importOptions.productDuplicateStrategy === 'generate_unique'}
+                  onChange={(e) => setImportOptions(prev => ({ 
+                    ...prev, 
+                    productDuplicateStrategy: e.target.value as 'skip' | 'replace' | 'update' | 'generate_unique' 
+                  }))}
+                  className="mt-1 flex-shrink-0"
+                />
+                <Label htmlFor="productDuplicateGenerateUnique" className="text-xs sm:text-sm flex-1">
+                  <span className="hidden sm:inline">🆔 Force import with unique IDs - Generate random SKUs/slugs for duplicates</span>
+                  <span className="sm:hidden">🆔 Force import with unique IDs</span>
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Recommendations Section */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="text-xs sm:text-sm text-green-800 flex-1">
+                <p className="font-medium mb-2 text-center sm:text-left">Our Recommendations:</p>
+                <ul className="space-y-2 text-left">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 font-medium mt-0.5">•</span>
+                    <span className="break-words leading-relaxed">
+                      <strong>Orphan Products:</strong> 
+                      <span className="hidden sm:inline"> Use "Create 'Orphan Products' category" to avoid data loss</span>
+                      <span className="sm:hidden"> Use "Create 'Orphan Products' category"</span>
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 font-medium mt-0.5">•</span>
+                    <span className="break-words leading-relaxed">
+                      <strong>Duplicate Products:</strong> 
+                      <span className="hidden sm:inline"> Use "Update existing products" to preserve data integrity</span>
+                      <span className="sm:hidden"> Use "Update existing products"</span>
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-red-500 font-medium mt-0.5">⚠️</span>
+                    <span className="break-words leading-relaxed">
+                      <strong>Warning:</strong> 
+                      <span className="hidden sm:inline"> "Replace existing products" will permanently delete existing data</span>
+                      <span className="sm:hidden"> "Replace existing products" will delete existing data</span>
+                    </span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
           
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
             <div className="flex items-center gap-2 text-blue-800">
               <Info className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="text-xs sm:text-sm font-medium">Ready to Import</span>
             </div>
-            <p className="text-xs sm:text-sm text-blue-700 mt-1">
-              <span className="hidden sm:inline">{validationResults.filter(r => r.valid).length} products will be imported.
-              {importOptions.updateExisting && ' Existing products will be updated.'}</span>
-              <span className="sm:hidden">{validationResults.filter(r => r.valid).length} products ready.
-              {importOptions.updateExisting && ' Will update existing.'}</span>
+            <p className="text-xs sm:text-sm text-blue-700 mt-1 text-center sm:text-left break-words leading-relaxed">
+              <span className="hidden sm:inline">{validationResults.filter(r => r.valid).length} products will be imported with your selected strategies.</span>
+              <span className="sm:hidden">{validationResults.filter(r => r.valid).length} products ready for import.</span>
             </p>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep('validation')} className="w-full sm:w-auto order-2 sm:order-1">
+        <Button variant="outline" onClick={() => setCurrentStep('validation')} className="w-full sm:w-auto order-2 sm:order-1 h-11">
           <span className="hidden sm:inline">Back to Validation</span>
           <span className="sm:hidden">Back</span>
         </Button>
         <Button 
           onClick={handleImport}
           disabled={importing}
-          className="bg-green-600 hover:bg-green-700 w-full sm:w-auto order-1 sm:order-2"
+          className="bg-green-600 hover:bg-green-700 w-full sm:w-auto order-1 sm:order-2 h-11"
         >
           {importing ? (
             <>
@@ -687,88 +969,218 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       <Card>
         <CardHeader className="p-3 sm:p-4">
           <CardTitle className="text-base sm:text-lg text-center sm:text-left">Import Summary</CardTitle>
+          <p className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+            <span className="hidden sm:inline">Complete overview of your product import results and statistics.</span>
+            <span className="sm:hidden">Complete import results overview.</span>
+          </p>
         </CardHeader>
-        <CardContent className="p-3 sm:p-4">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                {importResults.filter(r => r.status === 'created').length}
+        <CardContent className="p-3 sm:p-4 space-y-4">
+          
+          {/* Overall Statistics */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+            <h4 className="font-semibold text-blue-900 text-sm sm:text-base text-center sm:text-left mb-3">Overall Results</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-blue-600">
+                  {importResults.length}
+                </div>
+                <div className="text-xs text-blue-700 font-medium">Total</div>
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">Created</div>
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-green-600">
+                  {importResults.filter(r => r.status === 'created').length}
+                </div>
+                <div className="text-xs text-green-700 font-medium">Created</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-blue-600">
+                  {importResults.filter(r => r.status === 'updated').length}
+                </div>
+                <div className="text-xs text-blue-700 font-medium">Updated</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-yellow-600">
+                  {importResults.filter(r => r.status === 'skipped').length}
+                </div>
+                <div className="text-xs text-yellow-700 font-medium">Skipped</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">
-                {importResults.filter(r => r.status === 'updated').length}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-red-600">
+                  {importResults.filter(r => r.status === 'error').length}
+                </div>
+                <div className="text-xs text-red-700 font-medium">Errors</div>
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">Updated</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold text-yellow-600">
-                {importResults.filter(r => r.status === 'skipped').length}
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-emerald-600">
+                  {importResults.filter(r => r.status === 'created' || r.status === 'updated').length}
+                </div>
+                <div className="text-xs text-emerald-700 font-medium">Success</div>
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">Skipped</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold text-red-600">
-                {importResults.filter(r => r.status === 'error').length}
-              </div>
-              <div className="text-xs sm:text-sm text-gray-600">Errors</div>
             </div>
           </div>
 
-          <div className="max-h-60 overflow-y-auto space-y-3">
-            {importResults.map((result, index) => (
-              <div key={index} className={`border rounded-lg p-3 ${
-                result.status === 'created' ? 'bg-green-50 border-green-200' :
-                result.status === 'updated' ? 'bg-blue-50 border-green-200' :
-                result.status === 'skipped' ? 'bg-yellow-50 border-yellow-200' :
-                'bg-red-50 border-red-200'
-              }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="text-center sm:text-left">
-                    <h4 className="font-medium text-gray-900 text-sm sm:text-base">{result.name}</h4>
-                    <p className="text-xs sm:text-sm text-gray-600">SKU: {result.sku || 'N/A'}</p>
-                  </div>
-                  <div className="flex items-center justify-center sm:justify-end gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      result.status === 'created' ? 'bg-green-100 text-green-800' :
-                      result.status === 'updated' ? 'bg-blue-100 text-blue-800' :
-                      result.status === 'skipped' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {result.status}
+          {/* Success Rate */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                <span className="text-sm sm:text-base font-medium text-green-800">Success Rate</span>
+              </div>
+              <div className="text-right">
+                <div className="text-lg sm:text-xl font-bold text-green-600">
+                  {importResults.length > 0 
+                    ? Math.round((importResults.filter(r => r.status === 'created' || r.status === 'updated').length / importResults.length) * 100)
+                    : 0}%
+                </div>
+                <div className="text-xs text-green-700">
+                  {importResults.filter(r => r.status === 'created' || r.status === 'updated').length} of {importResults.length}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Orphan Products Summary */}
+          {importResults.some(r => r.reason && r.reason.includes('orphan')) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-xs sm:text-sm text-amber-800 flex-1">
+                  <p className="font-medium mb-2 text-center sm:text-left">Orphan Products Handled</p>
+                  <p className="text-center sm:text-left break-words leading-relaxed">
+                    <span className="hidden sm:inline">Some products had invalid category IDs and were assigned to the "Orphan Products" category. You can manually move them to appropriate categories later.</span>
+                    <span className="sm:hidden">Products with invalid categories were assigned to "Orphan Products" category.</span>
+                  </p>
+                  <div className="mt-2 text-center sm:text-left">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                      {importResults.filter(r => r.reason && r.reason.includes('orphan')).length} orphan products
                     </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SKU Changes Summary */}
+          {importResults.some(r => r.skuChanged) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-xs sm:text-sm text-blue-800 flex-1">
+                  <p className="font-medium mb-2 text-center sm:text-left">SKU Changes</p>
+                  <p className="text-center sm:text-left break-words leading-relaxed">
+                    <span className="hidden sm:inline">Some products had duplicate SKUs and were automatically assigned new unique SKUs to prevent conflicts.</span>
+                    <span className="sm:hidden">Duplicate SKUs were automatically made unique.</span>
+                  </p>
+                  <div className="mt-2 text-center sm:text-left">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {importResults.filter(r => r.skuChanged).length} SKUs changed
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Detailed Results */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-gray-900 text-sm sm:text-base text-center sm:text-left">Detailed Results</h4>
+            <div className="max-h-60 overflow-y-auto space-y-3">
+              {importResults.map((result, index) => (
+                <div key={index} className={`border rounded-lg p-3 transition-all duration-200 ${
+                  result.status === 'created' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:from-green-100 hover:to-emerald-100' :
+                  result.status === 'updated' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100' :
+                  result.status === 'skipped' ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 hover:from-yellow-100 hover:to-amber-100' :
+                  'bg-gradient-to-r from-red-50 to-rose-50 border-red-200 hover:from-red-100 hover:to-rose-100'
+                }`}>
+                  {/* Product Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                        {result.name}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        SKU: {result.sku || 'N/A'}
+                        {result.originalSku && result.skuChanged && (
+                          <span className="ml-2 text-blue-600">
+                            (was: {result.originalSku})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0 ml-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        result.status === 'created' ? 'bg-green-100 text-green-800' :
+                        result.status === 'updated' ? 'bg-blue-100 text-blue-800' :
+                        result.status === 'skipped' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {result.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status Details */}
+                  {result.reason && (
+                    <div className="text-xs sm:text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-2 mb-2">
+                      <span className="font-medium">Reason:</span> {result.reason}
+                    </div>
+                  )}
+                  
+                  {result.details && (
+                    <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-2 font-mono break-words leading-relaxed">
+                      {result.details}
+                    </div>
+                  )}
+
+                  {/* Success Indicators */}
+                  <div className="flex items-center gap-2 mt-2">
                     {result.status === 'created' && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />}
                     {result.status === 'updated' && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />}
                     {result.status === 'skipped' && <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />}
                     {result.status === 'error' && <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />}
+                    
+                    <span className="text-xs text-gray-500">
+                      #{index + 1}
+                    </span>
                   </div>
                 </div>
-                {result.reason && (
-                  <p className="text-xs sm:text-sm text-gray-600 mt-2 text-center sm:text-left break-words leading-relaxed">{result.reason}</p>
-                )}
-                {result.details && (
-                  <p className="text-xs text-gray-500 mt-1 font-mono bg-gray-100 p-2 rounded text-center sm:text-left break-words leading-relaxed">
-                    {result.details}
-                  </p>
-                )}
-                {result.skuChanged && result.originalSku && (
-                  <p className="text-xs sm:text-sm text-blue-600 mt-2 text-center sm:text-left break-words leading-relaxed">
-                    <span className="font-medium">SKU Changed:</span> {result.originalSku} → {result.sku}
-                  </p>
-                )}
+              ))}
+            </div>
+          </div>
+
+          {/* Import Summary Footer */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+            <div className="text-center">
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">
+                <span className="hidden sm:inline">Import completed at {new Date().toLocaleString()}</span>
+                <span className="sm:hidden">Completed at {new Date().toLocaleTimeString()}</span>
+              </p>
+              <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-500">
+                <span>Total Products: {importResults.length}</span>
+                <span>•</span>
+                <span>Success: {importResults.filter(r => r.status === 'created' || r.status === 'updated').length}</span>
+                <span>•</span>
+                <span>Issues: {importResults.filter(r => r.status === 'skipped' || r.status === 'error').length}</span>
               </div>
-            ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
-        <Button variant="outline" onClick={resetImport} className="w-full sm:w-auto order-2 sm:order-1">
+        <Button variant="outline" onClick={resetImport} className="w-full sm:w-auto order-2 sm:order-1 h-11">
           <span className="hidden sm:inline">Import Another File</span>
           <span className="sm:hidden">Import Another</span>
         </Button>
-        <Button onClick={onClose} className="w-full sm:w-auto order-1 sm:order-2">
+        <Button onClick={() => {
+          // Call onImportComplete to refresh the products section
+          // This ensures the products list is updated after import
+          onImportComplete?.();
+          // Then close the dialog
+          onClose();
+        }} className="w-full sm:w-auto order-1 sm:order-2 h-11">
           Close
         </Button>
       </div>
@@ -799,6 +1211,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       <Dialog open={isOpen} onOpenChange={(open) => {
         // Only close if user explicitly closes the dialog
         // Don't close when moving between steps
+        // This ensures the dialog stays open after import to show the summary
         if (!open) {
           onClose();
         }

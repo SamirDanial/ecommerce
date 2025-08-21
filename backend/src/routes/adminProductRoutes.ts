@@ -896,7 +896,9 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
     const { 
       skipDuplicates = true, 
       createMissingCategories = false,
-      updateExisting = false 
+      updateExisting = false,
+      orphanCategoryStrategy = 'create', // 'skip' | 'create' - new option for handling products with invalid categories
+      productDuplicateStrategy = 'generate_unique' // 'skip' | 'replace' | 'update' | 'generate_unique' - new option for handling duplicate products
     } = options;
 
     if (!Array.isArray(products)) {
@@ -911,9 +913,68 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
     let skippedCount = 0;
     let errorCount = 0;
 
+    // Handle orphan products strategy - create "Orphan Products" category if needed
+    let orphanCategoryId: number | null = null;
+    if (orphanCategoryStrategy === 'create') {
+      // Check if we need to create an orphan category for products with invalid category IDs
+      const hasOrphanProducts = products.some((product: any) => 
+        !product.categoryId || product.categoryId <= 0
+      );
+
+      if (hasOrphanProducts) {
+        try {
+          // Check if "Orphan Products" category already exists
+          let orphanCategory = await prisma.category.findFirst({
+            where: { 
+              OR: [
+                { name: 'Orphan Products' },
+                { slug: 'orphan-products' }
+              ]
+            }
+          });
+
+          if (!orphanCategory) {
+            // Create "Orphan Products" category
+            orphanCategory = await prisma.category.create({
+              data: {
+                name: 'Orphan Products',
+                slug: 'orphan-products',
+                description: 'Products imported without valid categories',
+                isActive: true,
+                sortOrder: 9999 // Put at the end
+              }
+            });
+            console.log(`Created orphan category: ${orphanCategory.name} (ID: ${orphanCategory.id})`);
+          }
+          
+          orphanCategoryId = orphanCategory.id;
+        } catch (error) {
+          console.error('Error creating orphan category:', error);
+          // Continue without orphan category
+        }
+      }
+    }
+
     for (const productData of products) {
       try {
-        // Check for existing product and handle duplicate SKUs
+        // Handle orphan products by assigning them to orphan category
+        let finalCategoryId = productData.categoryId;
+        if ((!productData.categoryId || productData.categoryId <= 0) && orphanCategoryId) {
+          finalCategoryId = orphanCategoryId;
+          console.log(`Product ${productData.name} has invalid category ID, assigning to orphan category ${orphanCategoryId}`);
+        } else if (!productData.categoryId || productData.categoryId <= 0) {
+          // No orphan category available, skip this product
+          importResults.push({
+            name: productData.name,
+            sku: productData.sku,
+            status: 'error',
+            reason: 'Invalid category ID and no orphan category available'
+          });
+          errorCount++;
+          continue;
+        }
+
+        // Check for existing product and handle duplicate SKUs based on strategy
         let existingProduct = null;
         let finalSku = productData.sku;
         let shouldCreateNew = false;
@@ -923,13 +984,43 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
             where: { sku: productData.sku }
           });
           
-          // If SKU exists and we're not updating, generate a unique one and create new product
-          if (existingProduct && !updateExisting) {
-            finalSku = await generateUniqueSku(productData.sku);
-            console.log(`Generated unique SKU: ${productData.sku} → ${finalSku}`);
-            shouldCreateNew = true; // We'll create a new product with the unique SKU
-            existingProduct = null; // Reset this so we go to the create new product path
+          if (existingProduct) {
+            // Handle duplicate product based on strategy
+            if (productDuplicateStrategy === 'skip') {
+              console.log(`Skipping duplicate product: ${productData.name} (SKU: ${productData.sku})`);
+              importResults.push({
+                name: productData.name,
+                sku: productData.sku,
+                status: 'skipped',
+                reason: 'Product with this SKU already exists (skip strategy)'
+              });
+              skippedCount++;
+              continue;
+            } else if (productDuplicateStrategy === 'replace') {
+              // Delete existing product and all its variants/images
+              console.log(`Replacing existing product: ${existingProduct.name} (ID: ${existingProduct.id})`);
+              await prisma.productVariant.deleteMany({
+                where: { productId: existingProduct.id }
+              });
+              await prisma.productImage.deleteMany({
+                where: { productId: existingProduct.id }
+              });
+              await prisma.product.delete({
+                where: { id: existingProduct.id }
+              });
+              existingProduct = null; // Will create new product
+            } else if (productDuplicateStrategy === 'update') {
+              // Keep existing product, will update it
+              console.log(`Updating existing product: ${existingProduct.name} (ID: ${existingProduct.id})`);
+            } else {
+              // Default: generate unique SKU
+              finalSku = await generateUniqueSku(productData.sku);
+              existingProduct = null; // Will create new product with unique SKU
+            }
           }
+        } else {
+          // Generate SKU from name if not provided
+          finalSku = await generateUniqueSku(productData.name);
         }
 
         if (existingProduct && updateExisting) {
@@ -1034,7 +1125,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
               price: productData.price,
               comparePrice: productData.comparePrice,
               costPrice: productData.costPrice,
-              categoryId: productData.categoryId,
+              categoryId: finalCategoryId, // Use the final category ID (may be orphan category)
               sku: finalSku,
               barcode: productData.barcode,
               weight: productData.weight,
@@ -1143,10 +1234,12 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
         imported: importedCount,
         updated: importResults.filter(r => r.status === 'updated').length,
         skipped: skippedCount,
-        errors: errorCount
+        errors: errorCount,
+        orphanCategoryCreated: orphanCategoryId ? true : false,
+        orphanProductsHandled: orphanCategoryId ? 'assigned_to_orphan_category' : 'skipped'
       },
       message: overallSuccess 
-        ? `Import completed successfully! ${importedCount} products imported.`
+        ? `Import completed successfully! ${importedCount} products imported.${orphanCategoryId ? ' Orphan products assigned to "Orphan Products" category.' : ''}`
         : hasErrors 
           ? `Import completed with errors. ${errorCount} products failed to import.`
           : `Import completed with mixed results. ${importedCount} products imported, ${errorCount} failed.`

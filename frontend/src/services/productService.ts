@@ -310,9 +310,8 @@ export class ProductService {
 
   // Execute product import
   static async executeImport(products: any[], options: {
-    skipDuplicates?: boolean;
-    createMissingCategories?: boolean;
-    updateExisting?: boolean;
+    orphanCategoryStrategy?: 'skip' | 'create';
+    productDuplicateStrategy?: 'skip' | 'replace' | 'update' | 'generate_unique';
   }, token: string): Promise<{
     success: boolean;
     results: any[];
