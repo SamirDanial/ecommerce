@@ -100,12 +100,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }`}>
       {/* Product Image - Only show in grid view */}
       {viewMode !== 'list' && (
-        <div className="relative overflow-hidden bg-gray-100 aspect-[4/3]">
+        <div className="relative overflow-hidden bg-gray-50 rounded-t-xl aspect-[4/3] flex items-center justify-center">
         {imageUrl && !imageError ? (
           <img
             src={imageUrl}
             alt={product.name}
-            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
+            className="max-h-full max-w-full object-contain object-center group-hover:scale-105 transition-transform duration-300"
             onError={handleImageError}
           />
         ) : (
@@ -197,7 +197,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <img
                   src={imageUrl}
                   alt={product.primaryImage?.alt || product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain object-center bg-gray-50"
                   onError={() => setImageError(true)}
                 />
               ) : (

@@ -43,32 +43,95 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
 
   // Use ref to track preview URLs for cleanup
   const previewUrlsRef = useRef<string[]>([]);
+  
+  // Initialize images state with existingImages if available
+  useEffect(() => {
+    if (existingImages && existingImages.length > 0) {
+      setImages(existingImages);
+    }
+  }, [existingImages]);
+
+  // Debug: Track images state changes
+  useEffect(() => {
+    console.log('Images state changed:', images.length, 'images');
+  }, [images.length]);
 
   const fetchImages = useCallback(async () => {
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       
-      setLoading(true);
-      const fetchedImages = await ProductImageService.getProductImages(productId, token);
-      setImages(fetchedImages);
+      // Loading is already set to true in the useEffect when dialog opens
+      // so we don't need to set it here again
+      
+      // Add timeout to prevent loading from getting stuck
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 10000); // 10 second timeout
+      });
+      
+      const fetchPromise = ProductImageService.getProductImages(productId, token);
+      const fetchedImages = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      // Always update state regardless of result to prevent loading from getting stuck
+      if (fetchedImages && Array.isArray(fetchedImages)) {
+        setImages(fetchedImages);
+        console.log('Fetched images:', fetchedImages.length);
+      } else {
+        console.warn('No images returned from API or invalid response');
+        setImages([]);
+      }
     } catch (error) {
       console.error('Error fetching images:', error);
-      toast.error('Failed to fetch product images');
+      if (error instanceof Error && error.message === 'Request timeout') {
+        toast.error('Request timeout - please try again');
+      } else {
+        toast.error('Failed to fetch product images');
+      }
+      // Set empty array on error to prevent loading from getting stuck
+      setImages([]);
     } finally {
-      setLoading(false);
+      // Add a minimum loading time to ensure the spinner is visible
+      setTimeout(() => {
+        setLoading(false);
+      }, 500); // Show loading for at least 500ms
     }
   }, [productId, getToken]);
 
   // Sync local images state with existingImages prop
   useEffect(() => {
-    setImages(existingImages);
-  }, [existingImages]);
+    // Only sync with existingImages if we don't have any local images yet
+    // This prevents overriding fetched images with potentially empty existingImages
+    if (images.length === 0 && existingImages && existingImages.length > 0) {
+      console.log('Syncing with existingImages:', existingImages.length);
+      setImages(existingImages);
+    }
+  }, [existingImages, images.length]);
+
+  // Prevent images from being cleared unexpectedly
+  useEffect(() => {
+    if (images.length > 0 && existingImages.length === 0) {
+      console.log('Preventing images from being cleared - keeping', images.length, 'images');
+      // Don't clear images if we have them locally but existingImages is empty
+      return;
+    }
+  }, [existingImages.length, images.length]);
 
   useEffect(() => {
     if (isOpen) {
+      console.log('Dialog opened, fetching images for product:', productId);
+      // Clear existing images to show fresh loading state
+      setImages([]);
+      // Set loading to true immediately when dialog opens
+      setLoading(true);
+      // Always fetch fresh images when dialog opens
       fetchImages();
     } else {
+      console.log('Dialog closed, cleaning up state');
+      // Reset loading state when dialog closes
+      setLoading(false);
       // Clean up preview URL when dialog closes
       if (previewUrlsRef.current.length > 0) {
         previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
@@ -145,9 +208,11 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       previewUrlsRef.current = [];
       setUploadDataArray([{ color: '', alt: '', sortOrder: images.length }]);
       
-      // Refresh images
+      // Refresh images and notify parent
       await fetchImages();
-      onImagesChange?.();
+      if (onImagesChange) {
+        onImagesChange();
+      }
     } catch (error) {
       console.error('Error uploading images:', error);
       toast.error('Failed to upload images');
@@ -164,9 +229,11 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       await ProductImageService.deleteImage(productId, imageId, token);
       toast.success('Image deleted successfully');
       
-      // Refresh images
+      // Refresh images and notify parent
       await fetchImages();
-      onImagesChange?.();
+      if (onImagesChange) {
+        onImagesChange();
+      }
     } catch (error) {
       console.error('Error deleting image:', error);
       toast.error('Failed to delete image');
@@ -181,9 +248,11 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       await ProductImageService.updateImage(productId, imageId, { isPrimary: true }, token);
       toast.success('Primary image updated');
       
-      // Refresh images
+      // Refresh images and notify parent
       await fetchImages();
-      onImagesChange?.();
+      if (onImagesChange) {
+        onImagesChange();
+      }
     } catch (error) {
       console.error('Error updating primary image:', error);
       toast.error('Failed to update primary image');
@@ -198,9 +267,11 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       await ProductImageService.updateImage(productId, imageId, data, token);
       toast.success('Image updated successfully');
       
-      // Refresh images
+      // Refresh images and notify parent
       await fetchImages();
-      onImagesChange?.();
+      if (onImagesChange) {
+        onImagesChange();
+      }
     } catch (error) {
       console.error('Error updating image:', error);
       toast.error('Failed to update image');
@@ -220,9 +291,10 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
       sortOrder: index
     }));
     
+    // Update local state immediately for responsive UI
     setImages(updatedImages);
     
-    // Update backend
+    // Update backend asynchronously
     updatedImages.forEach((img, index) => {
       handleUpdateImage(img.id, { sortOrder: index });
     });
@@ -230,7 +302,7 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
             <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
@@ -350,11 +422,11 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
                     <div className="flex flex-wrap gap-2">
                       {selectedFiles.map((file, index) => (
                         <div key={index} className="relative group">
-                          <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-colors w-32 h-32">
+                          <div className="aspect-[4/3] rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-colors w-40 h-30 flex-shrink-0">
                             <img
                               src={previewUrls[index]}
                               alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain object-center"
                             />
                           </div>
                         
@@ -406,99 +478,101 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
                   <p>No images uploaded yet</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {images.map((image, index) => (
-                    <div key={image.id} className="relative group">
-                      <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                        <CardContent className="p-0">
-                          <div className="relative aspect-square">
-                            <img
-                              src={getFullImageUrl(image.url)}
-                              alt={image.alt || 'Product image'}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.error('Failed to load image:', image.url);
-                                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD4KICA8L3N2Zz4=';
-                              }}
-                            />
-                            
-                            {/* Primary Badge */}
-                            {image.isPrimary && (
-                              <Badge className="absolute top-2 left-2 bg-yellow-500 text-white">
-                                <Star className="h-3 w-3 mr-1" />
-                                Primary
-                              </Badge>
-                            )}
-                            
-                            {/* Color Badge */}
-                            {image.color && (
-                              <Badge className="absolute top-2 right-2 bg-blue-500 text-white">
-                                {image.color}
-                              </Badge>
-                            )}
-                            
-                            {/* Actions Overlay */}
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                              {!image.isPrimary && (
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() => handleSetPrimary(image.id)}
-                                  className="h-8 w-8 p-0"
-                                  title="Set as primary image"
-                                >
-                                  <Star className="h-4 w-4" />
-                                </Button>
+                <div className="w-full overflow-hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-fr">
+                    {images.map((image, index) => (
+                      <div key={image.id} className="relative group">
+                        <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
+                          <CardContent className="p-0 h-full flex flex-col">
+                            <div className="relative aspect-[4/3] overflow-hidden">
+                              <img
+                                src={getFullImageUrl(image.url)}
+                                alt={image.alt || 'Product image'}
+                                className="w-full h-full object-contain object-center"
+                                onError={(e) => {
+                                  console.error('Failed to load image:', image.url);
+                                  e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD4KICA8L3N2Zz4=';
+                                }}
+                              />
+                              
+                              {/* Primary Badge */}
+                              {image.isPrimary && (
+                                <Badge className="absolute top-2 left-2 bg-yellow-500 text-white">
+                                  <Star className="h-3 w-3 mr-1" />
+                                  Primary
+                                </Badge>
                               )}
                               
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteImage(image.id)}
-                                className="h-8 w-8 p-0"
-                                title="Delete image"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          <div className="p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium">Order: {image.sortOrder}</span>
-                              <div className="flex gap-1">
+                              {/* Color Badge */}
+                              {image.color && (
+                                <Badge className="absolute top-2 right-2 bg-blue-500 text-white">
+                                  {image.color}
+                                </Badge>
+                              )}
+                              
+                              {/* Actions Overlay */}
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                {!image.isPrimary && (
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => handleSetPrimary(image.id)}
+                                    className="h-8 w-8 p-0"
+                                    title="Set as primary image"
+                                  >
+                                    <Star className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => moveImage(index, index - 1)}
-                                  disabled={index === 0}
-                                  className="h-6 w-6 p-0"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteImage(image.id)}
+                                  className="h-8 w-8 p-0"
+                                  title="Delete image"
                                 >
-                                  ↑
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => moveImage(index, index + 1)}
-                                  disabled={index === images.length - 1}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  ↓
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
                             
-                            <Input
-                              value={image.alt || ''}
-                              onChange={(e) => handleUpdateImage(image.id, { alt: e.target.value })}
-                              placeholder="Alt text"
-                              className="text-sm"
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  ))}
+                            <div className="p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium">Order: {image.sortOrder}</span>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => moveImage(index, index - 1)}
+                                    disabled={index === 0}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => moveImage(index, index + 1)}
+                                    disabled={index === images.length - 1}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    ↓
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <Input
+                                value={image.alt || ''}
+                                onChange={(e) => handleUpdateImage(image.id, { alt: e.target.value })}
+                                placeholder="Alt text"
+                                className="text-sm"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>

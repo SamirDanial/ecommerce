@@ -44,7 +44,7 @@ export interface VariantOperation {
 }
 
 class VariantService {
-  private static baseUrl = '/api/admin/products';
+  private static baseUrl = '/admin/products';
 
   // Single method to save all variant changes (create, update, delete)
   static async saveVariants(productId: number, variants: VariantOperation[], token: string): Promise<any> {

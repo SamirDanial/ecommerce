@@ -838,7 +838,7 @@ router.post('/import/validate', authenticateClerkToken, async (req, res) => {
             categoryWarning = `Category with ID ${product.categoryId} does not exist - will be assigned to "Orphan Products" category`;
           } else {
             // Only reject invalid category IDs when orphan strategy is 'skip'
-            errors.push(`Category with ID ${product.categoryId} does not exist`);
+          errors.push(`Category with ID ${product.categoryId} does not exist`);
           }
         }
       }
@@ -1011,7 +1011,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
         }
       }
     }
-    
+
     console.log('Final orphan category ID:', orphanCategoryId);
 
     // Process each product
@@ -1099,18 +1099,18 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
           } else {
             // ERROR: create strategy but no orphan category available
             console.log(`ERROR: Create strategy selected but no orphan category available`);
-            importResults.push({
-              name: productData.name,
-              sku: productData.sku,
-              status: 'error',
-              reason: 'Invalid category ID and no orphan category available'
-            });
-            errorCount++;
+          importResults.push({
+            name: productData.name,
+            sku: productData.sku,
+            status: 'error',
+            reason: 'Invalid category ID and no orphan category available'
+          });
+          errorCount++;
             console.log(`Product ${i} errored. Moving to next product.`);
-            continue;
+          continue;
           }
         }
-        
+
         // STEP 2: Check for duplicate SKU and handle according to strategy
         let finalSku = productData.sku;
         if (productData.sku) {
@@ -1144,26 +1144,26 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
             } else if (productDuplicateStrategy === 'update') {
               console.log(`UPDATING duplicate product: ${productData.name} (SKU: ${productData.sku})`);
               // Update existing product instead of creating new one
-              const updatedProduct = await prisma.product.update({
-                where: { id: existingProduct.id },
-                data: {
-                  name: productData.name,
-                  description: productData.description,
-                  price: productData.price,
-                  comparePrice: productData.comparePrice,
-                  costPrice: productData.costPrice,
+            const updatedProduct = await prisma.product.update({
+              where: { id: existingProduct.id },
+              data: {
+                name: productData.name,
+                description: productData.description,
+                price: productData.price,
+                comparePrice: productData.comparePrice,
+                costPrice: productData.costPrice,
                   categoryId: productData.categoryId, // Use original categoryId for now
                   barcode: productData.barcode,
-                  weight: productData.weight,
-                  dimensions: productData.dimensions,
-                  tags: productData.tags || [],
-                  metaTitle: productData.metaTitle,
-                  metaDescription: productData.metaDescription,
+                weight: productData.weight,
+                dimensions: productData.dimensions,
+                tags: productData.tags || [],
+                metaTitle: productData.metaTitle,
+                metaDescription: productData.metaDescription,
                   isActive: productData.isActive !== false,
                   isFeatured: productData.isFeatured || false,
                   isOnSale: productData.isOnSale || false,
-                  salePrice: productData.salePrice,
-                  saleEndDate: productData.saleEndDate,
+                salePrice: productData.salePrice,
+                saleEndDate: productData.saleEndDate,
                   lowStockThreshold: productData.lowStockThreshold || 5,
                   allowBackorder: productData.allowBackorder || false
                 }
@@ -1173,14 +1173,14 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
               
               // Handle variants and images for updated product
               // ... (similar logic as below)
-              
-              importResults.push({
-                name: productData.name,
-                sku: productData.sku,
-                status: 'updated',
+
+            importResults.push({
+              name: productData.name,
+              sku: productData.sku,
+              status: 'updated',
                 reason: 'Product updated (update strategy)'
-              });
-              importedCount++;
+            });
+            importedCount++;
               console.log(`Product ${i} updated. Moving to next product.`);
               continue;
             }
@@ -1203,85 +1203,85 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
           console.log(`Generated SKU: ${finalSku}`);
         }
         
-        // Create new product
-        const slug = await generateUniqueSlug(productData.name);
-        const newProduct = await prisma.product.create({
-          data: {
-            name: productData.name,
-            description: productData.description,
-            price: productData.price,
-            comparePrice: productData.comparePrice,
-            costPrice: productData.costPrice,
+          // Create new product
+          const slug = await generateUniqueSlug(productData.name);
+          const newProduct = await prisma.product.create({
+            data: {
+              name: productData.name,
+              description: productData.description,
+              price: productData.price,
+              comparePrice: productData.comparePrice,
+              costPrice: productData.costPrice,
             categoryId: finalCategoryId,
-            sku: finalSku,
-            barcode: productData.barcode,
-            weight: productData.weight,
-            dimensions: productData.dimensions,
-            tags: productData.tags || [],
-            metaTitle: productData.metaTitle,
-            metaDescription: productData.metaDescription,
-            isActive: productData.isActive !== false,
-            isFeatured: productData.isFeatured || false,
-            isOnSale: productData.isOnSale || false,
-            salePrice: productData.salePrice,
-            saleEndDate: productData.saleEndDate,
-            lowStockThreshold: productData.lowStockThreshold || 5,
-            allowBackorder: productData.allowBackorder || false,
-            slug
-          }
-        });
+              sku: finalSku,
+              barcode: productData.barcode,
+              weight: productData.weight,
+              dimensions: productData.dimensions,
+              tags: productData.tags || [],
+              metaTitle: productData.metaTitle,
+              metaDescription: productData.metaDescription,
+              isActive: productData.isActive !== false,
+              isFeatured: productData.isFeatured || false,
+              isOnSale: productData.isOnSale || false,
+              salePrice: productData.salePrice,
+              saleEndDate: productData.saleEndDate,
+              lowStockThreshold: productData.lowStockThreshold || 5,
+              allowBackorder: productData.allowBackorder || false,
+              slug
+            }
+          });
         
         console.log(`Product created with ID: ${newProduct.id}`);
 
-        // Create variants if provided
-        if (productData.variants && Array.isArray(productData.variants)) {
+          // Create variants if provided
+          if (productData.variants && Array.isArray(productData.variants)) {
           console.log(`Creating ${productData.variants.length} variants...`);
-          for (const variantData of productData.variants) {
-            await prisma.productVariant.create({
-              data: {
-                productId: newProduct.id,
-                size: variantData.size,
-                color: variantData.color,
-                colorCode: variantData.colorCode,
-                stock: variantData.stock,
-                sku: variantData.sku,
-                price: variantData.price,
-                comparePrice: variantData.comparePrice,
-                isActive: variantData.isActive !== false,
-                lowStockThreshold: variantData.lowStockThreshold || 3,
-                allowBackorder: variantData.allowBackorder || false
-              }
-            });
+            for (const variantData of productData.variants) {
+              await prisma.productVariant.create({
+                data: {
+                  productId: newProduct.id,
+                  size: variantData.size,
+                  color: variantData.color,
+                  colorCode: variantData.colorCode,
+                  stock: variantData.stock,
+                  sku: variantData.sku,
+                  price: variantData.price,
+                  comparePrice: variantData.comparePrice,
+                  isActive: variantData.isActive !== false,
+                  lowStockThreshold: variantData.lowStockThreshold || 3,
+                  allowBackorder: variantData.allowBackorder || false
+                }
+              });
+            }
           }
-        }
 
-        // Create images if provided
-        if (productData.images && Array.isArray(productData.images)) {
+          // Create images if provided
+          if (productData.images && Array.isArray(productData.images)) {
           console.log(`Creating ${productData.images.length} images...`);
-          for (const imageData of productData.images) {
-            await prisma.productImage.create({
-              data: {
-                productId: newProduct.id,
-                url: imageData.url,
-                alt: imageData.alt || '',
-                isPrimary: imageData.isPrimary || false,
-                sortOrder: imageData.sortOrder || 0
-              }
-            });
+            for (const imageData of productData.images) {
+              await prisma.productImage.create({
+                data: {
+                  productId: newProduct.id,
+                  url: imageData.url,
+                  alt: imageData.alt || '',
+                  isPrimary: imageData.isPrimary || false,
+                  sortOrder: imageData.sortOrder || 0
+                }
+              });
+            }
           }
-        }
 
         // Add to results
-        importResults.push({
-          name: productData.name,
-          sku: finalSku,
-          status: 'created',
-          productId: newProduct.id,
-          originalSku: productData.sku !== finalSku ? productData.sku : undefined,
+          importResults.push({
+            name: productData.name,
+            sku: finalSku,
+            status: 'created',
+            productId: newProduct.id,
+            originalSku: productData.sku !== finalSku ? productData.sku : undefined,
           skuChanged: productData.sku !== finalSku,
           reason: isOrphanProduct ? 'Assigned to "Orphan Products" category due to invalid category ID' : undefined
-        });
-        importedCount++;
+          });
+          importedCount++;
         
         console.log(`SUCCESS: Product ${productData.name} imported with ID: ${newProduct.id}`);
         

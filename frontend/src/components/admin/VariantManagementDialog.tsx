@@ -57,37 +57,76 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
   const [basePrice, setBasePrice] = useState<number>(0);
   const [baseStock, setBaseStock] = useState<number>(10);
 
-
   // Load existing variants when dialog opens
   useEffect(() => {
     if (isOpen) {
+      console.log('Dialog opened, loading variants for product:', productId);
+      
+      // Set loading to true immediately when dialog opens
+      setVariantsLoading(true);
+      
+      // Clear existing variants to show fresh loading state
+      setVariants([]);
+      
       // Reset deleted variants list
       setDeletedVariantIds([]);
       
-      if (existingVariants && existingVariants.length > 0) {
-        setVariants(existingVariants);
-        // Extract unique sizes and colors from existing variants
-        const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
-        const colors = Array.from(new Set(existingVariants.map(v => v.color)));
-        setSelectedSizes(sizes);
-        setSelectedColors(colors);
-        
-        // Set base price and stock from first variant
-        if (existingVariants[0]) {
-          setBasePrice(existingVariants[0].price || 0);
-          setBaseStock(existingVariants[0].stock || 10);
+      // Simple loading approach - just like ProductImageManagerDialog
+      setTimeout(() => {
+        if (existingVariants && existingVariants.length > 0) {
+          setVariants(existingVariants);
+          // Extract unique sizes and colors from existing variants
+          const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
+          const colors = Array.from(new Set(existingVariants.map(v => v.color)));
+          setSelectedSizes(sizes);
+          setSelectedColors(colors);
+          
+          // Set base price and stock from first variant
+          if (existingVariants[0]) {
+            setBasePrice(existingVariants[0].price || 0);
+            setBaseStock(existingVariants[0].stock || 10);
+          }
+        } else {
+          // Set default values if no variants exist
+          setSelectedSizes(['M', 'L']);
+          setSelectedColors(['Black', 'White']);
+          setBasePrice(0);
+          setBaseStock(10);
         }
         setVariantsLoading(false);
-      } else {
-        setVariantsLoading(true);
-        // Set default values if no variants exist
-        setSelectedSizes(['M', 'L']);
-        setSelectedColors(['Black', 'White']);
-        setBasePrice(0);
-        setBaseStock(10);
+      }, 800);
+    } else {
+      console.log('Dialog closed, cleaning up state');
+      // Reset loading state when dialog closes
+      setVariantsLoading(false);
+    }
+  }, [isOpen, productId, existingVariants]); // Add existingVariants back to dependencies
+
+  // Handle existingVariants updates when dialog is already open and loading is complete
+  useEffect(() => {
+    if (isOpen && !variantsLoading && existingVariants && existingVariants.length > 0) {
+      // Only update if dialog is open, not loading, and we have new variants data
+      console.log('Updating variants with new data:', existingVariants.length);
+      setVariants(existingVariants);
+      
+      // Extract unique sizes and colors from existing variants
+      const sizes = Array.from(new Set(existingVariants.map(v => v.size)));
+      const colors = Array.from(new Set(existingVariants.map(v => v.color)));
+      setSelectedSizes(sizes);
+      setSelectedColors(colors);
+      
+      // Set base price and stock from first variant
+      if (existingVariants[0]) {
+        setBasePrice(existingVariants[0].price || 0);
+        setBaseStock(existingVariants[0].stock || 10);
       }
     }
-  }, [isOpen, existingVariants]);
+  }, [existingVariants, isOpen, variantsLoading]);
+
+  // Debug: Track variants loading state changes
+  useEffect(() => {
+    console.log('Variants loading state changed:', variantsLoading);
+  }, [variantsLoading]);
 
   const generateVariants = () => {
     const newVariants: CreateVariantData[] = [];
@@ -388,9 +427,9 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
             <CardContent className="p-3 sm:p-6">
               {/* Loading State */}
               {variantsLoading && (
-                <div className="py-6 sm:py-8 flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mb-3"></div>
-                  <p className="text-gray-600 text-sm sm:text-base">Loading variants...</p>
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading variants...</p>
                 </div>
               )}
               
