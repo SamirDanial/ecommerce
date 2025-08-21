@@ -87,6 +87,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
   });
   const [dragActive, setDragActive] = useState(false);
   const [showSample, setShowSample] = useState(false);
+  const [structureValidationErrors, setStructureValidationErrors] = useState<string[]>([]);
 
   // Fetch template when dialog opens
   useEffect(() => {
@@ -131,6 +132,109 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
     }
   };
 
+  // Validate data structure against product table schema
+  const validateDataStructure = (data: any[]): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (data.length === 0) {
+      errors.push('JSON file contains no products');
+      return { isValid: false, errors };
+    }
+
+    // Check each product for required fields and data types
+    data.forEach((product, index) => {
+      if (!product || typeof product !== 'object') {
+        errors.push(`Product ${index + 1}: Invalid product object`);
+        return;
+      }
+
+      // Required fields
+      const requiredFields = ['name', 'price', 'categoryId'];
+      requiredFields.forEach(field => {
+        if (product[field] === undefined || product[field] === null || product[field] === '') {
+          errors.push(`Product ${index + 1}: Missing required field '${field}'`);
+        }
+      });
+
+      // Data type validations
+      if (product.name !== undefined && typeof product.name !== 'string') {
+        errors.push(`Product ${index + 1}: 'name' must be a string`);
+      }
+      
+      if (product.price !== undefined && (typeof product.price !== 'number' || product.price < 0)) {
+        errors.push(`Product ${index + 1}: 'price' must be a positive number`);
+      }
+      
+      if (product.categoryId !== undefined && (typeof product.categoryId !== 'number' || product.categoryId <= 0)) {
+        errors.push(`Product ${index + 1}: 'categoryId' must be a positive number`);
+      }
+      
+      if (product.description !== undefined && typeof product.description !== 'string') {
+        errors.push(`Product ${index + 1}: 'description' must be a string`);
+      }
+      
+      if (product.sku !== undefined && typeof product.sku !== 'string') {
+        errors.push(`Product ${index + 1}: 'sku' must be a string`);
+      }
+      
+      if (product.comparePrice !== undefined && (typeof product.comparePrice !== 'number' || product.comparePrice < 0)) {
+        errors.push(`Product ${index + 1}: 'comparePrice' must be a positive number`);
+      }
+      
+      if (product.costPrice !== undefined && (typeof product.costPrice !== 'number' || product.costPrice < 0)) {
+        errors.push(`Product ${index + 1}: 'costPrice' must be a positive number`);
+      }
+      
+      if (product.weight !== undefined && (typeof product.weight !== 'number' || product.weight < 0)) {
+        errors.push(`Product ${index + 1}: 'weight' must be a positive number`);
+      }
+      
+      if (product.lowStockThreshold !== undefined && (typeof product.lowStockThreshold !== 'number' || product.lowStockThreshold < 0)) {
+        errors.push(`Product ${index + 1}: 'lowStockThreshold' must be a positive number`);
+      }
+      
+      if (product.isActive !== undefined && typeof product.isActive !== 'boolean') {
+        errors.push(`Product ${index + 1}: 'isActive' must be a boolean`);
+      }
+      
+      if (product.isFeatured !== undefined && typeof product.isFeatured !== 'boolean') {
+        errors.push(`Product ${index + 1}: 'isFeatured' must be a boolean`);
+      }
+      
+      if (product.isOnSale !== undefined && typeof product.isOnSale !== 'boolean') {
+        errors.push(`Product ${index + 1}: 'isOnSale' must be a boolean`);
+      }
+      
+      if (product.allowBackorder !== undefined && typeof product.allowBackorder !== 'boolean') {
+        errors.push(`Product ${index + 1}: 'allowBackorder' must be a boolean`);
+      }
+      
+      if (product.tags !== undefined && (!Array.isArray(product.tags) || !product.tags.every((tag: any) => typeof tag === 'string'))) {
+        errors.push(`Product ${index + 1}: 'tags' must be an array of strings`);
+      }
+      
+      if (product.variants !== undefined && (!Array.isArray(product.variants) || !product.variants.every((variant: any) => 
+        typeof variant === 'object' && 
+        typeof variant.size === 'string' && 
+        typeof variant.color === 'string' && 
+        typeof variant.stock === 'number' && 
+        variant.stock >= 0
+      ))) {
+        errors.push(`Product ${index + 1}: 'variants' must be an array of valid variant objects with size, color, and stock`);
+      }
+      
+      if (product.images !== undefined && (!Array.isArray(product.images) || !product.images.every((image: any) => 
+        typeof image === 'object' && 
+        typeof image.url === 'string' && 
+        typeof image.alt === 'string'
+      ))) {
+        errors.push(`Product ${index + 1}: 'images' must be an array of valid image objects with url and alt`);
+      }
+    });
+
+    return { isValid: errors.length === 0, errors };
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -149,6 +253,19 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
         toast.error('JSON file must contain an array of products');
         return;
       }
+
+      // Validate data structure before proceeding
+      const structureValidation = validateDataStructure(data);
+      if (!structureValidation.isValid) {
+        setStructureValidationErrors(structureValidation.errors);
+        const errorMessage = `Data structure validation failed:\n${structureValidation.errors.slice(0, 5).join('\n')}${structureValidation.errors.length > 5 ? `\n... and ${structureValidation.errors.length - 5} more errors` : ''}`;
+        toast.error(errorMessage);
+        console.error('Data structure validation errors:', structureValidation.errors);
+        return;
+      }
+      
+      // Clear any previous structure validation errors
+      setStructureValidationErrors([]);
 
       setProducts(data);
       toast.success(`Loaded ${data.length} products from file`);
@@ -284,6 +401,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
     setProducts([]);
     setValidationResults([]);
     setImportResults([]);
+    setStructureValidationErrors([]);
     setImportOptions({
       orphanCategoryStrategy: 'create',
       productDuplicateStrategy: 'generate_unique'
@@ -429,10 +547,19 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
               variant="outline" 
               className="flex items-center gap-2 mx-auto w-full sm:w-auto h-10 sm:h-9"
               onClick={() => document.getElementById('file-upload')?.click()}
+              disabled={loading}
             >
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Select JSON File</span>
-              <span className="sm:hidden">Select File</span>
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">
+                {loading ? 'Validating...' : 'Select JSON File'}
+              </span>
+              <span className="sm:hidden">
+                {loading ? 'Validating...' : 'Select File'}
+              </span>
             </Button>
             <Input
               id="file-upload"
@@ -444,6 +571,48 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Structure Validation Errors */}
+      {structureValidationErrors.length > 0 && (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader className="p-3 sm:p-4">
+            <CardTitle className="text-base sm:text-lg text-left text-red-800 flex items-center gap-2">
+              <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+              Data Structure Validation Failed
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-4">
+            <div className="space-y-3">
+              <p className="text-sm text-red-700">
+                The uploaded JSON file contains {structureValidationErrors.length} validation error(s). 
+                Please fix these issues before proceeding with the import.
+              </p>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {structureValidationErrors.map((error, index) => (
+                  <div key={index} className="flex items-start gap-2 text-sm text-red-600">
+                    <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span className="break-words">{error}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 border-t border-red-200">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStructureValidationErrors([]);
+                    setProducts([]);
+                    setCurrentStep('upload');
+                  }}
+                  className="text-red-700 border-red-300 hover:bg-red-100"
+                >
+                  Clear Errors & Try Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Import Notes */}
       <Card>
