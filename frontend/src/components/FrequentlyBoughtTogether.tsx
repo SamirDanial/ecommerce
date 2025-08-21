@@ -177,8 +177,8 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                   <ImageWithPlaceholder
                     src={getImageUrl(item.product)}
                     alt={item.product.name}
-                    className="w-full h-48 sm:w-24 sm:h-24 lg:w-32 lg:h-32 object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
-                    placeholderClassName="w-full h-48 sm:w-24 sm:h-24 lg:w-32 lg:h-32"
+                    className="w-auto h-auto max-w-full max-h-[120px] sm:max-h-[96px] lg:max-h-[128px] object-contain object-center rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
+                    placeholderClassName="w-auto h-auto max-w-full max-h-[120px] sm:max-h-[96px] lg:max-h-[128px]"
                   />
                   {selectedItems.has(item.product.id) && (
                     <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">

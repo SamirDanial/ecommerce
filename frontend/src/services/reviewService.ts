@@ -73,7 +73,7 @@ export interface PendingItems {
 export const reviewService = {
   // Submit a review
   async submitReview(data: ReviewSubmission, token: string): Promise<{ success: boolean; message: string; review: Review }> {
-    const response = await api.post('/api/reviews/reviews', data, {
+    const response = await api.post('/reviews/reviews', data, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -81,7 +81,7 @@ export const reviewService = {
 
   // Submit a question
   async submitQuestion(data: QuestionSubmission, token: string): Promise<{ success: boolean; message: string; question: Question }> {
-    const response = await api.post('/api/reviews/questions', data, {
+    const response = await api.post('/reviews/questions', data, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -89,7 +89,7 @@ export const reviewService = {
 
   // Get user's pending reviews and questions
   async getPendingItems(token: string): Promise<{ success: boolean; pendingReviews: Review[]; pendingQuestions: Question[] }> {
-    const response = await api.get('/api/reviews/user/pending', {
+    const response = await api.get('/reviews/user/pending', {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -97,7 +97,7 @@ export const reviewService = {
 
   // Get user's pending reviews and questions for a specific product
   async getProductPendingItems(productId: number, token: string): Promise<{ success: boolean; pendingReviews: Review[]; pendingQuestions: Question[] }> {
-    const response = await api.get(`/api/reviews/product/${productId}/pending`, {
+    const response = await api.get(`/reviews/product/${productId}/pending`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -110,7 +110,7 @@ export const reviewService = {
     review: Review;
     statusChanged?: boolean;
   }> {
-    const response = await api.put(`/api/reviews/reviews/${reviewId}`, data, {
+    const response = await api.put(`/reviews/reviews/${reviewId}`, data, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -118,7 +118,7 @@ export const reviewService = {
 
   // Delete a pending review
   async deleteReview(reviewId: number, token: string): Promise<{ success: boolean; message: string }> {
-    const response = await api.delete(`/api/reviews/reviews/${reviewId}`, {
+    const response = await api.delete(`/reviews/reviews/${reviewId}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -126,7 +126,7 @@ export const reviewService = {
 
   // Update a pending question
   async updateQuestion(questionId: number, data: QuestionSubmission, token: string): Promise<{ success: boolean; message: string; question: Question }> {
-    const response = await api.put(`/api/reviews/questions/${questionId}`, data, {
+    const response = await api.put(`/reviews/questions/${questionId}`, data, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -137,7 +137,7 @@ export const reviewService = {
     success: boolean;
     message: string;
   }> {
-    const response = await api.delete(`/api/reviews/questions/${questionId}`, {
+    const response = await api.delete(`/reviews/questions/${questionId}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -149,7 +149,7 @@ export const reviewService = {
     message: string;
     reply: any;
   }> {
-    const response = await api.post(`/api/reviews/reviews/${reviewId}/replies`, {
+    const response = await api.post(`/reviews/reviews/${reviewId}/replies`, {
       reply
     }, {
       headers: createAuthHeaders(token)
@@ -163,7 +163,7 @@ export const reviewService = {
     message: string;
     reply: any;
   }> {
-    const response = await api.put(`/api/reviews/replies/${replyId}`, {
+    const response = await api.put(`/reviews/replies/${replyId}`, {
       reply
     }, {
       headers: createAuthHeaders(token)
@@ -176,7 +176,7 @@ export const reviewService = {
     success: boolean;
     message: string;
   }> {
-    const response = await api.delete(`/api/reviews/replies/${replyId}`, {
+    const response = await api.delete(`/reviews/replies/${replyId}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -187,7 +187,7 @@ export const reviewService = {
     success: boolean;
     replies: any[];
   }> {
-    const response = await api.get(`/api/reviews/reviews/${reviewId}/replies`);
+    const response = await api.get(`/reviews/reviews/${reviewId}/replies`);
     return response.data;
   },
 
@@ -212,7 +212,7 @@ export const reviewService = {
       params.append('sort', sort);
     }
 
-    const response = await api.get(`/api/reviews/product/${productId}/reviews?${params}`);
+    const response = await api.get(`/reviews/product/${productId}/reviews?${params}`);
     return response.data;
   },
 
@@ -238,7 +238,7 @@ export const reviewService = {
       params.append('sort', sort);
     }
 
-    const response = await api.get(`/api/reviews/product/${productId}/reviews/with-pending?${params}`, {
+    const response = await api.get(`/reviews/product/${productId}/reviews/with-pending?${params}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -257,7 +257,7 @@ export const reviewService = {
       limit: limit.toString()
     });
 
-    const response = await api.get(`/api/reviews/product/${productId}/questions?${params}`);
+    const response = await api.get(`/reviews/product/${productId}/questions?${params}`);
     return response.data;
   },
 
@@ -275,7 +275,7 @@ export const reviewService = {
       limit: limit.toString()
     });
 
-    const response = await api.get(`/api/reviews/product/${productId}/questions/with-pending?${params}`, {
+    const response = await api.get(`/reviews/product/${productId}/questions/with-pending?${params}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -292,7 +292,7 @@ export const reviewService = {
       role: string;
     };
   }> {
-    const response = await api.get('/api/reviews/user/me', {
+    const response = await api.get('/reviews/user/me', {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -304,7 +304,7 @@ export const reviewService = {
     message: string;
     isHelpful: boolean;
   }> {
-    const response = await api.post(`/api/reviews/reviews/${reviewId}/helpful`, {}, {
+    const response = await api.post(`/reviews/reviews/${reviewId}/helpful`, {}, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -316,7 +316,7 @@ export const reviewService = {
     message: string;
     isReported: boolean;
   }> {
-    const response = await api.post(`/api/reviews/reviews/${reviewId}/report`, { reason }, {
+    const response = await api.post(`/reviews/reviews/${reviewId}/report`, { reason }, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -329,7 +329,7 @@ export const reviewService = {
     isHelpful: boolean;
     isReported: boolean;
   }> {
-    const response = await api.get(`/api/reviews/reviews/${reviewId}/interactions`, {
+    const response = await api.get(`/reviews/reviews/${reviewId}/interactions`, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -343,7 +343,7 @@ export const reviewService = {
     message: string;
     reply: QuestionReply;
   }> {
-    const response = await api.post(`/api/reviews/questions/${questionId}/replies`, { reply }, {
+    const response = await api.post(`/reviews/questions/${questionId}/replies`, { reply }, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -362,7 +362,7 @@ export const reviewService = {
       limit: limit.toString()
     });
 
-    const response = await api.get(`/api/reviews/questions/${questionId}/replies?${params}`);
+    const response = await api.get(`/reviews/questions/${questionId}/replies?${params}`);
     return response.data;
   },
 
@@ -372,7 +372,7 @@ export const reviewService = {
     message: string;
     reply: QuestionReply;
   }> {
-    const response = await api.put(`/api/reviews/questions/replies/${replyId}`, { reply }, {
+    const response = await api.put(`/reviews/questions/replies/${replyId}`, { reply }, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -383,7 +383,7 @@ export const reviewService = {
     success: boolean;
     message: string;
   }> {
-    const response = await api.delete(`/api/reviews/questions/replies/${replyId}`, {
+    const response = await api.delete(`/reviews/questions/replies/${replyId}`, {
       headers: createAuthHeaders(token)
     });
     return response.data;

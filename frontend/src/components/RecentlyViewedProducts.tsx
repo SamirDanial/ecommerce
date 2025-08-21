@@ -7,6 +7,7 @@ import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import { useUserInteractionStore } from '../stores/userInteractionStore';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Link } from 'react-router-dom';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 export const RecentlyViewedProducts: React.FC = () => {
   const { recentlyViewed, clearRecentlyViewed } = useUserInteractionStore();
@@ -61,11 +62,11 @@ export const RecentlyViewedProducts: React.FC = () => {
             className="group"
           >
             <Card className="overflow-hidden transition-all hover:shadow-lg hover:scale-105">
-              <div className="relative aspect-square overflow-hidden">
+              <div className="relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl min-h-[120px] flex items-center justify-center">
                 <ImageWithPlaceholder
-                  src={product.image || ''}
+                  src={product.image ? getFullImageUrl(product.image) : ''}
                   alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  className="w-auto h-auto max-w-full max-h-[120px] object-contain object-center group-hover:scale-110 transition-transform duration-300"
                 />
                 <div className="absolute top-2 right-2">
                   <Badge variant="secondary" className="text-xs bg-background/80">

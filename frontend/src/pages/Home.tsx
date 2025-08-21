@@ -14,6 +14,7 @@ import { categoryService } from '../services/api';
 import RatingDisplay from '../components/ui/rating-display';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { getImageUrl } from '../utils/productUtils';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 const Home: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -375,11 +376,15 @@ const Home: React.FC = () => {
             : 'space-y-6'
           }>
             {trendingProducts.map((product) => (
-              <Card key={product.id} className={`group overflow-hidden transition-all duration-500 hover:shadow-2xl ${
+              <Card key={product.id} className={`group overflow-hidden transition-all duration-500 hover:shadow-2xl relative ${
                 trendingViewMode === 'grid' 
                   ? 'hover:scale-105 hover:-translate-y-2' 
                   : 'hover:shadow-lg'
               }`}>
+                <div className="absolute top-4 right-4 z-10">
+                  <WishlistButton product={product} size="sm" />
+                </div>
+                
                 <Link to={`/products/${product.slug}`} onClick={() => {
                   addToRecentlyViewed(product);
                   addInteraction({
@@ -403,11 +408,13 @@ const Home: React.FC = () => {
                             SALE
                           </Badge>
                         )}
-                        <div className="absolute top-4 right-4">
-                          <WishlistButton product={product} size="sm" />
-                        </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       </div>
+                      
+                      <div className="absolute top-4 right-4 z-10">
+                        <WishlistButton product={product} size="sm" />
+                      </div>
+                      
                       <CardHeader className="pb-4">
                         <CardTitle className="text-xl font-bold group-hover:text-blue-600 transition-colors duration-300 line-clamp-2">{product.name}</CardTitle>
                         <RatingDisplay
@@ -548,13 +555,25 @@ const Home: React.FC = () => {
                 }}>
                   {categoriesViewMode === 'grid' ? (
                     <>
-                      <div className="relative h-48 bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-500"></div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                            <ShoppingBag className="h-10 w-10 text-white" />
+                      <div className="relative h-48 overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-xl">
+                        {category.image ? (
+                          <ImageWithPlaceholder
+                            src={getFullImageUrl(category.image)}
+                            alt={category.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            placeholderClassName="w-full h-full"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-500"></div>
+                        )}
+                        {!category.image && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                              <ShoppingBag className="h-10 w-10 text-white" />
+                            </div>
                           </div>
-                        </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                       </div>
                       <CardHeader className="text-center pb-4">
                         <CardTitle className="text-xl font-bold group-hover:text-blue-600 transition-colors duration-300">{category.name}</CardTitle>
@@ -567,10 +586,21 @@ const Home: React.FC = () => {
                     </>
                   ) : (
                     <div className="flex w-full items-center p-6">
-                      <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center flex-shrink-0 mr-6 group-hover:scale-110 transition-transform duration-500">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                          <ShoppingBag className="h-6 w-6 text-white" />
-                        </div>
+                      <div className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 mr-6 group-hover:scale-110 transition-transform duration-500 overflow-hidden">
+                        {category.image ? (
+                          <ImageWithPlaceholder
+                            src={getFullImageUrl(category.image)}
+                            alt={category.name}
+                            className="w-full h-full object-cover"
+                            placeholderClassName="w-full h-full"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                              <ShoppingBag className="h-6 w-6 text-white" />
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <CardTitle className="text-xl font-bold group-hover:text-blue-600 transition-colors duration-300 mb-2">{category.name}</CardTitle>
@@ -660,11 +690,13 @@ const Home: React.FC = () => {
                             SALE
                           </Badge>
                         )}
-                        <div className="absolute top-4 right-4">
-                          <WishlistButton product={product} size="sm" />
-                        </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       </div>
+                      
+                      <div className="absolute top-4 right-4 z-10">
+                        <WishlistButton product={product} size="sm" />
+                      </div>
+                      
                       <CardHeader className="pb-4">
                         <CardTitle className="text-xl font-bold group-hover:text-blue-600 transition-colors duration-300 line-clamp-2">{product.name}</CardTitle>
                         <RatingDisplay
@@ -823,3 +855,4 @@ const Home: React.FC = () => {
 };
 
 export default Home;
+

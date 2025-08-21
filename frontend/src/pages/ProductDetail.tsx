@@ -45,6 +45,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from 'sonner';
 import { reviewService } from '../services/reviewService';
 import UserAvatar from '../components/UserAvatar';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 
 const ProductDetail: React.FC = () => {
@@ -2085,7 +2086,7 @@ const ProductDetail: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-md overflow-hidden">
                           <img 
-                            src={cartItem.image || '/placeholder-image.jpg'} 
+                            src={cartItem.image ? getFullImageUrl(cartItem.image) : '/placeholder-image.jpg'} 
                             alt={cartItem.name}
                             className="w-full h-full object-cover"
                           />
@@ -3800,11 +3801,11 @@ const ProductDetail: React.FC = () => {
                     className="group cursor-pointer transition-all hover:shadow-lg hover:scale-105"
                     onClick={() => window.location.href = `/products/${product.slug}`}
                   >
-                    <div className="relative overflow-hidden">
+                    <div className="relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl min-h-[200px] flex items-center justify-center">
                       <ImageWithPlaceholder
-                        src={product.images && product.images.length > 0 ? product.images[0].url : ''}
+                        src={product.images && product.images.length > 0 ? getFullImageUrl(product.images[0].url) : ''}
                         alt={product.name}
-                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-auto h-auto max-w-full max-h-[200px] object-contain object-center group-hover:scale-110 transition-transform duration-300"
                       />
                       {product.comparePrice && product.comparePrice > product.price && (
                         <Badge variant="destructive" className="absolute top-2 left-2">

@@ -167,12 +167,12 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
                   >
                     <div className="flex gap-3">
                       {/* Enhanced Product Image */}
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 bg-white dark:bg-gray-700 shadow-sm">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 shadow-sm flex items-center justify-center">
                         {item.image ? (
                           <ImageWithPlaceholder
                             src={item.image}
                             alt={item.name}
-                            className="w-full h-full object-cover"
+                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
                           />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">

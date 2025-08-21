@@ -788,11 +788,13 @@ const Checkout: React.FC = () => {
                   <div className="space-y-3">
                     {items.map((item, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <img
-                          src={item.image || '/placeholder.png'}
-                          alt={item.name}
-                          className="w-14 h-14 object-cover rounded-lg border border-gray-200"
-                        />
+                        <div className="w-14 h-14 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={item.image || '/placeholder.png'}
+                            alt={item.name}
+                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
+                          />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm text-gray-900 truncate">{item.name}</p>
                           <p className="text-gray-500 text-xs mt-1">

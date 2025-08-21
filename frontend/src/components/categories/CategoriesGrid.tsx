@@ -49,7 +49,7 @@ export const CategoriesGrid: React.FC<CategoriesGridProps> = ({
             <ImageWithPlaceholder
               src={category.image || '/placeholder-category.jpg'}
               alt={category.name}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+              className="w-auto h-auto max-w-full max-h-full object-contain object-center transition-transform duration-300 group-hover:scale-110"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
             

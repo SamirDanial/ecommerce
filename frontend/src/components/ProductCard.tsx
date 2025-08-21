@@ -29,24 +29,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   return (
-    <Link to={`/products/${product.slug}`} className="block" onClick={handleProductClick}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer h-full">
-        <div className="aspect-square overflow-hidden relative">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer h-full relative">
+      <div className="absolute top-2 right-2 z-10">
+        <WishlistButton product={product} size="sm" />
+      </div>
+      
+      <Link to={`/products/${product.slug}`} className="block" onClick={handleProductClick}>
+        <div className="overflow-hidden relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl min-h-[200px] flex items-center justify-center">
           <ImageWithPlaceholder
             src={imageUrl}
             alt={product.name}
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-            placeholderClassName="w-full h-full"
+            className="w-auto h-auto max-w-full max-h-[200px] object-contain object-center hover:scale-105 transition-transform duration-300"
+            placeholderClassName="w-auto h-auto max-w-full max-h-[200px]"
           />
           {product.isOnSale && (
             <Badge className="absolute top-2 left-2 bg-red-500 text-xs">
               Sale
             </Badge>
           )}
-          <div className="absolute top-2 right-2">
-            <WishlistButton product={product} size="sm" />
-          </div>
         </div>
+        
         <CardHeader className="pb-2 px-3 sm:px-4">
           <CardTitle className="text-sm sm:text-base line-clamp-2 leading-tight">{product.name}</CardTitle>
           
@@ -102,8 +104,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             View Details
           </Button>
         </CardFooter>
-      </Card>
-    </Link>
+      </Link>
+    </Card>
   );
 };
 

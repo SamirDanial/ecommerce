@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ProductImage } from '../types';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
 import { Button } from './ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, Loader2 } from 'lucide-react';
-import PhotoSwipe from 'photoswipe';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import ColorSwatches from './ColorSwatches';
 import { productService } from '../services/api';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 interface ProductImageGalleryProps {
   images: ProductImage[];
@@ -164,7 +164,7 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
 
   const currentImages = getImagesForColor();
   const currentImage = currentImages[selectedImage] || currentImages[0];
-  const currentImageUrl = currentImage?.url;
+  const currentImageUrl = currentImage?.url ? getFullImageUrl(currentImage.url) : '';
 
   const handleImageChange = (index: number) => {
     setSelectedImage(index);
@@ -176,42 +176,7 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
     }
   };
 
-  const handleZoom = () => {
-    if (!currentImages.length) return;
 
-    const options = {
-      dataSource: currentImages.map((image, index) => ({
-        src: image.url,
-        width: 1200,
-        height: 1200,
-        alt: `${productName} - ${selectedColor ? selectedColor + ' - ' : ''}Image ${index + 1}`
-      })),
-      index: selectedImage,
-      showHideAnimationType: 'fade' as const,
-      showAnimationDuration: 300,
-      hideAnimationDuration: 300,
-      easing: 'cubic-bezier(0.4, 0, 0.22, 1)',
-      allowPanToNext: true,
-      allowMouseDrag: true,
-      allowTouchDrag: true,
-      allowVerticalDrag: true,
-      allowHorizontalDrag: true,
-      zoomAnimationDuration: 300,
-      maxZoomLevel: 4,
-      minZoomLevel: 1,
-      secondaryZoomLevel: 2,
-      maxSpreadZoom: 2,
-      getDoubleTapZoom: (isMouseClick: boolean, item: any) => {
-        return item.initialZoomLevel * 2;
-      },
-      paddingFn: () => {
-        return { top: 30, bottom: 30, left: 70, right: 70 };
-      }
-    };
-
-    const pswp = new PhotoSwipe(options);
-    pswp.init();
-  };
 
   const handlePrevious = () => {
     const newIndex = selectedImage > 0 ? selectedImage - 1 : images.length - 1;
@@ -246,7 +211,7 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
           <ImageWithPlaceholder
             src={currentImageUrl}
             alt={`${productName} - Image ${selectedImage + 1}`}
-            className="w-full h-full object-cover transition-all duration-300"
+            className="w-auto h-auto max-w-full max-h-full object-contain object-center transition-all duration-300"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -254,15 +219,7 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
           </div>
         )}
 
-        {/* Zoom button */}
-        <Button
-          onClick={handleZoom}
-          size="sm"
-          variant="secondary"
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
+
 
         {/* Navigation arrows */}
         {currentImages.length > 1 && (
@@ -301,9 +258,9 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
               }`}
             >
               <ImageWithPlaceholder
-                src={image.url}
+                src={getFullImageUrl(image.url)}
                 alt={`${productName} thumbnail ${index + 1}`}
-                className="w-full h-full object-cover rounded-lg"
+                className="w-auto h-auto max-w-full max-h-full object-contain object-center rounded-lg"
               />
             </button>
           ))}

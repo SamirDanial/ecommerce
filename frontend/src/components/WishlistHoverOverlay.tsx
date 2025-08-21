@@ -167,11 +167,11 @@ const WishlistHoverOverlay: React.FC<WishlistHoverOverlayProps> = ({
                     <div key={item.id} className="group p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300">
                       <div className="flex items-center gap-3">
                         {/* Enhanced Product Image */}
-                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white dark:bg-gray-700 shadow-sm">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 shadow-sm flex items-center justify-center">
                           <ImageWithPlaceholder
                             src={item.product ? getImageUrl(item.product) : '/placeholder-product.jpg'}
                             alt={item.product?.name || 'Product'}
-                            className="w-full h-full object-cover"
+                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
                           />
                         </div>
                         
