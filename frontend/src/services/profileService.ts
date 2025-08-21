@@ -147,7 +147,7 @@ export interface ChangePasswordRequest {
 export const profileService = {
   // Get user orders with pagination
   getOrders: async (token: string, page: number = 1, limit: number = 3): Promise<PaginatedOrdersResponse> => {
-    const response = await api.get(`/api/profile/orders?page=${page}&limit=${limit}`, {
+    const response = await api.get(`/profile/orders?page=${page}&limit=${limit}`, {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -155,7 +155,7 @@ export const profileService = {
 
   // Get user addresses
   getAddresses: async (token: string) => {
-    const response = await api.get('/api/profile/addresses', {
+    const response = await api.get('/profile/addresses', {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -163,7 +163,7 @@ export const profileService = {
 
   // Get user payment methods
   getPaymentMethods: async (token: string) => {
-    const response = await api.get('/api/profile/payment-methods', {
+    const response = await api.get('/profile/payment-methods', {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -171,7 +171,7 @@ export const profileService = {
 
   // Get user preferences
   getPreferences: async (token: string) => {
-    const response = await api.get('/api/profile/preferences', {
+    const response = await api.get('/profile/preferences', {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -179,7 +179,7 @@ export const profileService = {
 
   // Update user preferences
   updatePreferences: async (token: string, preferences: UserPreferences) => {
-    const response = await api.put('/api/profile/preferences', 
+    const response = await api.put('/profile/preferences', 
       preferences,
       { headers: createAuthHeaders(token) }
     );
@@ -188,7 +188,7 @@ export const profileService = {
 
   // Delete address
   deleteAddress: async (token: string, addressId: number) => {
-    const response = await api.delete(`/api/profile/addresses/${addressId}`, {
+    const response = await api.delete(`/profile/addresses/${addressId}`, {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -196,7 +196,7 @@ export const profileService = {
 
   // Delete payment method
   deletePaymentMethod: async (token: string, methodId: number) => {
-    const response = await api.delete(`/api/profile/payment-methods/${methodId}`, {
+    const response = await api.delete(`/profile/payment-methods/${methodId}`, {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -204,7 +204,7 @@ export const profileService = {
 
   // Add new address
   addAddress: async (token: string, address: Omit<Address, 'id'>) => {
-    const response = await api.post('/api/profile/addresses', 
+    const response = await api.post('/profile/addresses', 
       address,
       { headers: createAuthHeaders(token) }
     );
@@ -213,7 +213,7 @@ export const profileService = {
 
   // Update address
   updateAddress: async (token: string, addressId: number, address: Partial<Address>) => {
-    const response = await api.put(`/api/profile/addresses/${addressId}`, 
+    const response = await api.put(`/profile/addresses/${addressId}`, 
       address,
       { headers: createAuthHeaders(token) }
     );
@@ -222,7 +222,7 @@ export const profileService = {
 
   // Add new payment method
   addPaymentMethod: async (token: string, paymentMethod: Omit<PaymentMethod, 'id'>) => {
-    const response = await api.post('/api/profile/payment-methods', 
+    const response = await api.post('/profile/payment-methods', 
       paymentMethod,
       { headers: createAuthHeaders(token) }
     );
@@ -231,7 +231,7 @@ export const profileService = {
 
   // Update payment method
   updatePaymentMethod: async (token: string, methodId: number, paymentMethod: Partial<PaymentMethod>) => {
-    const response = await api.put(`/api/profile/payment-methods/${methodId}`, 
+    const response = await api.put(`/profile/payment-methods/${methodId}`, 
       paymentMethod,
       { headers: createAuthHeaders(token) }
     );
@@ -240,7 +240,7 @@ export const profileService = {
 
   // Change password
   changePassword: async (token: string, passwordData: ChangePasswordRequest) => {
-    const response = await api.put('/api/profile/change-password', 
+    const response = await api.put('/profile/change-password', 
       passwordData,
       { headers: createAuthHeaders(token) }
     );
@@ -249,7 +249,7 @@ export const profileService = {
 
   // Get user sessions
   getSessions: async (token: string) => {
-    const response = await api.get('/api/profile/sessions', {
+    const response = await api.get('/profile/sessions', {
       headers: createAuthHeaders(token),
     });
     return response.data;
@@ -257,7 +257,7 @@ export const profileService = {
 
   // Revoke session
   revokeSession: async (token: string, sessionId: number) => {
-    const response = await api.delete(`/api/profile/sessions/${sessionId}`, {
+    const response = await api.delete(`/profile/sessions/${sessionId}`, {
       headers: createAuthHeaders(token),
     });
     return response.data;

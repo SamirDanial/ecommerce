@@ -52,7 +52,7 @@ export const configService = {
   // Get all active languages
   getLanguages: async (): Promise<LanguageConfig[]> => {
     try {
-      const response = await api.get<ConfigResponse<LanguageConfig>>('/api/languages');
+      const response = await api.get<ConfigResponse<LanguageConfig>>('/languages');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching languages:', error);
@@ -63,7 +63,7 @@ export const configService = {
   // Get all active currencies
   getCurrencies: async (): Promise<CurrencyConfig[]> => {
     try {
-      const response = await api.get<ConfigResponse<CurrencyConfig>>('/api/currencies');
+      const response = await api.get<ConfigResponse<CurrencyConfig>>('/currencies');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching currencies:', error);
@@ -74,7 +74,7 @@ export const configService = {
   // Get default language
   getDefaultLanguage: async (): Promise<LanguageConfig | null> => {
     try {
-      const response = await api.get<{ success: boolean; data: LanguageConfig }>('/api/languages/default');
+      const response = await api.get<{ success: boolean; data: LanguageConfig }>('/languages/default');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching default language:', error);
@@ -85,7 +85,7 @@ export const configService = {
   // Get default currency
   getDefaultCurrency: async (): Promise<CurrencyConfig | null> => {
     try {
-      const response = await api.get<{ success: boolean; data: CurrencyConfig }>('/api/currencies/default');
+      const response = await api.get<{ success: boolean; data: CurrencyConfig }>('/currencies/default');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching default currency:', error);
@@ -96,7 +96,7 @@ export const configService = {
   // Get all active countries
   getCountries: async (): Promise<CountryConfig[]> => {
     try {
-      const response = await api.get<ConfigResponse<CountryConfig>>('/api/countries');
+      const response = await api.get<ConfigResponse<CountryConfig>>('/countries');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching countries:', error);
@@ -107,7 +107,7 @@ export const configService = {
   // Get only countries with delivery available
   getDeliveryCountries: async (): Promise<CountryConfig[]> => {
     try {
-      const response = await api.get<ConfigResponse<CountryConfig>>('/api/countries/delivery');
+      const response = await api.get<ConfigResponse<CountryConfig>>('/countries/delivery');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching delivery countries:', error);
@@ -118,7 +118,7 @@ export const configService = {
   // Get country by code
   getCountryByCode: async (code: string): Promise<CountryConfig | null> => {
     try {
-      const response = await api.get<{ success: boolean; data: CountryConfig }>(`/api/countries/${code}`);
+      const response = await api.get<{ success: boolean; data: CountryConfig }>(`/countries/${code}`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching country:', error);

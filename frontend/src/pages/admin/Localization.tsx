@@ -209,7 +209,7 @@ const Localization: React.FC = () => {
     queryFn: async () => {
       const token = await getToken({ template: 'e-commerce' });
       
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/languages`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/languages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -233,7 +233,7 @@ const Localization: React.FC = () => {
     queryKey: ['admin-currencies'],
     queryFn: async () => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/currencies`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/currencies`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -253,7 +253,7 @@ const Localization: React.FC = () => {
     queryKey: ['admin-countries'],
     queryFn: async () => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/countries`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/countries`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
@@ -272,7 +272,7 @@ const Localization: React.FC = () => {
   const updateLanguageStatus = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/languages/${id}`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/languages/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ const Localization: React.FC = () => {
   const updateCurrencyStatus = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/currencies/${id}`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/currencies/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ const Localization: React.FC = () => {
   const updateCurrencyRate = useMutation({
     mutationFn: async ({ id, rate }: { id: number; rate: number }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/currencies/${id}`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/currencies/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -343,7 +343,7 @@ const Localization: React.FC = () => {
   const updateCountryStatus = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       const token = await getToken({ template: 'e-commerce' });
-      const response = await fetch(`${getApiConfig().baseURL}/api/admin/localization/countries/${id}`, {
+      const response = await fetch(`${getApiConfig().baseURL}/admin/localization/countries/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

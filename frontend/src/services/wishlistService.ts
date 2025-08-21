@@ -17,7 +17,7 @@ export const wishlistService = {
         throw new Error('Authentication token is required');
       }
 
-      const response = await api.get('/api/wishlist', {
+      const response = await api.get('/wishlist', {
         headers: createAuthHeaders(token),
       });
       
@@ -42,7 +42,7 @@ export const wishlistService = {
         throw new Error('Authentication token is required');
       }
 
-      const response = await api.post('/api/wishlist', 
+      const response = await api.post('/wishlist', 
         { productId },
         { headers: createAuthHeaders(token) }
       );
@@ -67,7 +67,7 @@ export const wishlistService = {
         throw new Error('Authentication token is required');
       }
 
-      const response = await api.delete(`/api/wishlist/${productId}`, {
+      const response = await api.delete(`/wishlist/${productId}`, {
         headers: createAuthHeaders(token),
       });
       return response.data;
@@ -91,7 +91,7 @@ export const wishlistService = {
         throw new Error('Authentication token is required');
       }
 
-      const response = await api.delete('/api/wishlist', {
+      const response = await api.delete('/wishlist', {
         headers: createAuthHeaders(token),
       });
       return response.data;
@@ -113,7 +113,7 @@ export const wishlistService = {
         throw new Error('Authentication token is required');
       }
 
-      const response = await api.get(`/api/wishlist/check/${productId}`, {
+      const response = await api.get(`/wishlist/check/${productId}`, {
         headers: createAuthHeaders(token),
       });
       return response.data;

@@ -29,7 +29,7 @@ export interface UpdateAddressRequest extends CreateAddressRequest {
 export const getSavedAddresses = async (token?: string): Promise<SavedAddress[]> => {
   try {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const response = await api.get('/api/profile/addresses', { headers });
+    const response = await api.get('/profile/addresses', { headers });
     return response.data.map((address: any) => transformBackendAddress(address));
   } catch (error) {
     console.error('Failed to fetch saved addresses:', error);
@@ -56,7 +56,7 @@ export const createAddress = async (addressData: CreateAddressRequest, token?: s
     };
 
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const response = await api.post('/api/profile/addresses', backendAddressData, { headers });
+    const response = await api.post('/profile/addresses', backendAddressData, { headers });
     return response.data.address;
   } catch (error) {
     console.error('Failed to create address:', error);
@@ -83,7 +83,7 @@ export const updateAddress = async (addressData: UpdateAddressRequest, token?: s
     };
 
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const response = await api.put(`/api/profile/addresses/${addressData.id}`, backendAddressData, { headers });
+    const response = await api.put(`/profile/addresses/${addressData.id}`, backendAddressData, { headers });
     return response.data.address;
   } catch (error) {
     console.error('Failed to update address:', error);
@@ -95,7 +95,7 @@ export const updateAddress = async (addressData: UpdateAddressRequest, token?: s
 export const deleteAddress = async (addressId: string, token?: string): Promise<boolean> => {
   try {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    await api.delete(`/api/profile/addresses/${addressId}`, { headers });
+    await api.delete(`/profile/addresses/${addressId}`, { headers });
     return true;
   } catch (error) {
     console.error('Failed to delete address:', error);

@@ -37,7 +37,7 @@ export class CurrencyService {
    */
   static async getAllCurrencies(): Promise<CurrencyConfig[]> {
     try {
-      const response = await api.get('/api/currencies');
+      const response = await api.get('/currencies');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching currencies:', error);
@@ -50,7 +50,7 @@ export class CurrencyService {
    */
   static async getCurrencyByCode(code: string): Promise<CurrencyConfig | null> {
     try {
-      const response = await api.get(`/api/currencies/${code}`);
+      const response = await api.get(`/currencies/${code}`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching currency:', error);
@@ -63,7 +63,7 @@ export class CurrencyService {
    */
   static async getDefaultCurrency(): Promise<CurrencyConfig | null> {
     try {
-      const response = await api.get('/api/currencies/default');
+      const response = await api.get('/currencies/default');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching default currency:', error);
@@ -80,7 +80,7 @@ export class CurrencyService {
     toCurrency: string
   ): Promise<CurrencyConversion> {
     try {
-      const response = await api.post('/api/currencies/convert', {
+      const response = await api.post('/currencies/convert', {
         amount,
         fromCurrency,
         toCurrency
@@ -97,7 +97,7 @@ export class CurrencyService {
    */
   static async getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
     try {
-      const response = await api.get(`/api/currencies/exchange-rates?base=${baseCurrency}`);
+      const response = await api.get(`/currencies/exchange-rates?base=${baseCurrency}`);
       return response.data.data.rates;
     } catch (error) {
       console.error('Error fetching exchange rates:', error);
@@ -110,7 +110,7 @@ export class CurrencyService {
    */
   static async formatCurrency(amount: number, currencyCode: string): Promise<FormattedCurrency> {
     try {
-      const response = await api.post('/api/currencies/format', {
+      const response = await api.post('/currencies/format', {
         amount,
         currencyCode
       });
@@ -126,7 +126,7 @@ export class CurrencyService {
    */
   static async getStripeSupportedCurrencies(): Promise<string[]> {
     try {
-      const response = await api.get('/api/currencies/stripe-supported');
+      const response = await api.get('/currencies/stripe-supported');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching Stripe supported currencies:', error);

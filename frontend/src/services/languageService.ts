@@ -33,7 +33,7 @@ export class LanguageService {
    */
   static async getAllLanguages(): Promise<LanguageConfig[]> {
     try {
-      const response = await api.get('/api/languages');
+      const response = await api.get('/languages');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching languages:', error);
@@ -46,7 +46,7 @@ export class LanguageService {
    */
   static async getLanguageByCode(code: string): Promise<LanguageConfig | null> {
     try {
-      const response = await api.get(`/api/languages/${code}`);
+      const response = await api.get(`/languages/${code}`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching language:', error);
@@ -59,7 +59,7 @@ export class LanguageService {
    */
   static async getDefaultLanguage(): Promise<LanguageConfig | null> {
     try {
-      const response = await api.get('/api/languages/default');
+      const response = await api.get('/languages/default');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching default language:', error);
@@ -72,7 +72,7 @@ export class LanguageService {
    */
   static async getRTLLanguages(): Promise<LanguageConfig[]> {
     try {
-      const response = await api.get('/api/languages/rtl');
+      const response = await api.get('/languages/rtl');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching RTL languages:', error);
@@ -85,7 +85,7 @@ export class LanguageService {
    */
   static async getLocalizationConfig(languageCode: string): Promise<LocalizationConfig> {
     try {
-      const response = await api.get(`/api/languages/${languageCode}/localization`);
+      const response = await api.get(`/languages/${languageCode}/localization`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching localization config:', error);
@@ -98,7 +98,7 @@ export class LanguageService {
    */
   static async isRTLLanguage(languageCode: string): Promise<boolean> {
     try {
-      const response = await api.get(`/api/languages/${languageCode}/rtl`);
+      const response = await api.get(`/languages/${languageCode}/rtl`);
       return response.data.data.isRTL;
     } catch (error) {
       console.error('Error checking RTL status:', error);
@@ -111,7 +111,7 @@ export class LanguageService {
    */
   static async getSupportedLanguages(): Promise<LanguageConfig[]> {
     try {
-      const response = await api.get('/api/languages/supported');
+      const response = await api.get('/languages/supported');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching supported languages:', error);
@@ -129,7 +129,7 @@ export class LanguageService {
     exists: boolean;
   }> {
     try {
-      const response = await api.post('/api/languages/validate', { code });
+      const response = await api.post('/languages/validate', { code });
       return response.data.data;
     } catch (error) {
       console.error('Error validating language code:', error);
@@ -147,7 +147,7 @@ export class LanguageService {
     isSupported: boolean;
   }> {
     try {
-      const response = await api.get('/api/languages/browser');
+      const response = await api.get('/languages/browser');
       return response.data.data;
     } catch (error) {
       console.error('Error detecting browser language:', error);
@@ -160,7 +160,7 @@ export class LanguageService {
    */
   static async getLanguageDisplayNames(preferredLanguage: string = 'en'): Promise<LanguageDisplayName[]> {
     try {
-      const response = await api.get(`/api/languages/display-names?preferredLanguage=${preferredLanguage}`);
+      const response = await api.get(`/languages/display-names?preferredLanguage=${preferredLanguage}`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching language display names:', error);
