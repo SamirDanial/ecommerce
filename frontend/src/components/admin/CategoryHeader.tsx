@@ -64,13 +64,41 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({ onAddCategory, onExport
         </div>
       </div>
       
-      {/* Mobile Floating Action Button */}
-      <div 
-        onClick={onAddCategory} 
-        className="sm:hidden fixed bottom-6 right-4 z-50 w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.15),0_8px_32px_rgba(147,51,234,0.4),0_16px_48px_rgba(147,51,234,0.2)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.2),0_16px_48px_rgba(147,51,234,0.5),0_24px_64px_rgba(147,51,234,0.3)] transition-all duration-300 border-0 cursor-pointer flex items-center justify-center"
-      >
-        <Plus className="w-6 h-6" />
+      {/* Mobile Action Buttons */}
+      <div className="sm:hidden mt-4">
+        <div className="flex flex-col gap-3">
+          {/* Import/Export Row */}
+          <div className="flex gap-3">
+            <Button 
+              onClick={onExportCategories} 
+              variant="outline"
+              className="flex-1 border-purple-200 text-purple-600 hover:bg-purple-50 h-12 text-sm font-medium rounded-xl transition-all duration-300"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button 
+              onClick={onImportCategories} 
+              variant="outline"
+              className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 h-12 text-sm font-medium rounded-xl transition-all duration-300"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+          </div>
+          
+          {/* Add Category Button */}
+          <Button 
+            onClick={onAddCategory} 
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-12 text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Category
+          </Button>
+        </div>
       </div>
+      
+
     </>
   );
 };
