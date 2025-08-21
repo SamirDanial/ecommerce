@@ -772,7 +772,8 @@ router.use('/:id/stats', (req, res, next) => {
 // Import products from JSON
 router.post('/import/validate', authenticateClerkToken, async (req, res) => {
   try {
-    const { products } = req.body;
+    const { products, options = {} } = req.body;
+    const { orphanCategoryStrategy = 'create' } = options;
     
     if (!Array.isArray(products)) {
       return res.status(400).json({ 
@@ -825,12 +826,20 @@ router.post('/import/validate', authenticateClerkToken, async (req, res) => {
       }
 
       // Category existence validation
+      let categoryWarning = null;
       if (product.categoryId) {
         const category = await prisma.category.findUnique({
           where: { id: product.categoryId }
         });
         if (!category) {
-          errors.push(`Category with ID ${product.categoryId} does not exist`);
+          if (orphanCategoryStrategy === 'create') {
+            // Allow invalid category IDs when orphan strategy is 'create'
+            // These will be handled during import by assigning to orphan category
+            categoryWarning = `Category with ID ${product.categoryId} does not exist - will be assigned to "Orphan Products" category`;
+          } else {
+            // Only reject invalid category IDs when orphan strategy is 'skip'
+            errors.push(`Category with ID ${product.categoryId} does not exist`);
+          }
         }
       }
 
@@ -844,6 +853,11 @@ router.post('/import/validate', authenticateClerkToken, async (req, res) => {
           skuWarning = `SKU ${product.sku} already exists - will be automatically made unique`;
         }
       }
+
+      // Collect all warnings
+      const warnings = [];
+      if (skuWarning) warnings.push(skuWarning);
+      if (categoryWarning) warnings.push(categoryWarning);
 
       // Variant validation
       if (product.variants && Array.isArray(product.variants)) {
@@ -862,7 +876,7 @@ router.post('/import/validate', authenticateClerkToken, async (req, res) => {
         index: i,
         product: { name: product.name, sku: product.sku },
         errors,
-        warnings: skuWarning ? [skuWarning] : [],
+        warnings,
         valid: errors.length === 0
       });
 
@@ -892,6 +906,10 @@ router.post('/import/validate', authenticateClerkToken, async (req, res) => {
 // Execute import after validation
 router.post('/import/execute', authenticateClerkToken, async (req, res) => {
   try {
+    console.log('Import execute request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request headers:', req.headers);
+    console.log('Content-Type:', req.get('Content-Type'));
+    
     const { products, options = {} } = req.body;
     const { 
       skipDuplicates = true, 
@@ -900,6 +918,10 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
       orphanCategoryStrategy = 'create', // 'skip' | 'create' - new option for handling products with invalid categories
       productDuplicateStrategy = 'generate_unique' // 'skip' | 'replace' | 'update' | 'generate_unique' - new option for handling duplicate products
     } = options;
+    
+    console.log('Parsed options:', { orphanCategoryStrategy, productDuplicateStrategy });
+    console.log('Products array length:', products?.length);
+    console.log('First product sample:', products?.[0]);
 
     if (!Array.isArray(products)) {
       return res.status(400).json({ 
@@ -913,13 +935,45 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
     let skippedCount = 0;
     let errorCount = 0;
 
+    // Pre-validate all category IDs to identify orphan products FIRST
+    const validCategoryIds = new Set<number>();
+    const orphanProductIndices: number[] = [];
+    
+    console.log('Starting category validation for', products.length, 'products');
+    
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      console.log(`Product ${i}: ${product.name}, categoryId: ${product.categoryId}`);
+      
+      if (product.categoryId && product.categoryId > 0) {
+        const category = await prisma.category.findUnique({
+          where: { id: product.categoryId }
+        });
+        if (category) {
+          validCategoryIds.add(product.categoryId);
+          console.log(`Product ${i}: Valid category ${category.name} (ID: ${category.id})`);
+        } else {
+          // This product has an invalid category ID
+          orphanProductIndices.push(i);
+          console.log(`Product ${i}: Invalid category ID ${product.categoryId} - marked as orphan`);
+        }
+      } else {
+        // This product has no category ID or invalid ID
+        orphanProductIndices.push(i);
+        console.log(`Product ${i}: No category ID or invalid ID - marked as orphan`);
+      }
+    }
+    
+    console.log('Orphan product indices:', orphanProductIndices);
+    console.log('Valid category IDs:', Array.from(validCategoryIds));
+
     // Handle orphan products strategy - create "Orphan Products" category if needed
     let orphanCategoryId: number | null = null;
     if (orphanCategoryStrategy === 'create') {
-      // Check if we need to create an orphan category for products with invalid category IDs
-      const hasOrphanProducts = products.some((product: any) => 
-        !product.categoryId || product.categoryId <= 0
-      );
+      // Check if we actually have orphan products based on the validation above
+      const hasOrphanProducts = orphanProductIndices.length > 0;
+
+      console.log('Checking for orphan products:', hasOrphanProducts);
 
       if (hasOrphanProducts) {
         try {
@@ -935,6 +989,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
 
           if (!orphanCategory) {
             // Create "Orphan Products" category
+            console.log('Creating orphan category...');
             orphanCategory = await prisma.category.create({
               data: {
                 name: 'Orphan Products',
@@ -945,6 +1000,8 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
               }
             });
             console.log(`Created orphan category: ${orphanCategory.name} (ID: ${orphanCategory.id})`);
+          } else {
+            console.log(`Using existing orphan category: ${orphanCategory.name} (ID: ${orphanCategory.id})`);
           }
           
           orphanCategoryId = orphanCategory.id;
@@ -954,40 +1011,116 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
         }
       }
     }
+    
+    console.log('Final orphan category ID:', orphanCategoryId);
 
-    for (const productData of products) {
+    // Process each product
+    for (let i = 0; i < products.length; i++) {
+      const productData = products[i];
+      console.log(`\n--- Processing product ${i}: ${productData.name} (SKU: ${productData.sku}) ---`);
+      
       try {
-        // Handle orphan products by assigning them to orphan category
-        let finalCategoryId = productData.categoryId;
-        if ((!productData.categoryId || productData.categoryId <= 0) && orphanCategoryId) {
-          finalCategoryId = orphanCategoryId;
-          console.log(`Product ${productData.name} has invalid category ID, assigning to orphan category ${orphanCategoryId}`);
-        } else if (!productData.categoryId || productData.categoryId <= 0) {
-          // No orphan category available, skip this product
-          importResults.push({
-            name: productData.name,
-            sku: productData.sku,
-            status: 'error',
-            reason: 'Invalid category ID and no orphan category available'
-          });
-          errorCount++;
-          continue;
-        }
-
-        // Check for existing product and handle duplicate SKUs based on strategy
-        let existingProduct = null;
-        let finalSku = productData.sku;
-        let shouldCreateNew = false;
+        // STEP 1: Check if this is an orphan product
+        const isOrphanProduct = orphanProductIndices.includes(i);
+        console.log(`Is orphan product: ${isOrphanProduct}`);
         
+        if (isOrphanProduct) {
+          if (orphanCategoryStrategy === 'skip') {
+            // SKIP orphan products entirely
+            console.log(`SKIPPING orphan product: ${productData.name} (invalid category ID: ${productData.categoryId})`);
+            importResults.push({
+              name: productData.name,
+              sku: productData.sku,
+              status: 'skipped',
+              reason: `Product skipped due to invalid category ID ${productData.categoryId} (skip strategy)`
+            });
+            skippedCount++;
+            console.log(`Product ${i} skipped. Moving to next product.`);
+            continue; // Skip this product entirely
+          } else if (orphanCategoryStrategy === 'create' && orphanCategoryId) {
+            // Check if this orphan product is a duplicate of an existing product
+            console.log(`Checking for duplicates of orphan product: ${productData.name}`);
+            
+            let isDuplicate = false;
+            let duplicateReason = '';
+            
+            // Check by SKU first (most reliable)
+            if (productData.sku) {
+              const existingBySku = await prisma.product.findUnique({
+                where: { sku: productData.sku }
+              });
+              if (existingBySku) {
+                isDuplicate = true;
+                duplicateReason = `SKU ${productData.sku} already exists`;
+                console.log(`Found duplicate by SKU: ${productData.sku}`);
+              }
+            }
+            
+            // Check by slug if no SKU duplicate found
+            if (!isDuplicate && productData.slug) {
+              const existingBySlug = await prisma.product.findFirst({
+                where: { slug: productData.slug }
+              });
+              if (existingBySlug) {
+                isDuplicate = true;
+                duplicateReason = `Slug ${productData.slug} already exists`;
+                console.log(`Found duplicate by slug: ${productData.slug}`);
+              }
+            }
+            
+            // Check by name if no SKU or slug duplicate found
+            if (!isDuplicate && productData.name) {
+              const existingByName = await prisma.product.findFirst({
+                where: { name: productData.name }
+              });
+              if (existingByName) {
+                isDuplicate = true;
+                duplicateReason = `Name "${productData.name}" already exists`;
+                console.log(`Found duplicate by name: ${productData.name}`);
+              }
+            }
+            
+            if (isDuplicate) {
+              // Skip this orphan product as it's a duplicate
+              console.log(`SKIPPING orphan product: ${productData.name} (duplicate: ${duplicateReason})`);
+              importResults.push({
+                name: productData.name,
+                sku: productData.sku,
+                status: 'skipped',
+                reason: `Orphan product skipped - duplicate detected: ${duplicateReason}`
+              });
+              skippedCount++;
+              console.log(`Product ${i} skipped. Moving to next product.`);
+              continue; // Skip this product entirely
+            } else {
+              // No duplicates found, will assign to orphan category below
+              console.log(`No duplicates found. Will assign orphan product to category ID: ${orphanCategoryId}`);
+            }
+          } else {
+            // ERROR: create strategy but no orphan category available
+            console.log(`ERROR: Create strategy selected but no orphan category available`);
+            importResults.push({
+              name: productData.name,
+              sku: productData.sku,
+              status: 'error',
+              reason: 'Invalid category ID and no orphan category available'
+            });
+            errorCount++;
+            console.log(`Product ${i} errored. Moving to next product.`);
+            continue;
+          }
+        }
+        
+        // STEP 2: Check for duplicate SKU and handle according to strategy
+        let finalSku = productData.sku;
         if (productData.sku) {
-          existingProduct = await prisma.product.findUnique({
+          const existingProduct = await prisma.product.findUnique({
             where: { sku: productData.sku }
           });
           
           if (existingProduct) {
-            // Handle duplicate product based on strategy
             if (productDuplicateStrategy === 'skip') {
-              console.log(`Skipping duplicate product: ${productData.name} (SKU: ${productData.sku})`);
+              console.log(`SKIPPING duplicate product: ${productData.name} (SKU: ${productData.sku})`);
               importResults.push({
                 name: productData.name,
                 sku: productData.sku,
@@ -995,236 +1128,212 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
                 reason: 'Product with this SKU already exists (skip strategy)'
               });
               skippedCount++;
-              continue;
+              console.log(`Product ${i} skipped. Moving to next product.`);
+              continue; // Skip this product entirely
+            } else if (productDuplicateStrategy === 'generate_unique') {
+              console.log(`GENERATING unique SKU for duplicate product: ${productData.name} (original SKU: ${productData.sku})`);
+              finalSku = await generateUniqueSku(productData.name);
+              console.log(`New unique SKU generated: ${finalSku}`);
             } else if (productDuplicateStrategy === 'replace') {
-              // Delete existing product and all its variants/images
-              console.log(`Replacing existing product: ${existingProduct.name} (ID: ${existingProduct.id})`);
-              await prisma.productVariant.deleteMany({
-                where: { productId: existingProduct.id }
-              });
-              await prisma.productImage.deleteMany({
-                where: { productId: existingProduct.id }
-              });
+              console.log(`REPLACING duplicate product: ${productData.name} (SKU: ${productData.sku})`);
+              // Delete existing product first
               await prisma.product.delete({
                 where: { id: existingProduct.id }
               });
-              existingProduct = null; // Will create new product
+              console.log(`Deleted existing product with ID: ${existingProduct.id}`);
             } else if (productDuplicateStrategy === 'update') {
-              // Keep existing product, will update it
-              console.log(`Updating existing product: ${existingProduct.name} (ID: ${existingProduct.id})`);
-            } else {
-              // Default: generate unique SKU
-              finalSku = await generateUniqueSku(productData.sku);
-              existingProduct = null; // Will create new product with unique SKU
-            }
-          }
-        } else {
-          // Generate SKU from name if not provided
-          finalSku = await generateUniqueSku(productData.name);
-        }
-
-        if (existingProduct && updateExisting) {
-            // Update existing product
-            const slug = await generateUniqueSlug(productData.name, existingProduct.slug);
-            const updatedProduct = await prisma.product.update({
-              where: { id: existingProduct.id },
-              data: {
+              console.log(`UPDATING duplicate product: ${productData.name} (SKU: ${productData.sku})`);
+              // Update existing product instead of creating new one
+              const updatedProduct = await prisma.product.update({
+                where: { id: existingProduct.id },
+                data: {
+                  name: productData.name,
+                  description: productData.description,
+                  price: productData.price,
+                  comparePrice: productData.comparePrice,
+                  costPrice: productData.costPrice,
+                  categoryId: productData.categoryId, // Use original categoryId for now
+                  barcode: productData.barcode,
+                  weight: productData.weight,
+                  dimensions: productData.dimensions,
+                  tags: productData.tags || [],
+                  metaTitle: productData.metaTitle,
+                  metaDescription: productData.metaDescription,
+                  isActive: productData.isActive !== false,
+                  isFeatured: productData.isFeatured || false,
+                  isOnSale: productData.isOnSale || false,
+                  salePrice: productData.salePrice,
+                  saleEndDate: productData.saleEndDate,
+                  lowStockThreshold: productData.lowStockThreshold || 5,
+                  allowBackorder: productData.allowBackorder || false
+                }
+              });
+              
+              console.log(`Product updated with ID: ${updatedProduct.id}`);
+              
+              // Handle variants and images for updated product
+              // ... (similar logic as below)
+              
+              importResults.push({
                 name: productData.name,
-                description: productData.description,
-                price: productData.price,
-                comparePrice: productData.comparePrice,
-                costPrice: productData.costPrice,
-                shortDescription: productData.shortDescription,
-                weight: productData.weight,
-                dimensions: productData.dimensions,
-                tags: productData.tags || [],
-                metaTitle: productData.metaTitle,
-                metaDescription: productData.metaDescription,
-                isActive: productData.isActive,
-                isFeatured: productData.isFeatured,
-                isOnSale: productData.isOnSale,
-                salePrice: productData.salePrice,
-                saleEndDate: productData.saleEndDate,
-                lowStockThreshold: productData.lowStockThreshold,
-                allowBackorder: productData.allowBackorder,
-                slug
-              }
-            });
-
-            // Update variants if provided
-            if (productData.variants && Array.isArray(productData.variants)) {
-              // Delete existing variants
-              await prisma.productVariant.deleteMany({
-                where: { productId: existingProduct.id }
+                sku: productData.sku,
+                status: 'updated',
+                reason: 'Product updated (update strategy)'
               });
-
-              // Create new variants
-              for (const variantData of productData.variants) {
-                await prisma.productVariant.create({
-                  data: {
-                    productId: existingProduct.id,
-                    size: variantData.size,
-                    color: variantData.color,
-                    colorCode: variantData.colorCode,
-                    stock: variantData.stock,
-                    sku: variantData.sku,
-                    price: variantData.price,
-                    comparePrice: variantData.comparePrice,
-                    isActive: variantData.isActive !== false,
-                    lowStockThreshold: variantData.lowStockThreshold || 3,
-                    allowBackorder: variantData.allowBackorder || false
-                  }
-                });
-              }
-            }
-
-            // Update images if provided
-            if (productData.images && Array.isArray(productData.images)) {
-              // Delete existing images
-              await prisma.productImage.deleteMany({
-                where: { productId: existingProduct.id }
-              });
-
-              // Create new images
-              for (const imageData of productData.images) {
-                await prisma.productImage.create({
-                  data: {
-                    productId: existingProduct.id,
-                    url: imageData.url,
-                    alt: imageData.alt || '',
-                    isPrimary: imageData.isPrimary || false,
-                    sortOrder: imageData.sortOrder || 0
-                  }
-                });
-              }
-            }
-
-            importResults.push({
-              name: productData.name,
-              sku: productData.sku,
-              status: 'updated',
-              productId: existingProduct.id
-            });
-            importedCount++;
-        } else if (existingProduct && !updateExisting) {
-            // Skip duplicate product
-            importResults.push({
-              name: productData.name,
-              sku: productData.sku,
-              status: 'skipped',
-              reason: 'Product with this SKU already exists'
-            });
-            skippedCount++;
-        } else {
-          // Create new product
-          const slug = await generateUniqueSlug(productData.name);
-          const newProduct = await prisma.product.create({
-            data: {
-              name: productData.name,
-              description: productData.description,
-              price: productData.price,
-              comparePrice: productData.comparePrice,
-              costPrice: productData.costPrice,
-              categoryId: finalCategoryId, // Use the final category ID (may be orphan category)
-              sku: finalSku,
-              barcode: productData.barcode,
-              weight: productData.weight,
-              dimensions: productData.dimensions,
-              tags: productData.tags || [],
-              metaTitle: productData.metaTitle,
-              metaDescription: productData.metaDescription,
-              isActive: productData.isActive !== false,
-              isFeatured: productData.isFeatured || false,
-              isOnSale: productData.isOnSale || false,
-              salePrice: productData.salePrice,
-              saleEndDate: productData.saleEndDate,
-              lowStockThreshold: productData.lowStockThreshold || 5,
-              allowBackorder: productData.allowBackorder || false,
-              slug
-            }
-          });
-
-          // Create variants if provided
-          if (productData.variants && Array.isArray(productData.variants)) {
-            for (const variantData of productData.variants) {
-              await prisma.productVariant.create({
-                data: {
-                  productId: newProduct.id,
-                  size: variantData.size,
-                  color: variantData.color,
-                  colorCode: variantData.colorCode,
-                  stock: variantData.stock,
-                  sku: variantData.sku,
-                  price: variantData.price,
-                  comparePrice: variantData.comparePrice,
-                  isActive: variantData.isActive !== false,
-                  lowStockThreshold: variantData.lowStockThreshold || 3,
-                  allowBackorder: variantData.allowBackorder || false
-                }
-              });
+              importedCount++;
+              console.log(`Product ${i} updated. Moving to next product.`);
+              continue;
             }
           }
-
-          // Create images if provided
-          if (productData.images && Array.isArray(productData.images)) {
-            for (const imageData of productData.images) {
-              await prisma.productImage.create({
-                data: {
-                  productId: newProduct.id,
-                  url: imageData.url,
-                  alt: imageData.alt || '',
-                  isPrimary: imageData.isPrimary || false,
-                  sortOrder: imageData.sortOrder || 0
-                }
-              });
-            }
-          }
-
-          importResults.push({
-            name: productData.name,
-            sku: finalSku,
-            status: 'created',
-            productId: newProduct.id,
-            originalSku: productData.sku !== finalSku ? productData.sku : undefined,
-            skuChanged: productData.sku !== finalSku
-          });
-          importedCount++;
         }
+        
+        // STEP 3: Determine final category ID
+        let finalCategoryId = productData.categoryId;
+        if (isOrphanProduct && orphanCategoryStrategy === 'create' && orphanCategoryId) {
+          finalCategoryId = orphanCategoryId;
+          console.log(`Orphan product will use category ID: ${finalCategoryId}`);
+        }
+        
+        // STEP 4: Create the product
+        console.log(`CREATING product: ${productData.name} with category ID: ${finalCategoryId}`);
+        
+        // Generate SKU if needed (only if not already generated above)
+        if (!finalSku) {
+          finalSku = await generateUniqueSku(productData.name);
+          console.log(`Generated SKU: ${finalSku}`);
+        }
+        
+        // Create new product
+        const slug = await generateUniqueSlug(productData.name);
+        const newProduct = await prisma.product.create({
+          data: {
+            name: productData.name,
+            description: productData.description,
+            price: productData.price,
+            comparePrice: productData.comparePrice,
+            costPrice: productData.costPrice,
+            categoryId: finalCategoryId,
+            sku: finalSku,
+            barcode: productData.barcode,
+            weight: productData.weight,
+            dimensions: productData.dimensions,
+            tags: productData.tags || [],
+            metaTitle: productData.metaTitle,
+            metaDescription: productData.metaDescription,
+            isActive: productData.isActive !== false,
+            isFeatured: productData.isFeatured || false,
+            isOnSale: productData.isOnSale || false,
+            salePrice: productData.salePrice,
+            saleEndDate: productData.saleEndDate,
+            lowStockThreshold: productData.lowStockThreshold || 5,
+            allowBackorder: productData.allowBackorder || false,
+            slug
+          }
+        });
+        
+        console.log(`Product created with ID: ${newProduct.id}`);
+
+        // Create variants if provided
+        if (productData.variants && Array.isArray(productData.variants)) {
+          console.log(`Creating ${productData.variants.length} variants...`);
+          for (const variantData of productData.variants) {
+            await prisma.productVariant.create({
+              data: {
+                productId: newProduct.id,
+                size: variantData.size,
+                color: variantData.color,
+                colorCode: variantData.colorCode,
+                stock: variantData.stock,
+                sku: variantData.sku,
+                price: variantData.price,
+                comparePrice: variantData.comparePrice,
+                isActive: variantData.isActive !== false,
+                lowStockThreshold: variantData.lowStockThreshold || 3,
+                allowBackorder: variantData.allowBackorder || false
+              }
+            });
+          }
+        }
+
+        // Create images if provided
+        if (productData.images && Array.isArray(productData.images)) {
+          console.log(`Creating ${productData.images.length} images...`);
+          for (const imageData of productData.images) {
+            await prisma.productImage.create({
+              data: {
+                productId: newProduct.id,
+                url: imageData.url,
+                alt: imageData.alt || '',
+                isPrimary: imageData.isPrimary || false,
+                sortOrder: imageData.sortOrder || 0
+              }
+            });
+          }
+        }
+
+        // Add to results
+        importResults.push({
+          name: productData.name,
+          sku: finalSku,
+          status: 'created',
+          productId: newProduct.id,
+          originalSku: productData.sku !== finalSku ? productData.sku : undefined,
+          skuChanged: productData.sku !== finalSku,
+          reason: isOrphanProduct ? 'Assigned to "Orphan Products" category due to invalid category ID' : undefined
+        });
+        importedCount++;
+        
+        console.log(`SUCCESS: Product ${productData.name} imported with ID: ${newProduct.id}`);
+        
       } catch (error) {
-        console.error(`Error importing product ${productData.name}:`, error);
+        console.error(`ERROR importing product ${productData.name}:`, error);
         
-        // Provide more detailed error information
         let errorReason = 'Unknown error occurred';
-        let errorDetails = '';
-        
         if (error instanceof Error) {
           errorReason = error.message;
-          errorDetails = error.stack || '';
         } else if (typeof error === 'string') {
           errorReason = error;
         } else if (error && typeof error === 'object') {
           errorReason = (error as any).message || 'Database or validation error';
-          errorDetails = (error as any).code || '';
         }
         
         importResults.push({
           name: productData.name,
           sku: productData.sku,
           status: 'error',
-          reason: errorReason,
-          details: errorDetails
+          reason: errorReason
         });
         errorCount++;
+        console.log(`Product ${i} errored. Moving to next product.`);
       }
+      
+      console.log(`--- Finished processing product ${i} ---\n`);
     }
 
     // Determine overall success based on results
     const hasErrors = errorCount > 0;
     const hasFailures = importResults.some(r => r.status === 'error');
-    const overallSuccess = !hasErrors && !hasFailures && importedCount > 0;
+    
+    // IMPORTANT: When orphanCategoryStrategy is 'skip', skipping orphan products is SUCCESS, not error
+    const hasOnlySkippedOrphans = orphanCategoryStrategy === 'skip' && 
+      orphanProductIndices.length > 0 && 
+      errorCount === 0 && 
+      importResults.every(r => r.status === 'skipped' || r.status === 'created');
+    
+    const overallSuccess = !hasErrors && !hasFailures && (importedCount > 0 || hasOnlySkippedOrphans);
     
     // Set appropriate HTTP status
-    const statusCode = overallSuccess ? 200 : (hasErrors ? 400 : 207); // 207 = Multi-Status
+    // 200: Complete success (imported products or successfully skipped all products)
+    // 207: Partial success (some imported, some skipped)
+    // 400: Only when there are actual errors (not just skipped products)
+    let statusCode;
+    if (overallSuccess) {
+      statusCode = 200; // Success
+    } else if (hasErrors) {
+      statusCode = 400; // Errors
+    } else {
+      statusCode = 207; // Multi-status (partial success)
+    }
     
     res.status(statusCode).json({
       success: overallSuccess,
@@ -1239,7 +1348,9 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
         orphanProductsHandled: orphanCategoryId ? 'assigned_to_orphan_category' : 'skipped'
       },
       message: overallSuccess 
-        ? `Import completed successfully! ${importedCount} products imported.${orphanCategoryId ? ' Orphan products assigned to "Orphan Products" category.' : ''}`
+        ? hasOnlySkippedOrphans 
+          ? `Import completed successfully! All products were processed according to your strategy. ${skippedCount} products skipped (duplicates and invalid categories).`
+          : `Import completed successfully! ${importedCount} products imported.${orphanCategoryId ? ' Orphan products assigned to "Orphan Products" category.' : ''}`
         : hasErrors 
           ? `Import completed with errors. ${errorCount} products failed to import.`
           : `Import completed with mixed results. ${importedCount} products imported, ${errorCount} failed.`

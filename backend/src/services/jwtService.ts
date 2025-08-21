@@ -35,7 +35,6 @@ export class JWTService {
         cooldownDuration: 30000 // 30 second cooldown between retries
       });
       
-      console.log('JWT service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize JWT service:', error);
       throw error;

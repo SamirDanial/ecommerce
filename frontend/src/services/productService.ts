@@ -279,7 +279,10 @@ export class ProductService {
   }
 
   // Validate products for import
-  static async validateImport(products: any[], token: string): Promise<{
+  static async validateImport(products: any[], options: {
+    orphanCategoryStrategy?: 'skip' | 'create';
+    productDuplicateStrategy?: 'skip' | 'replace' | 'update' | 'generate_unique';
+  } = {}, token: string): Promise<{
     valid: boolean;
     results: any[];
     totalProducts: number;
@@ -296,7 +299,7 @@ export class ProductService {
           ...headers,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ products })
+        body: JSON.stringify({ products, options })
       }
     );
 

@@ -175,7 +175,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
         return;
       }
 
-      const validation = await ProductService.validateImport(products, token);
+      const validation = await ProductService.validateImport(products, importOptions, token);
       setValidationResults(validation.results);
       
       if (validation.valid) {
@@ -184,8 +184,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       } else {
         toast.warning(`${validation.invalidProducts} products have validation errors`);
         setCurrentStep('validation');
-      }
-    } catch (error) {
+    }
+  } catch (error) {
       console.error('Validation error:', error);
       toast.error('Failed to validate products');
     } finally {
@@ -202,16 +202,14 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
         return;
       }
 
-      const validProducts = products.filter((_, index) => 
-        validationResults[index]?.valid
-      );
-
-      if (validProducts.length === 0) {
-        toast.error('No valid products to import');
+      // Don't filter out products here - let the backend handle orphan products according to the strategy
+      // The validation step is just for user information, not for filtering
+      if (products.length === 0) {
+        toast.error('No products to import');
         return;
       }
 
-      const result: ImportResponse = await ProductService.executeImport(validProducts, importOptions, token);
+      const result: ImportResponse = await ProductService.executeImport(products, importOptions, token);
       setImportResults(result.results);
       
       // Always move to summary step after import (success or failure)
@@ -294,6 +292,12 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
     setValidating(false);
     setImporting(false);
     setDragActive(false);
+    
+    // Reset file input value
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   };
 
   const getStepStatus = (step: ImportStep) => {
@@ -1178,6 +1182,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
           // Call onImportComplete to refresh the products section
           // This ensures the products list is updated after import
           onImportComplete?.();
+          // Reset all states before closing
+          resetImport();
           // Then close the dialog
           onClose();
         }} className="w-full sm:w-auto order-1 sm:order-2 h-11">
@@ -1213,6 +1219,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
         // Don't close when moving between steps
         // This ensures the dialog stays open after import to show the summary
         if (!open) {
+          // Reset all states when dialog is closed
+          resetImport();
           onClose();
         }
       }}>
