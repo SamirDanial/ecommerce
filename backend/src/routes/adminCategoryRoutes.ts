@@ -521,30 +521,228 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
 router.get('/import/template', authenticateClerkToken, async (req, res) => {
   try {
     const template = {
+      description: "Comprehensive Category Import Template - Shows all possible structures",
+      notes: [
+        "This template demonstrates all possible category import scenarios:",
+        "1. Categories WITH products (including variants, images, etc.)",
+        "2. Categories WITHOUT products (empty products array)",
+        "3. Categories with NULL/empty fields (showing optional fields)",
+        "4. All nested product structures (variants, images, tags, etc.)",
+        "5. Different data types (strings, numbers, booleans, arrays, nulls)"
+      ],
       categories: [
         {
+          // Example 1: Category WITH products (full structure)
           name: "Electronics",
           slug: "electronics",
           description: "All electronic devices and accessories",
           image: "https://example.com/images/electronics.jpg",
           isActive: true,
-          sortOrder: 1
+          sortOrder: 1,
+          products: [
+            {
+              name: "Smartphone X",
+              description: "Latest smartphone with advanced features",
+              shortDescription: "Advanced smartphone",
+              price: 599.99,
+              comparePrice: 699.99,
+              costPrice: 300.00,
+              sku: "SMART-X-001",
+              barcode: "1234567890123",
+              weight: 0.18,
+              dimensions: "15.5 x 7.5 x 0.8 cm",
+              tags: ["smartphone", "mobile", "5G"],
+              metaTitle: "Smartphone X - Latest Technology",
+              metaDescription: "Get the latest smartphone with cutting-edge features",
+              isActive: true,
+              isFeatured: true,
+              isOnSale: false,
+              salePrice: null,
+              saleEndDate: null,
+              lowStockThreshold: 5,
+              allowBackorder: false,
+              variants: [
+                {
+                  size: "Standard",
+                  color: "Black",
+                  colorCode: "#000000",
+                  stock: 50,
+                  sku: "SMART-X-001-BLACK",
+                  price: 599.99,
+                  comparePrice: 699.99,
+                  isActive: true,
+                  lowStockThreshold: 3,
+                  allowBackorder: false
+                },
+                {
+                  size: "Standard",
+                  color: "White",
+                  colorCode: "#FFFFFF",
+                  stock: 30,
+                  sku: "SMART-X-001-WHITE",
+                  price: 599.99,
+                  comparePrice: 699.99,
+                  isActive: true,
+                  lowStockThreshold: 3,
+                  allowBackorder: false
+                }
+              ],
+              images: [
+                {
+                  url: "https://example.com/smartphone-black.jpg",
+                  alt: "Smartphone X in Black",
+                  isPrimary: true,
+                  sortOrder: 1
+                },
+                {
+                  url: "https://example.com/smartphone-white.jpg",
+                  alt: "Smartphone X in White",
+                  isPrimary: false,
+                  sortOrder: 2
+                }
+              ]
+            },
+            {
+              name: "Laptop Pro",
+              description: "Professional laptop for work and gaming",
+              shortDescription: "Professional laptop",
+              price: 1299.99,
+              comparePrice: 1499.99,
+              costPrice: 800.00,
+              sku: "LAPTOP-PRO-001",
+              barcode: "9876543210987",
+              weight: 2.1,
+              dimensions: "35 x 24 x 2 cm",
+              tags: ["laptop", "professional", "gaming"],
+              metaTitle: "Laptop Pro - Professional Performance",
+              metaDescription: "High-performance laptop for professionals and gamers",
+              isActive: true,
+              isFeatured: true,
+              isOnSale: true,
+              salePrice: 1199.99,
+              saleEndDate: "2025-12-31T00:00:00.000Z",
+              lowStockThreshold: 3,
+              allowBackorder: true,
+              variants: [
+                {
+                  size: "15.6 inch",
+                  color: "Silver",
+                  colorCode: "#C0C0C0",
+                  stock: 25,
+                  sku: "LAPTOP-PRO-001-SILVER",
+                  price: 1299.99,
+                  comparePrice: 1499.99,
+                  isActive: true,
+                  lowStockThreshold: 2,
+                  allowBackorder: true
+                }
+              ],
+              images: [
+                {
+                  url: "https://example.com/laptop-silver.jpg",
+                  alt: "Laptop Pro in Silver",
+                  isPrimary: true,
+                  sortOrder: 1
+                }
+              ]
+            }
+          ]
         },
         {
-          name: "Smartphones",
-          slug: "smartphones",
-          description: "Mobile phones and smartphones",
-          image: "/uploads/categories/smartphones.jpg",
+          // Example 2: Category WITHOUT products (empty array)
+          name: "Clothing",
+          slug: "clothing",
+          description: "Fashion and apparel items",
+          image: "/uploads/categories/clothing.jpg",
           isActive: true,
-          sortOrder: 2
+          sortOrder: 2,
+          products: [] // Empty products array
         },
         {
-          name: "Laptops",
-          slug: "laptops",
-          description: "Portable computers and laptops",
+          // Example 3: Category with minimal fields (showing optional fields)
+          name: "Books",
+          slug: "books",
+          description: "Books and publications",
+          image: null, // NULL image
+          isActive: true,
+          sortOrder: 3,
+          products: [
+            {
+              name: "Programming Guide",
+              description: "Complete guide to programming",
+              price: 29.99,
+              // Minimal product - only required fields + a few optional ones
+              isActive: true,
+              tags: ["programming", "guide", "education"]
+            }
+          ]
+        },
+        {
+          // Example 4: Category with NULL/empty values (showing field flexibility)
+          name: "Home & Garden",
+          slug: "home-garden",
+          description: "Home improvement and garden supplies",
           image: null,
           isActive: true,
-          sortOrder: 3
+          sortOrder: 4,
+          products: [
+            {
+              name: "Garden Tool Set",
+              description: "Essential tools for gardening",
+              price: 89.99,
+              comparePrice: null, // NULL value
+              costPrice: null, // NULL value
+              sku: null, // NULL value
+              barcode: null, // NULL value
+              weight: 0, // Zero value
+              dimensions: "", // Empty string
+              tags: [], // Empty array
+              metaTitle: null, // NULL value
+              metaDescription: null, // NULL value
+              isActive: true,
+              isFeatured: false,
+              isOnSale: false,
+              salePrice: null,
+              saleEndDate: null,
+              lowStockThreshold: 0, // Zero value
+              allowBackorder: false,
+              variants: [], // Empty variants array
+              images: [] // Empty images array
+            }
+          ]
+        },
+        {
+          // Example 5: Category with string numbers (common in exports)
+          name: "Sports Equipment",
+          slug: "sports-equipment",
+          description: "Sports and fitness equipment",
+          image: "/uploads/categories/sports.jpg",
+          isActive: true,
+          sortOrder: 5,
+          products: [
+            {
+              name: "Yoga Mat",
+              description: "Premium yoga mat for practice",
+              price: "24.99", // String number (common in exports)
+              comparePrice: "29.99", // String number
+              costPrice: "12.00", // String number
+              sku: "YOGA-MAT-001",
+              weight: "0.5", // String number
+              isActive: true,
+              tags: ["yoga", "fitness", "exercise"],
+              variants: [
+                {
+                  size: "Standard",
+                  color: "Purple",
+                  colorCode: "#800080",
+                  stock: "100", // String number
+                  price: "24.99", // String number
+                  isActive: true,
+                  lowStockThreshold: "5" // String number
+                }
+              ]
+            }
+          ]
         }
       ]
     };

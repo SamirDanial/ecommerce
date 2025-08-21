@@ -51,10 +51,10 @@ interface ImportResult {
 
 // Category import template and field information
 const CATEGORY_IMPORT_INFO = {
-  description: "Category import template. Copy this structure and fill in your data.",
+  description: "Comprehensive category import template with products, variants, and images",
   required_fields: ["name"],
   optional_fields: [
-    "slug", "description", "image", "isActive", "sortOrder"
+    "slug", "description", "image", "isActive", "sortOrder", "products"
   ],
   sample_data: {
     name: "Electronics",
@@ -62,7 +62,27 @@ const CATEGORY_IMPORT_INFO = {
     description: "All electronic devices and accessories",
     image: "https://example.com/images/electronics.jpg",
     isActive: true,
-    sortOrder: 1
+    sortOrder: 1,
+    products: [
+      {
+        name: "Sample Product",
+        description: "Product description",
+        price: 99.99,
+        variants: [
+          {
+            size: "M",
+            color: "Black",
+            stock: 50
+          }
+        ],
+        images: [
+          {
+            url: "https://example.com/image.jpg",
+            alt: "Product image"
+          }
+        ]
+      }
+    ]
   },
   notes: [
     "Name is the only required field - all others are optional",
@@ -70,6 +90,10 @@ const CATEGORY_IMPORT_INFO = {
     "Image URLs should be valid HTTP URLs or relative paths starting with /",
     "isActive defaults to true if not specified",
     "sortOrder will be auto-generated if not provided",
+    "Products array is optional - can be empty [] or omitted entirely",
+    "Product variants and images are also optional",
+    "Numeric fields accept both numbers and string numbers (e.g., 15 or '15')",
+    "NULL values and empty arrays are perfectly valid",
     "Duplicate names will be handled based on your import options",
     "All text fields have length limits (name: 100 chars, description: 500 chars)",
     "Boolean fields accept true/false values only"
@@ -89,9 +113,13 @@ const PRODUCT_IMPORT_INFO = {
     "categoryId will be automatically set to the parent category if missing",
     "SKU will be auto-generated if not provided or if duplicate exists",
     "Product variants and images will automatically link to the created product",
-    "All prices should be numbers (no currency symbols)",
-    "Dates should be in ISO format (YYYY-MM-DD)",
-    "Boolean fields accept true/false values only"
+    "Prices accept both numbers (15.99) and string numbers ('15.99')",
+    "Weight and stock accept both numbers and string numbers",
+    "NULL values are perfectly valid for optional fields",
+    "Empty arrays [] are valid for tags, variants, and images",
+    "Dates should be in ISO format (YYYY-MM-DDTHH:mm:ss.sssZ)",
+    "Boolean fields accept true/false values only",
+    "All fields are optional except name, description, and price"
   ]
 };
 
@@ -119,6 +147,7 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [structureValidationErrors, setStructureValidationErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showSample, setShowSample] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const totalSteps = 5;
@@ -543,6 +572,14 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     setCurrentStep(1);
   };
 
+  const showSampleData = () => {
+    setShowSample(true);
+  };
+
+  const handleSampleDialogClose = () => {
+    setShowSample(false);
+  };
+
   const handleValidation = async () => {
     if (categories.length === 0) {
       toast.error('No categories to validate');
@@ -651,6 +688,7 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
   const hasWarnings = validationResults.some(r => r.warnings.length > 0);
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-screen sm:w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="mb-4 sm:mb-6">
@@ -735,12 +773,11 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                   >
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">Download Template</span>
-                    <span className="sm:hidden">Download</span>
+                    <span className="sm:hidden">Download Template</span>
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentStep(2)}
-                    disabled={categories.length === 0 || structureValidationErrors.length > 0}
+                    onClick={showSampleData}
                     className="flex items-center gap-2 h-10 sm:h-9"
                   >
                     <Eye className="w-4 h-4" />
@@ -1526,6 +1563,197 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Sample Data Dialog */}
+    {showSample && (
+      <Dialog open={showSample} onOpenChange={handleSampleDialogClose}>
+        <DialogContent className="max-w-4xl w-screen sm:w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="mb-4 sm:mb-6">
+            <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Eye className="w-5 h-5 sm:w-6 sm:h-6" />
+              Category Import Sample Data
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Sample Data Overview */}
+            <Card>
+              <CardHeader className="p-3 sm:p-4">
+                <CardTitle className="text-base sm:text-lg">Sample Structure Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <h4 className="font-semibold text-green-800 mb-2">✅ Category WITH Products</h4>
+                    <p className="text-sm text-green-700">Complete category with nested products, variants, and images</p>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <h4 className="font-semibold text-blue-800 mb-2">📦 Category WITHOUT Products</h4>
+                    <p className="text-sm text-blue-700">Simple category with empty products array</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <h4 className="font-semibold text-amber-800 mb-2">🔢 String Numbers</h4>
+                    <p className="text-sm text-amber-700">Shows support for "15.99" format (common in exports)</p>
+                  </div>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <h4 className="font-semibold text-purple-800 mb-2">🗂️ NULL Values</h4>
+                    <p className="text-sm text-purple-700">Demonstrates optional fields with null/empty values</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sample JSON Structure */}
+            <Card>
+              <CardHeader className="p-3 sm:p-4">
+                <CardTitle className="text-base sm:text-lg">Basic Sample Structure</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs sm:text-sm text-gray-800 whitespace-pre-wrap">
+{`{
+  "categories": [
+    {
+      "name": "Electronics",
+      "slug": "electronics",
+      "description": "Electronic devices and accessories",
+      "image": "https://example.com/electronics.jpg",
+      "isActive": true,
+      "sortOrder": 1,
+      "products": [
+        {
+          "name": "Smartphone",
+          "description": "Latest smartphone with advanced features",
+          "price": 599.99,
+          "comparePrice": 699.99,
+          "sku": "PHONE-001",
+          "isActive": true,
+          "tags": ["smartphone", "mobile", "5G"],
+          "variants": [
+            {
+              "size": "Standard",
+              "color": "Black",
+              "colorCode": "#000000",
+              "stock": 50,
+              "price": 599.99
+            }
+          ],
+          "images": [
+            {
+              "url": "https://example.com/phone.jpg",
+              "alt": "Smartphone image",
+              "isPrimary": true,
+              "sortOrder": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Clothing",
+      "slug": "clothing",
+      "description": "Fashion and apparel",
+      "image": null,
+      "isActive": true,
+      "sortOrder": 2,
+      "products": []
+    }
+  ]
+}`}
+                  </pre>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Field Explanations */}
+            <Card>
+              <CardHeader className="p-3 sm:p-4">
+                <CardTitle className="text-base sm:text-lg">Field Explanations</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Required Fields</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      <li>• <strong>name</strong>: Category name (string, max 100 chars)</li>
+                      <li>• <strong>products.name</strong>: Product name (when including products)</li>
+                      <li>• <strong>products.description</strong>: Product description (when including products)</li>
+                      <li>• <strong>products.price</strong>: Product price (number or string number)</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Optional Fields</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      <li>• <strong>slug</strong>: URL slug (auto-generated if missing)</li>
+                      <li>• <strong>description</strong>: Category description</li>
+                      <li>• <strong>image</strong>: Image URL or null</li>
+                      <li>• <strong>isActive</strong>: true/false (defaults to true)</li>
+                      <li>• <strong>sortOrder</strong>: Number (auto-generated if missing)</li>
+                      <li>• <strong>products</strong>: Array of products (can be empty [])</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Data Types</h4>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      <li>• <strong>Numbers</strong>: Accept both 15.99 and "15.99"</li>
+                      <li>• <strong>Booleans</strong>: true or false only</li>
+                      <li>• <strong>Arrays</strong>: Can be empty [] or contain items</li>
+                      <li>• <strong>Null values</strong>: Perfectly valid for optional fields</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={handleSampleDialogClose}
+                className="w-full sm:w-auto"
+              >
+                Close Sample View
+              </Button>
+              <Button
+                onClick={() => {
+                  // Copy basic sample data to clipboard
+                  const sampleData = `{
+  "categories": [
+    {
+      "name": "Sample Category",
+      "description": "Sample category description",
+      "isActive": true,
+      "products": [
+        {
+          "name": "Sample Product",
+          "description": "Sample product description",
+          "price": 29.99
+        }
+      ]
+    }
+  ]
+}`;
+                  navigator.clipboard.writeText(sampleData);
+                  toast.success('Basic sample copied to clipboard!');
+                  handleSampleDialogClose();
+                }}
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+              >
+                Copy Basic Sample
+              </Button>
+              <Button
+                onClick={handleDownloadTemplate}
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Full Template
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )}
+  </>
   );
 };
 
