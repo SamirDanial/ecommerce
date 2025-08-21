@@ -610,4 +610,192 @@ router.get('/flash-sales/active', async (req, res) => {
   }
 });
 
+// Get all available colors for a product
+router.get('/:id/colors', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get all unique colors for the product
+    const colors = await prisma.productVariant.findMany({
+      where: { 
+        productId: parseInt(id),
+        isActive: true
+      },
+      select: {
+        color: true,
+        colorCode: true,
+        stock: true,
+        allowBackorder: true
+      },
+      distinct: ['color']
+    });
+
+    if (colors.length === 0) {
+      return res.status(404).json({ 
+        message: 'No colors found for this product',
+        colors: []
+      });
+    }
+
+    // Get stock info for each color
+    const colorsWithStock = await Promise.all(
+      colors.map(async ({ color, colorCode }) => {
+        const variants = await prisma.productVariant.findMany({
+          where: { 
+            productId: parseInt(id),
+            color: color,
+            isActive: true
+          },
+          select: {
+            stock: true,
+            allowBackorder: true
+          }
+        });
+
+        const totalStock = variants.reduce((sum, v) => sum + v.stock, 0);
+        const hasStock = variants.some(v => v.stock > 0 || v.allowBackorder);
+        const availableSizes = variants.length;
+
+        return {
+          color,
+          colorCode,
+          totalStock,
+          hasStock,
+          availableSizes
+        };
+      })
+    );
+
+    const response = {
+      productId: parseInt(id),
+      colors: colorsWithStock,
+      totalColors: colorsWithStock.length
+    };
+
+    console.log(`✅ Fetched ${colorsWithStock.length} colors for product ${id}`);
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching product colors:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      message: 'Failed to fetch product colors', 
+      error: errorMessage 
+    });
+  }
+});
+
+// Get product variants by color for dynamic pricing and size selection
+router.get('/:id/variants/:color', async (req, res) => {
+  try {
+    const { id, color } = req.params;
+    
+    // Get all variants for the specified color
+    const variants = await prisma.productVariant.findMany({
+      where: { 
+        productId: parseInt(id),
+        color: { equals: color, mode: 'insensitive' },
+        isActive: true
+      },
+      orderBy: [
+        { size: 'asc' },
+        { price: 'asc' }
+      ],
+      select: {
+        id: true,
+        size: true,
+        color: true,
+        colorCode: true,
+        stock: true,
+        price: true,
+        comparePrice: true,
+        sku: true,
+        stockStatus: true,
+        lowStockThreshold: true,
+        allowBackorder: true
+      }
+    });
+
+    if (variants.length === 0) {
+      return res.status(404).json({ 
+        message: 'No variants found for this color',
+        color: color,
+        variants: []
+      });
+    }
+
+    // Get the base product info for pricing context
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        salePrice: true,
+        comparePrice: true,
+        isOnSale: true,
+        saleEndDate: true
+      }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Calculate variant-specific pricing
+    const variantsWithPricing = variants.map(variant => {
+      const variantPrice = variant.price || product.price;
+      const variantComparePrice = variant.comparePrice || product.comparePrice;
+      
+      return {
+        ...variant,
+        finalPrice: variantPrice,
+        finalComparePrice: variantComparePrice,
+        isOnSale: product.isOnSale && product.salePrice && product.salePrice < variantPrice,
+        salePrice: product.isOnSale ? product.salePrice : null,
+        saleEndDate: product.saleEndDate
+      };
+    });
+
+    // Get available sizes for this color
+    const availableSizes = variants
+      .filter(v => v.stock > 0 || v.allowBackorder)
+      .map(v => v.size);
+
+    // Get stock summary
+    const stockSummary = {
+      totalVariants: variants.length,
+      inStock: variants.filter(v => v.stock > 0).length,
+      outOfStock: variants.filter(v => v.stock === 0 && !v.allowBackorder).length,
+      lowStock: variants.filter(v => v.stock > 0 && v.stock <= v.lowStockThreshold).length,
+      availableSizes
+    };
+
+    const response = {
+      product: {
+        id: product.id,
+        name: product.name,
+        basePrice: product.price,
+        comparePrice: product.comparePrice,
+        isOnSale: product.isOnSale,
+        salePrice: product.salePrice,
+        saleEndDate: product.saleEndDate
+      },
+      color: color,
+      variants: convertDecimalToNumber(variantsWithPricing),
+      stockSummary,
+      defaultVariant: variantsWithPricing[0] // First variant as default
+    };
+
+    console.log(`✅ Fetched ${variants.length} variants for product ${id}, color: ${color}`);
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching product variants by color:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      message: 'Failed to fetch product variants', 
+      error: errorMessage 
+    });
+  }
+});
+
 export default router;

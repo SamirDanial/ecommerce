@@ -46,6 +46,7 @@ import { toast } from 'sonner';
 import { reviewService } from '../services/reviewService';
 import UserAvatar from '../components/UserAvatar';
 import { getFullImageUrl } from '../utils/imageUtils';
+import { DynamicVariantSelector } from '../components/DynamicVariantSelector';
 
 
 const ProductDetail: React.FC = () => {
@@ -59,6 +60,19 @@ const ProductDetail: React.FC = () => {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [showAddedToCart, setShowAddedToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  
+  // Dynamic variant pricing state
+  const [dynamicPricing, setDynamicPricing] = useState<{
+    price: number | null;
+    comparePrice: number | null;
+    isOnSale: boolean;
+    salePrice: number | null;
+  }>({
+    price: null,
+    comparePrice: null,
+    isOnSale: false,
+    salePrice: null
+  });
   
   // Review and Q&A form states
   const [showReviewDialog, setShowReviewDialog] = useState(false);
@@ -170,66 +184,31 @@ const ProductDetail: React.FC = () => {
   const { addToCart, removeFromCart, isInCart, getItemQuantity, updateQuantity, isProductInCart: isProductInCartAnyVariant, getProductVariants } = useCartStore();
   const { formatPrice } = useCurrency();
 
-  // Get images for selected color (direct mapping approach)
+  // Get images for selected color using the color field from image data
   const getImagesForColor = (color: string) => {
     if (!product || !product.images) return [];
     
     console.log(`Getting images for color: ${color}`);
     console.log('Available images:', product.images);
     
-    // Create a mapping of colors to images based on filename patterns
-    const colorImageMap: Record<string, string[]> = {};
+    // Filter images by the color field
+    const colorImages = product.images
+      .filter(img => img.color && img.color.toLowerCase() === color.toLowerCase())
+      .map(img => img.url);
     
-    product.images.forEach(img => {
-      const fileName = img.url.toLowerCase();
-      
-      // Check for common color patterns in filenames
-      if (fileName.includes('black') || fileName.includes('bk') || fileName.includes('dark')) {
-        if (!colorImageMap['Black']) colorImageMap['Black'] = [];
-        colorImageMap['Black'].push(img.url);
-      } else if (fileName.includes('white') || fileName.includes('wt') || fileName.includes('light')) {
-        if (!colorImageMap['White']) colorImageMap['White'] = [];
-        colorImageMap['White'].push(img.url);
-      } else if (fileName.includes('blue') || fileName.includes('bl')) {
-        if (!colorImageMap['Blue']) colorImageMap['Blue'] = [];
-        colorImageMap['Blue'].push(img.url);
-      } else if (fileName.includes('red') || fileName.includes('rd')) {
-        if (!colorImageMap['Red']) colorImageMap['Red'] = [];
-        colorImageMap['Red'].push(img.url);
-      } else if (fileName.includes('green') || fileName.includes('gr')) {
-        if (!colorImageMap['Green']) colorImageMap['Green'] = [];
-        colorImageMap['Green'].push(img.url);
-      } else if (fileName.includes('yellow') || fileName.includes('yl')) {
-        if (!colorImageMap['Yellow']) colorImageMap['Yellow'] = [];
-        colorImageMap['Yellow'].push(img.url);
-      } else if (fileName.includes('purple') || fileName.includes('pr')) {
-        if (!colorImageMap['Purple']) colorImageMap['Purple'] = [];
-        colorImageMap['Purple'].push(img.url);
-      } else if (fileName.includes('pink') || fileName.includes('pk')) {
-        if (!colorImageMap['Pink']) colorImageMap['Pink'] = [];
-        colorImageMap['Pink'].push(img.url);
-      } else if (fileName.includes('orange') || fileName.includes('or')) {
-        if (!colorImageMap['Orange']) colorImageMap['Orange'] = [];
-        colorImageMap['Orange'].push(img.url);
-      } else if (fileName.includes('brown') || fileName.includes('br')) {
-        if (!colorImageMap['Brown']) colorImageMap['Brown'] = [];
-        colorImageMap['Brown'].push(img.url);
-      } else if (fileName.includes('gray') || fileName.includes('grey') || fileName.includes('gy')) {
-        if (!colorImageMap['Gray']) colorImageMap['Gray'] = [];
-        colorImageMap['Gray'].push(img.url);
-      }
-    });
-    
-    console.log('Color image mapping:', colorImageMap);
+    console.log(`Found ${colorImages.length} images for color ${color}:`, colorImages);
     
     // Return color-specific images if available, otherwise fallback to main images
-    const colorImages = colorImageMap[color];
-    if (colorImages && colorImages.length > 0) {
-      console.log(`Found ${colorImages.length} images for color ${color}:`, colorImages);
+    if (colorImages.length > 0) {
       return colorImages;
     } else {
       console.log(`No color-specific images found for ${color}, using default images`);
-      return product.images.map(img => img.url);
+      // Return all images that don't have a color specified, or all images if none have colors
+      const defaultImages = product.images
+        .filter(img => !img.color || img.color === '')
+        .map(img => img.url);
+      
+      return defaultImages.length > 0 ? defaultImages : product.images.map(img => img.url);
     }
   };
 
@@ -272,6 +251,14 @@ const ProductDetail: React.FC = () => {
       setQuantity(1);
     }
   }, [isProductInCart, cartItemQuantity, selectedColor, selectedSize]);
+
+  // Update images when selected color changes
+  useEffect(() => {
+    if (selectedColor) {
+      const colorImages = getImagesForColor(selectedColor);
+      // Images will be updated via the ProductImageGallery key prop
+    }
+  }, [selectedColor]);
 
   // Reset success state when variants change
   useEffect(() => {
@@ -953,6 +940,14 @@ const ProductDetail: React.FC = () => {
           const firstVariant = data.variants[0];
           setSelectedColor(firstVariant.color);
           setSelectedSize(firstVariant.size);
+          
+          // Set initial dynamic pricing
+          setDynamicPricing({
+            price: firstVariant.price || data.price,
+            comparePrice: firstVariant.comparePrice || data.comparePrice || null,
+            isOnSale: data.isOnSale,
+            salePrice: data.salePrice || null
+          });
         }
 
         // Fetch related products
@@ -973,23 +968,9 @@ const ProductDetail: React.FC = () => {
     fetchProduct();
   }, [slug, addToRecentlyViewed, addInteraction]);
 
-  const handleColorChange = (color: string) => {
-    setSelectedColor(color);
-    
-    // Reset size selection if the new color doesn't have the currently selected size
-    if (product) {
-      const colorVariants = product.variants?.filter(v => v.color === color) || [];
-      const availableSizesForColor = Array.from(new Set(colorVariants.map(v => v.size)));
-      
-      if (!availableSizesForColor.includes(selectedSize as any)) {
-        setSelectedSize(availableSizesForColor[0] || '');
-      }
-    }
-  };
-
-  const handleSizeChange = (size: string) => {
-    setSelectedSize(size);
-  };
+  // These handlers are no longer needed as they're handled by DynamicVariantSelector
+  // const handleColorChange = (color: string) => { ... };
+  // const handleSizeChange = (size: string) => { ... };
 
   const handleQuantityChange = (change: number) => {
     const newQuantity = Math.max(1, quantity + change);
@@ -1774,8 +1755,7 @@ const ProductDetail: React.FC = () => {
 
   const images = Array.isArray(product.images) ? product.images : [];
   
-  // Fix Set iteration issues by using Array.from
-  const availableSizes = Array.from(new Set(product.variants?.map(v => v.size) || []));
+  // availableSizes is now handled by DynamicVariantSelector
 
   // Color swatches data is now handled directly in the component
 
@@ -1797,6 +1777,7 @@ const ProductDetail: React.FC = () => {
           {/* Product Images */}
           <div className="space-y-4">
             <ProductImageGallery
+              key={`${product.id}-${selectedColor}`} // Force re-render when color changes
               images={images}
               productName={product.name}
               colorImages={{
@@ -1854,88 +1835,64 @@ const ProductDetail: React.FC = () => {
                 </span>
               </div>
 
-              {/* Price */}
+              {/* Dynamic Price */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4">
                 <div className="flex items-center gap-2 sm:gap-4">
                   <span className="text-2xl sm:text-3xl font-bold text-primary">
-                    {formatPrice(product.salePrice || product.price)}
+                    {formatPrice(dynamicPricing.salePrice || dynamicPricing.price || product.salePrice || product.price)}
                   </span>
-                  {product.comparePrice && product.comparePrice > product.price && (
-                    <span className="text-lg sm:text-xl text-muted-foreground line-through">
-                      {formatPrice(product.comparePrice)}
-                    </span>
-                  )}
+                  {(() => {
+                    const comparePrice = dynamicPricing.comparePrice || product.comparePrice;
+                    const currentPrice = dynamicPricing.price || product.price;
+                    return comparePrice && comparePrice > currentPrice ? (
+                      <span className="text-lg sm:text-xl text-muted-foreground line-through">
+                        {formatPrice(comparePrice)}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
-                {product.isOnSale && (
-                  <Badge className="bg-red-500 w-fit">
-                    {Math.round(((product.comparePrice || 0) - (product.salePrice || product.price)) / (product.comparePrice || 1) * 100)}% OFF
-                  </Badge>
-                )}
+                {(() => {
+                  const isOnSale = dynamicPricing.isOnSale || product.isOnSale;
+                  const comparePrice = dynamicPricing.comparePrice || product.comparePrice;
+                  const currentPrice = dynamicPricing.price || product.price;
+                  const salePrice = dynamicPricing.salePrice || product.salePrice;
+                  const displayPrice = salePrice || currentPrice;
+                  
+                  return isOnSale && comparePrice && comparePrice > displayPrice ? (
+                    <Badge className="bg-red-500 w-fit">
+                      {Math.round(((comparePrice - displayPrice) / comparePrice) * 100)}% OFF
+                    </Badge>
+                  ) : null;
+                })()}
               </div>
             </div>
 
-            {/* Size Selection */}
-            {availableSizes.length > 0 && (
+            {/* Dynamic Variant Selection */}
+            {product.variants && product.variants.length > 0 && (
               <div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-medium">Size: {selectedSize}</h3>
-                  <SizeChart />
-                </div>
-                <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
-                  {availableSizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => handleSizeChange(size)}
-                      className={`px-3 py-2 border rounded-md transition-all text-sm ${
-                        selectedSize === size
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
+                <DynamicVariantSelector
+                  productId={product.id}
+                  initialColor={selectedColor}
+                  onVariantChange={(variant) => {
+                    if (variant) {
+                      setSelectedColor(variant.color);
+                      setSelectedSize(variant.size);
+                      
+                      // Update dynamic pricing
+                      setDynamicPricing({
+                        price: variant.finalPrice,
+                        comparePrice: variant.finalComparePrice,
+                        isOnSale: variant.isOnSale,
+                        salePrice: variant.salePrice
+                      });
+                    }
+                  }}
+                  showPricing={false} // We'll show pricing separately to maintain current layout
+                />
               </div>
             )}
 
-            {/* Color Selection */}
-            {product.variants && product.variants.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-3">Color: {selectedColor}</h3>
-                <div className="grid grid-cols-6 sm:flex sm:flex-wrap gap-3">
-                  {Array.from(new Set(product.variants.map(v => v.color))).map((colorName) => {
-                    const variant = product.variants?.find(v => v.color === colorName);
-                    const inStock = variant ? variant.stock > 0 : false;
-                    return (
-                      <button
-                        key={colorName}
-                        onClick={() => handleColorChange(colorName)}
-                        disabled={!inStock}
-                        className={`
-                          w-10 h-10 sm:w-8 sm:h-8 rounded-full border-2 transition-all relative
-                          ${!inStock ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-110'}
-                          ${selectedColor === colorName 
-                            ? 'border-primary scale-110' 
-                            : 'border-border hover:border-primary/50'
-                          }
-                        `}
-                        style={{ backgroundColor: variant?.colorCode || '#ccc' }}
-                        title={`${colorName}${!inStock ? ' - Out of Stock' : ''}`}
-                      >
-                        {selectedColor === colorName && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+
 
             {/* Quantity */}
             <div>
@@ -2084,11 +2041,11 @@ const ProductDetail: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-md overflow-hidden">
+                        <div className="w-10 h-10 rounded-md overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                           <img 
                             src={cartItem.image ? getFullImageUrl(cartItem.image) : '/placeholder-image.jpg'} 
                             alt={cartItem.name}
-                            className="w-full h-full object-cover"
+                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
                           />
                         </div>
                         <div>
