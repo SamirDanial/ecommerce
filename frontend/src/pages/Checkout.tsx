@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Separator } from '../components/ui/separator';
 import { toast } from 'sonner';
 import { ShoppingCart, CreditCard, MapPin, ArrowLeft, Globe, Truck, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 // Load Stripe (you'll need to add your publishable key to environment variables)
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_your_test_key_here');
@@ -790,9 +791,9 @@ const Checkout: React.FC = () => {
                       <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                         <div className="w-14 h-14 rounded-lg border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
                           <img
-                            src={item.image || '/placeholder.png'}
+                            src={item.image ? getFullImageUrl(item.image) : '/placeholder.png'}
                             alt={item.name}
-                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
+                            className="w-auto h-auto max-w-full max-h-[56px] object-contain object-center"
                           />
                         </div>
                         <div className="flex-1 min-w-0">

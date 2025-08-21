@@ -171,7 +171,7 @@ const WishlistHoverOverlay: React.FC<WishlistHoverOverlayProps> = ({
                           <ImageWithPlaceholder
                             src={item.product ? getImageUrl(item.product) : '/placeholder-product.jpg'}
                             alt={item.product?.name || 'Product'}
-                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
+                            className="w-auto h-auto max-w-full max-h-[64px] object-contain object-center"
                           />
                         </div>
                         

@@ -15,6 +15,7 @@ import {
 import { useCartStore } from '../stores/cartStore';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { ImageWithPlaceholder } from './ui/image-with-placeholder';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 interface CartHoverSheetProps {
   children: React.ReactNode;
@@ -170,9 +171,9 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
                       <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 shadow-sm flex items-center justify-center">
                         {item.image ? (
                           <ImageWithPlaceholder
-                            src={item.image}
+                            src={getFullImageUrl(item.image)}
                             alt={item.name}
-                            className="w-auto h-auto max-w-full max-h-full object-contain object-center"
+                            className="w-auto h-auto max-w-full max-h-[80px] sm:max-h-[80px] object-contain object-center"
                           />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">

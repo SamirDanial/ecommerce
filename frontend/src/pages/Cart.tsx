@@ -10,6 +10,7 @@ import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { getFullImageUrl } from '../utils/imageUtils';
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();
@@ -336,11 +337,11 @@ const Cart: React.FC = () => {
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                        {/* Enhanced Product Image - Larger for T-shirts */}
-                       <div className="relative w-full sm:w-40 h-64 sm:h-48 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 shadow-sm">
+                       <div className="relative w-full sm:w-40 min-h-[200px] flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 shadow-sm flex items-center justify-center">
                          <ImageWithPlaceholder 
-                           src={item.image || ''} 
+                           src={item.image ? getFullImageUrl(item.image) : ''} 
                            alt={item.name}
-                           className="w-full h-full object-contain sm:object-cover"
+                           className="w-auto h-auto max-w-full max-h-[200px] object-contain object-center"
                          />
                          {item.comparePrice && item.comparePrice > item.price && (
                            <Badge variant="destructive" className="absolute top-2 left-2 text-xs font-semibold px-2 py-1">
