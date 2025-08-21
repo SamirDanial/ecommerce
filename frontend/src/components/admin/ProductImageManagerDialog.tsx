@@ -43,7 +43,7 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
 
   // Use ref to track preview URLs for cleanup
   const previewUrlsRef = useRef<string[]>([]);
-  
+
   // Initialize images state with existingImages if available
   useEffect(() => {
     if (existingImages && existingImages.length > 0) {
@@ -460,12 +460,6 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
               <CardTitle className="text-base sm:text-lg">Current Images ({images.length})</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded-lg">
-                  <Star className="h-4 w-4 inline mr-1 text-yellow-500" />
-                  Primary image will be displayed on product pages and listings
-                </div>
-              </div>
               
               {loading ? (
                 <div className="text-center py-8">
@@ -495,9 +489,9 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
                                 }}
                               />
                               
-                              {/* Primary Badge */}
+                                {/* Primary Badge */}
                               {image.isPrimary && (
-                                <Badge className="absolute top-2 left-2 bg-yellow-500 text-white">
+                                <Badge className="absolute top-2 left-2 bg-yellow-500 text-white z-10">
                                   <Star className="h-3 w-3 mr-1" />
                                   Primary
                                 </Badge>
@@ -505,7 +499,7 @@ const ProductImageManagerDialog: React.FC<ProductImageManagerDialogProps> = ({
                               
                               {/* Color Badge */}
                               {image.color && (
-                                <Badge className="absolute top-2 right-2 bg-blue-500 text-white">
+                                <Badge className="absolute top-2 right-2 bg-blue-500 text-white z-10">
                                   {image.color}
                                 </Badge>
                               )}
