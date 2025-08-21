@@ -582,20 +582,45 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-4">
-            <div className="space-y-3">
-              <p className="text-sm text-red-700">
-                The uploaded JSON file contains {structureValidationErrors.length} validation error(s). 
-                Please fix these issues before proceeding with the import.
-              </p>
-              <div className="max-h-40 overflow-y-auto space-y-2">
-                {structureValidationErrors.map((error, index) => (
-                  <div key={index} className="flex items-start gap-2 text-sm text-red-600">
-                    <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                    <span className="break-words">{error}</span>
-                  </div>
-                ))}
+            <div className="space-y-4">
+              {/* Error Summary */}
+              <div className="bg-red-100 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <span className="font-medium text-red-800">Validation Summary</span>
+                </div>
+                <p className="text-sm text-red-700">
+                  The uploaded JSON file contains <strong>{structureValidationErrors.length} validation error(s)</strong>. 
+                  Please fix these issues before proceeding with the import.
+                </p>
               </div>
-              <div className="pt-2 border-t border-red-200">
+
+              {/* Error Categories */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-red-800">Error Details:</span>
+                  <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                    {structureValidationErrors.length} total
+                  </span>
+                </div>
+                
+                <div className="max-h-48 overflow-y-auto space-y-2 border border-red-200 rounded-lg p-3 bg-white">
+                  {structureValidationErrors.map((error, index) => (
+                    <div key={index} className="flex items-start gap-2 text-sm">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-red-700 font-medium">#{index + 1}</span>
+                        <span className="text-red-600 ml-2 break-words">{error}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-red-200">
                 <Button
                   variant="outline"
                   size="sm"
@@ -604,10 +629,36 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
                     setProducts([]);
                     setCurrentStep('upload');
                   }}
-                  className="text-red-700 border-red-300 hover:bg-red-100"
+                  className="text-red-700 border-red-300 hover:bg-red-100 hover:text-red-800 flex-1 sm:flex-none"
                 >
+                  <XCircle className="w-4 h-4 mr-2" />
                   Clear Errors & Try Again
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadTemplate}
+                  className="text-blue-700 border-blue-300 hover:bg-blue-100 hover:text-blue-800 flex-1 sm:flex-none"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Template
+                </Button>
+              </div>
+
+              {/* Helpful Tips */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium mb-1">Need Help?</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Check that all required fields are present</li>
+                      <li>• Ensure data types match the expected format</li>
+                      <li>• Verify field lengths are within limits</li>
+                      <li>• Use the template as a reference</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>

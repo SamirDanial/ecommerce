@@ -117,9 +117,228 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     existingCategories: 'error' as 'error' | 'skip' | 'replace'
   });
   const [dragActive, setDragActive] = useState(false);
+  const [structureValidationErrors, setStructureValidationErrors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const totalSteps = 5;
+
+  // Validate category data structure against schema
+  const validateCategoryDataStructure = (categories: any[]): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (categories.length === 0) {
+      errors.push('JSON file contains no categories');
+      return { isValid: false, errors };
+    }
+
+    // Check each category for required fields and data types
+    categories.forEach((category, index) => {
+      if (!category || typeof category !== 'object') {
+        errors.push(`Category ${index + 1}: Invalid category object`);
+        return;
+      }
+
+      // Required fields
+      const requiredFields = ['name'];
+      requiredFields.forEach(field => {
+        if (category[field] === undefined || category[field] === null || category[field] === '') {
+          errors.push(`Category ${index + 1}: Missing required field '${field}'`);
+        }
+      });
+
+      // Data type validations - only validate if field has a value (not null/undefined)
+      if (category.name !== undefined && category.name !== null && typeof category.name !== 'string') {
+        errors.push(`Category ${index + 1}: 'name' must be a string`);
+      }
+      
+      if (category.name !== undefined && category.name !== null && category.name.length > 100) {
+        errors.push(`Category ${index + 1}: 'name' must be 100 characters or less`);
+      }
+      
+      if (category.slug !== undefined && category.slug !== null && typeof category.slug !== 'string') {
+        errors.push(`Category ${index + 1}: 'slug' must be a string`);
+      }
+      
+      if (category.slug !== undefined && category.slug !== null && category.slug.length > 100) {
+        errors.push(`Category ${index + 1}: 'slug' must be 100 characters or less`);
+      }
+      
+      if (category.description !== undefined && category.description !== null && typeof category.description !== 'string') {
+        errors.push(`Category ${index + 1}: 'description' must be a string`);
+      }
+      
+      if (category.description !== undefined && category.description !== null && category.description.length > 500) {
+        errors.push(`Category ${index + 1}: 'description' must be 500 characters or less`);
+      }
+      
+      if (category.image !== undefined && category.image !== null && typeof category.image !== 'string') {
+        errors.push(`Category ${index + 1}: 'image' must be a string`);
+      }
+      
+      if (category.isActive !== undefined && category.isActive !== null && typeof category.isActive !== 'boolean') {
+        errors.push(`Category ${index + 1}: 'isActive' must be a boolean`);
+      }
+      
+      if (category.sortOrder !== undefined && category.sortOrder !== null && (typeof category.sortOrder !== 'number' || isNaN(category.sortOrder) || category.sortOrder < 0)) {
+        errors.push(`Category ${index + 1}: 'sortOrder' must be a non-negative number`);
+      }
+      
+      if (category.sortOrder !== undefined && category.sortOrder !== null && category.sortOrder > 9999) {
+        errors.push(`Category ${index + 1}: 'sortOrder' must be 9999 or less`);
+      }
+      
+      // Validate products array if present
+      if (category.products !== undefined) {
+        if (!Array.isArray(category.products)) {
+          errors.push(`Category ${index + 1}: 'products' must be an array`);
+        } else {
+          category.products.forEach((product: any, productIndex: number) => {
+            if (!product || typeof product !== 'object') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: Invalid product object`);
+              return;
+            }
+
+            // Required fields for products
+            const productRequiredFields = ['name', 'description', 'price'];
+            productRequiredFields.forEach(field => {
+              if (product[field] === undefined || product[field] === null || product[field] === '') {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: Missing required field '${field}'`);
+              }
+            });
+
+            // Product data type validations - only validate if field has a value (not null/undefined)
+            // Also accept string numbers and convert them
+            if (product.name !== undefined && product.name !== null && typeof product.name !== 'string') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'name' must be a string`);
+            }
+            
+            // Allow both numbers and string numbers for price
+            if (product.price !== undefined && product.price !== null) {
+              const priceNum = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+              if (typeof product.price !== 'number' && typeof product.price !== 'string') {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'price' must be a number or numeric string`);
+              } else if (isNaN(priceNum)) {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'price' must be a valid number`);
+              }
+            }
+            
+            if (product.description !== undefined && product.description !== null && typeof product.description !== 'string') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'description' must be a string`);
+            }
+            
+            if (product.sku !== undefined && product.sku !== null && typeof product.sku !== 'string') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'sku' must be a string`);
+            }
+            
+            // Allow both numbers and string numbers for comparePrice
+            if (product.comparePrice !== undefined && product.comparePrice !== null) {
+              const comparePriceNum = typeof product.comparePrice === 'string' ? parseFloat(product.comparePrice) : product.comparePrice;
+              if (typeof product.comparePrice !== 'number' && typeof product.comparePrice !== 'string') {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'comparePrice' must be a number or numeric string`);
+              } else if (isNaN(comparePriceNum)) {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'comparePrice' must be a valid number`);
+              }
+            }
+            
+            // Allow both numbers and string numbers for costPrice
+            if (product.costPrice !== undefined && product.costPrice !== null) {
+              const costPriceNum = typeof product.costPrice === 'string' ? parseFloat(product.costPrice) : product.costPrice;
+              if (typeof product.costPrice !== 'number' && typeof product.costPrice !== 'string') {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'costPrice' must be a number or numeric string`);
+              } else if (isNaN(costPriceNum)) {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'costPrice' must be a valid number`);
+              }
+            }
+            
+            // Allow both numbers and string numbers for weight
+            if (product.weight !== undefined && product.weight !== null) {
+              const weightNum = typeof product.weight === 'string' ? parseFloat(product.weight) : product.weight;
+              if (typeof product.weight !== 'number' && typeof product.weight !== 'string') {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'weight' must be a number or numeric string`);
+              } else if (isNaN(weightNum)) {
+                errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'weight' must be a valid number`);
+              }
+            }
+            
+            if (product.lowStockThreshold !== undefined && product.lowStockThreshold !== null && (typeof product.lowStockThreshold !== 'number' || product.lowStockThreshold < 0)) {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'lowStockThreshold' must be a non-negative number`);
+            }
+            
+            if (product.isActive !== undefined && product.isActive !== null && typeof product.isActive !== 'boolean') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'isActive' must be a boolean`);
+            }
+            
+            if (product.isFeatured !== undefined && product.isFeatured !== null && typeof product.isFeatured !== 'boolean') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'isFeatured' must be a boolean`);
+            }
+            
+            if (product.isOnSale !== undefined && product.isOnSale !== null && typeof product.isOnSale !== 'boolean') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'isOnSale' must be a boolean`);
+            }
+            
+            if (product.allowBackorder !== undefined && product.allowBackorder !== null && typeof product.allowBackorder !== 'boolean') {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'allowBackorder' must be a boolean`);
+            }
+            
+            if (product.tags !== undefined && product.tags !== null && (!Array.isArray(product.tags) || !product.tags.every((tag: any) => typeof tag === 'string'))) {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'tags' must be an array of strings`);
+            }
+            
+            if (product.variants !== undefined && product.variants !== null && !Array.isArray(product.variants)) {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'variants' must be an array`);
+            } else if (product.variants !== undefined && product.variants !== null && Array.isArray(product.variants)) {
+              // Validate each variant more flexibly
+              product.variants.forEach((variant: any, variantIndex: number) => {
+                if (!variant || typeof variant !== 'object') {
+                  errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: Invalid variant object`);
+                  return;
+                }
+                
+                if (variant.size !== undefined && variant.size !== null && typeof variant.size !== 'string') {
+                  errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: 'size' must be a string`);
+                }
+                
+                if (variant.color !== undefined && variant.color !== null && typeof variant.color !== 'string') {
+                  errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: 'color' must be a string`);
+                }
+                
+                // Allow both numbers and string numbers for stock
+                if (variant.stock !== undefined && variant.stock !== null) {
+                  const stockNum = typeof variant.stock === 'string' ? parseInt(variant.stock, 10) : variant.stock;
+                  if (typeof variant.stock !== 'number' && typeof variant.stock !== 'string') {
+                    errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: 'stock' must be a number or numeric string`);
+                  } else if (isNaN(stockNum) || stockNum < 0) {
+                    errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: 'stock' must be a valid non-negative number`);
+                  }
+                }
+                
+                // Allow both numbers and string numbers for variant price
+                if (variant.price !== undefined && variant.price !== null) {
+                  const variantPriceNum = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
+                  if (typeof variant.price !== 'number' && typeof variant.price !== 'string') {
+                    errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: 'price' must be a number or numeric string`);
+                  } else if (isNaN(variantPriceNum)) {
+                    errors.push(`Category ${index + 1}, Product ${productIndex + 1}, Variant ${variantIndex + 1}: 'price' must be a valid number`);
+                  }
+                }
+              });
+            }
+            
+            if (product.images !== undefined && product.images !== null && (!Array.isArray(product.images) || !product.images.every((image: any) => 
+              typeof image === 'object' && 
+              typeof image.url === 'string' && 
+              typeof image.alt === 'string'
+            ))) {
+              errors.push(`Category ${index + 1}, Product ${productIndex + 1}: 'images' must be an array of valid image objects with url and alt`);
+            }
+          });
+        }
+      }
+    });
+
+    return { isValid: errors.length === 0, errors };
+  };
 
   // Reset state when dialog closes
   useEffect(() => {
@@ -129,6 +348,7 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
       setCategories([]);
       setValidationResults([]);
       setImportResults([]);
+      setStructureValidationErrors([]);
       setIsImporting(false);
       setImportOptions({
         skipDuplicates: false,
@@ -147,38 +367,69 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     return 'upcoming';
   };
 
-  const handleFileSelect = useCallback((selectedFile: File) => {
-    if (selectedFile.type !== 'application/json' && !selectedFile.name.endsWith('.json')) {
-      toast.error('Please select a valid JSON file');
+
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast.error('Please select a JSON file');
       return;
     }
 
-    setFile(selectedFile);
-    readFile(selectedFile);
-  }, []);
-
-  const readFile = (selectedFile: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const data = JSON.parse(content);
+    try {
+      setLoading(true);
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.categories || !Array.isArray(data.categories)) {
+        console.log('File format validation failed: missing categories array');
+        setStructureValidationErrors(['Invalid file format. File must contain a "categories" array.']);
+        toast.error('Invalid file format. File must contain a "categories" array.');
+        console.error('File format validation errors: missing categories array');
         
-        if (!data.categories || !Array.isArray(data.categories)) {
-          toast.error('Invalid file format. File must contain a "categories" array.');
-          return;
-        }
-
-        console.log('Loaded categories:', data.categories);
-        console.log('Categories length:', data.categories.length);
-        setCategories(data.categories);
-        toast.success(`Successfully loaded ${data.categories.length} categories`);
-        setCurrentStep(2);
-      } catch (error) {
-        toast.error('Failed to parse JSON file. Please check the file format.');
+        // IMPORTANT: Set file state even when format validation fails so error section can show
+        setFile(file);
+        // Don't proceed to next step, stay on current step to show errors
+        return;
       }
-    };
-    reader.readAsText(selectedFile);
+
+      console.log('Parsed data:', data);
+      console.log('Categories array:', data.categories);
+
+      // Validate data structure before proceeding
+      const structureValidation = validateCategoryDataStructure(data.categories);
+      console.log('Structure validation result:', structureValidation);
+      console.log('Validation errors count:', structureValidation.errors.length);
+      
+      if (!structureValidation.isValid) {
+        console.log('Setting structure validation errors:', structureValidation.errors);
+        setStructureValidationErrors(structureValidation.errors);
+        const errorMessage = `Data structure validation failed:\n${structureValidation.errors.slice(0, 5).join('\n')}${structureValidation.errors.length > 5 ? `\n... and ${structureValidation.errors.length - 5} more errors` : ''}`;
+        toast.error(errorMessage);
+        console.error('Data structure validation errors:', structureValidation.errors);
+        console.log('Current structureValidationErrors state:', structureValidation.errors);
+        
+        // IMPORTANT: Set file state even when validation fails so error section can show
+        setFile(file);
+        // Don't proceed to next step, stay on current step to show errors
+        return;
+      }
+      
+      // Clear any previous structure validation errors
+      setStructureValidationErrors([]);
+
+      setFile(file);
+      setCategories(data.categories);
+      toast.success(`Successfully loaded ${data.categories.length} categories`);
+      setCurrentStep(2);
+    } catch (error) {
+      console.error('File parsing error:', error);
+      toast.error('Failed to parse JSON file');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -191,15 +442,75 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     }
   }, []);
 
+  const handleFileDrop = async (file: File) => {
+    if (!file.name.endsWith('.json')) {
+      toast.error('Please select a JSON file');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.categories || !Array.isArray(data.categories)) {
+        console.log('File format validation failed: missing categories array');
+        setStructureValidationErrors(['Invalid file format. File must contain a "categories" array.']);
+        toast.error('Invalid file format. File must contain a "categories" array.');
+        console.error('File format validation errors: missing categories array');
+        
+        // IMPORTANT: Set file state even when format validation fails so error section can show
+        setFile(file);
+        // Don't proceed to next step, stay on current step to show errors
+        return;
+      }
+
+      console.log('Parsed data:', data);
+      console.log('Categories array:', data.categories);
+
+      // Validate data structure before proceeding
+      const structureValidation = validateCategoryDataStructure(data.categories);
+      console.log('Structure validation result:', structureValidation);
+      console.log('Validation errors count:', structureValidation.errors.length);
+      
+      if (!structureValidation.isValid) {
+        console.log('Setting structure validation errors:', structureValidation.errors);
+        setStructureValidationErrors(structureValidation.errors);
+        const errorMessage = `Data structure validation failed:\n${structureValidation.errors.slice(0, 5).join('\n')}${structureValidation.errors.length > 5 ? `\n... and ${structureValidation.errors.length - 5} more errors` : ''}`;
+        toast.error(errorMessage);
+        console.error('Data structure validation errors:', structureValidation.errors);
+        console.log('Current structureValidationErrors state:', structureValidation.errors);
+        
+        // IMPORTANT: Set file state even when validation fails so error section can show
+        setFile(file);
+        // Don't proceed to next step, stay on current step to show errors
+        return;
+      }
+      
+      // Clear any previous structure validation errors
+      setStructureValidationErrors([]);
+
+      setFile(file);
+      setCategories(data.categories);
+      toast.success(`Successfully loaded ${data.categories.length} categories`);
+      setCurrentStep(2);
+    } catch (error) {
+      console.error('File parsing error:', error);
+      toast.error('Failed to parse JSON file');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0]);
+      handleFileDrop(e.dataTransfer.files[0]);
     }
-  }, [handleFileSelect]);
+  }, []);
 
   const handleDownloadTemplate = async () => {
     try {
@@ -223,6 +534,13 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     } catch (error) {
       toast.error('Failed to download template');
     }
+  };
+
+  const resetValidationErrors = () => {
+    setStructureValidationErrors([]);
+    setCategories([]);
+    setFile(null);
+    setCurrentStep(1);
   };
 
   const handleValidation = async () => {
@@ -252,6 +570,12 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
     console.log('Categories state changed:', categories);
     console.log('Categories length:', categories.length);
   }, [categories]);
+
+  // Debug effect to log structure validation errors changes
+  useEffect(() => {
+    console.log('StructureValidationErrors state changed:', structureValidationErrors);
+    console.log('StructureValidationErrors length:', structureValidationErrors.length);
+  }, [structureValidationErrors]);
 
   const handleImport = async () => {
     if (validationResults.filter(r => !r.valid).length > 0) {
@@ -363,6 +687,8 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
           ))}
         </div>
 
+
+
         {/* Step Content */}
         {currentStep === 1 && (
           <div className="space-y-4 sm:space-y-6">
@@ -414,7 +740,7 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                   <Button
                     variant="outline"
                     onClick={() => setCurrentStep(2)}
-                    disabled={categories.length === 0}
+                    disabled={categories.length === 0 || structureValidationErrors.length > 0}
                     className="flex items-center gap-2 h-10 sm:h-9"
                   >
                     <Eye className="w-4 h-4" />
@@ -455,21 +781,119 @@ const CategoryImportDialog: React.FC<CategoryImportDialogProps> = ({
                     variant="outline" 
                     className="flex items-center gap-2 mx-auto h-10 sm:h-9"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
                   >
-                    <FileText className="w-4 h-4" />
-                    <span className="hidden sm:inline">Select JSON File</span>
-                    <span className="sm:hidden">Select File</span>
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FileText className="w-4 h-4" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {loading ? 'Validating...' : 'Select JSON File'}
+                    </span>
+                    <span className="sm:hidden">
+                      {loading ? 'Validating...' : 'Select File'}
+                    </span>
                   </Button>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".json,application/json"
-                    onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                    onChange={handleFileUpload}
                     className="hidden"
                   />
                 </div>
               </CardContent>
             </Card>
+
+            {/* Structure Validation Errors */}
+            {structureValidationErrors.length > 0 && (
+              <Card className="border-red-200 bg-red-50">
+                <CardHeader className="p-3 sm:p-4">
+                  <CardTitle className="text-base sm:text-lg text-left text-red-800 flex items-center gap-2">
+                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Data Structure Validation Failed
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="space-y-4">
+                    {/* Error Summary */}
+                    <div className="bg-red-100 border border-red-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                        <span className="font-medium text-red-800">Validation Summary</span>
+                      </div>
+                      <p className="text-sm text-red-700">
+                        The uploaded JSON file contains <strong>{structureValidationErrors.length} validation error(s)</strong>. 
+                        Please fix these issues before proceeding with the import.
+                      </p>
+                    </div>
+                    {/* Error Categories */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-red-800">Error Details:</span>
+                        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                          {structureValidationErrors.length} total
+                        </span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-2 border border-red-200 rounded-lg p-3 bg-white">
+                        {structureValidationErrors.map((error, index) => (
+                          <div key={index} className="flex items-start gap-2 text-sm">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-red-700 font-medium">#{index + 1}</span>
+                              <span className="text-red-600 ml-2 break-words">{error}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-red-200">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setStructureValidationErrors([]);
+                          setCategories([]);
+                          setCurrentStep(1);
+                        }}
+                        className="text-red-700 border-red-300 hover:bg-red-100 hover:text-red-800 flex-1 sm:flex-none"
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Clear Errors & Try Again
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadTemplate}
+                        className="text-blue-700 border-blue-300 hover:bg-blue-100 hover:text-blue-800 flex-1 sm:flex-none"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download Template
+                      </Button>
+                    </div>
+                    {/* Helpful Tips */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-amber-800">
+                          <p className="font-medium mb-1">Need Help?</p>
+                          <ul className="space-y-1 text-xs">
+                            <li>• Check that all required fields are present</li>
+                            <li>• Ensure data types match the expected format</li>
+                            <li>• Verify field lengths are within limits</li>
+                            <li>• Use the template as a reference</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Import Notes */}
             <Card>
