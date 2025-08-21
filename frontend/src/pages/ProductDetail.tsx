@@ -60,6 +60,7 @@ const ProductDetail: React.FC = () => {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [showAddedToCart, setShowAddedToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
   
   // Dynamic variant pricing state
   const [dynamicPricing, setDynamicPricing] = useState<{
@@ -259,6 +260,16 @@ const ProductDetail: React.FC = () => {
       // Images will be updated via the ProductImageGallery key prop
     }
   }, [selectedColor]);
+
+  // Update quantity when variant changes to respect stock limits
+  useEffect(() => {
+    if (selectedVariant && !selectedVariant.allowBackorder && selectedVariant.stock > 0) {
+      // If current quantity exceeds available stock, reduce it
+      if (quantity > selectedVariant.stock) {
+        setQuantity(selectedVariant.stock);
+      }
+    }
+  }, [selectedVariant, quantity]);
 
   // Reset success state when variants change
   useEffect(() => {
@@ -972,8 +983,25 @@ const ProductDetail: React.FC = () => {
   // const handleColorChange = (color: string) => { ... };
   // const handleSizeChange = (size: string) => { ... };
 
+  const getMaxQuantity = () => {
+    if (!selectedVariant) return 999; // Default high limit
+    if (selectedVariant.allowBackorder) return 999; // No limit for backorder
+    return selectedVariant.stock > 0 ? selectedVariant.stock : 0;
+  };
+
   const handleQuantityChange = (change: number) => {
     const newQuantity = Math.max(1, quantity + change);
+    
+    // Check stock limits when increasing quantity
+    if (change > 0 && selectedVariant) {
+      if (!selectedVariant.allowBackorder && selectedVariant.stock > 0) {
+        // Don't allow quantity higher than available stock
+        const maxAllowed = Math.min(newQuantity, selectedVariant.stock);
+        setQuantity(maxAllowed);
+        return;
+      }
+    }
+    
     setQuantity(newQuantity);
   };
 
@@ -1877,6 +1905,7 @@ const ProductDetail: React.FC = () => {
                     if (variant) {
                       setSelectedColor(variant.color);
                       setSelectedSize(variant.size);
+                      setSelectedVariant(variant);
                       
                       // Update dynamic pricing
                       setDynamicPricing({
@@ -1899,6 +1928,47 @@ const ProductDetail: React.FC = () => {
               <h3 className="text-sm font-medium mb-2">
                 {isProductInCart ? 'Update Cart Quantity' : 'Quantity to Add'}
               </h3>
+              
+              {/* Stock Information */}
+              {selectedColor && selectedSize && (
+                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                  <div className="space-y-2">
+                    {/* Current Variant Stock */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">Available Stock:</span>
+                      <span className={`font-semibold ${
+                        selectedVariant?.stock > 0 
+                          ? 'text-green-600' 
+                          : selectedVariant?.allowBackorder 
+                            ? 'text-orange-600' 
+                            : 'text-red-600'
+                      }`}>
+                        {selectedVariant?.stock > 0 
+                          ? `${selectedVariant.stock} in stock`
+                          : selectedVariant?.allowBackorder 
+                            ? 'Available for backorder'
+                            : 'Out of stock'
+                        }
+                      </span>
+                    </div>
+                    
+                    {/* Low Stock Warning */}
+                    {selectedVariant?.stock > 0 && selectedVariant.stock <= selectedVariant.lowStockThreshold && (
+                      <div className="text-xs text-orange-600">
+                        ⚠️ Low stock warning
+                      </div>
+                    )}
+                    
+                    {/* Backorder Status */}
+                    {selectedVariant?.allowBackorder && (
+                      <div className="text-xs text-blue-600">
+                        ℹ️ Backorder enabled - can order beyond current stock
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {isProductInCart && (
                 <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-xs text-blue-700">
@@ -1913,6 +1983,7 @@ const ProductDetail: React.FC = () => {
                   </p>
                 </div>
               )}
+              
               <div className="flex items-center gap-3">
                 <Button
                   size="sm"
@@ -1930,11 +2001,39 @@ const ProductDetail: React.FC = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => handleQuantityChange(1)}
+                  disabled={
+                    !selectedVariant?.allowBackorder && 
+                    selectedVariant?.stock !== undefined && 
+                    quantity >= selectedVariant.stock
+                  }
                   className="h-12 w-12 sm:h-10 sm:w-10 p-0"
                 >
                   <Plus className="h-5 w-5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
+              
+              {/* Max quantity info */}
+              {selectedVariant && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {selectedVariant.allowBackorder ? (
+                    'No quantity limit (backorder enabled)'
+                  ) : selectedVariant.stock > 0 ? (
+                    `Maximum: ${selectedVariant.stock}`
+                  ) : (
+                    'Out of stock'
+                  )}
+                </div>
+              )}
+              
+              {/* Stock limit warning */}
+              {selectedVariant && !selectedVariant.allowBackorder && selectedVariant.stock > 0 && quantity >= selectedVariant.stock && (
+                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+                  <p className="text-xs text-orange-700">
+                    ⚠️ Maximum quantity reached. Only {selectedVariant.stock} available in stock.
+                  </p>
+                </div>
+              )}
+              
               <p className="text-xs text-muted-foreground mt-1">
                 {isProductInCart 
                   ? `Adjust the quantity above and click "Update Cart" to save changes.`
