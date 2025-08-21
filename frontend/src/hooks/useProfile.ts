@@ -58,7 +58,6 @@ export const useProfile = () => {
         const token = await getToken();
         if (!token) throw new Error('No authentication token');
         const data = await profileService.getPreferences(token);
-        console.log('Preferences data from API:', data);
         return data || {
           emailNotifications: true,
           smsNotifications: false,

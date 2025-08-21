@@ -9,11 +9,6 @@ export const getImageBaseUrl = (): string => {
   debugEnvironment();
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
   
-  console.log('getImageBaseUrl debug:', {
-    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
-    apiUrl,
-    result: apiUrl.endsWith('/api') ? apiUrl.replace('/api', '') : apiUrl
-  });
   
   // If the API URL ends with /api, remove it to get the base server URL
   if (apiUrl.endsWith('/api')) {
@@ -40,12 +35,6 @@ export const getFullImageUrl = (imageUrl: string): string => {
   // If it's a relative URL, prepend the image base URL
   const baseUrl = getImageBaseUrl();
   const fullUrl = `${baseUrl}${imageUrl}`;
-  
-  console.log('getFullImageUrl debug:', {
-    imageUrl,
-    baseUrl,
-    fullUrl
-  });
   
   return fullUrl;
 };

@@ -62,11 +62,8 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
     
     // Check if we already have images for this color (cached)
     if (lazyLoadedImages[color] && lazyLoadedImages[color].length > 0) {
-      console.log(`Images for color ${color} already cached, using cached version`);
       return;
     }
-
-    console.log(`Loading images for color: ${color}, productId: ${productId}`);
     
     try {
       setIsLoadingImages(true);
@@ -85,8 +82,6 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
           createdAt: img.createdAt || new Date().toISOString()
         }));
 
-        console.log(`Mapped ${newImages.length} images for color ${color}:`, newImages);
-
         setLazyLoadedImages(prev => ({
           ...prev,
           [color]: newImages
@@ -97,7 +92,6 @@ const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
           onImagesLoaded(newImages, color);
         }
       } else {
-        console.log(`No images returned for color ${color}`);
       }
     } catch (error) {
       console.error(`Failed to load images for color ${color}:`, error);

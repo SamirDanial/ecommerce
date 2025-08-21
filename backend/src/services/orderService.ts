@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { deductStockForOrder, StockDeductionItem } from './stockService';
 
 const prisma = new PrismaClient();
 
@@ -141,6 +142,31 @@ export const createOrderFromPayment = async (orderData: CreateOrderData) => {
         }
       }
     });
+
+    // Deduct stock for all order items
+    try {
+      const stockDeductionItems: StockDeductionItem[] = orderData.items.map(item => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity
+      }));
+
+      const stockResult = await deductStockForOrder(stockDeductionItems);
+      
+      if (!stockResult.success) {
+        console.error('Stock deduction failed:', stockResult.errors);
+        // Note: We don't fail the order creation, but log the stock issues
+        // In production, you might want to handle this differently
+      } else {
+        console.log('Stock deducted successfully for order:', orderData.orderNumber);
+        console.log('Deducted items:', stockResult.deductedItems);
+      }
+    } catch (stockError) {
+      console.error('Error during stock deduction:', stockError);
+      // Log error but don't fail order creation
+    }
 
     return order;
   } catch (error) {

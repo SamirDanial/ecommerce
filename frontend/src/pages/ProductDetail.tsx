@@ -189,21 +189,16 @@ const ProductDetail: React.FC = () => {
   const getImagesForColor = (color: string) => {
     if (!product || !product.images) return [];
     
-    console.log(`Getting images for color: ${color}`);
-    console.log('Available images:', product.images);
-    
     // Filter images by the color field
     const colorImages = product.images
       .filter(img => img.color && img.color.toLowerCase() === color.toLowerCase())
       .map(img => img.url);
     
-    console.log(`Found ${colorImages.length} images for color ${color}:`, colorImages);
     
     // Return color-specific images if available, otherwise fallback to main images
     if (colorImages.length > 0) {
       return colorImages;
     } else {
-      console.log(`No color-specific images found for ${color}, using default images`);
       // Return all images that don't have a color specified, or all images if none have colors
       const defaultImages = product.images
         .filter(img => !img.color || img.color === '')
@@ -215,7 +210,6 @@ const ProductDetail: React.FC = () => {
 
   // Handle when new images are loaded for a color
   const handleImagesLoaded = (images: any[], color: string) => {
-    console.log(`Loaded ${images.length} images for color: ${color}`);
     // You can add additional logic here if needed
   };
 
@@ -1113,7 +1107,6 @@ const ProductDetail: React.FC = () => {
           url: window.location.href,
         });
       } catch (error) {
-        console.log('Error sharing:', error);
         // You could add a toast notification here
       }
     } else {

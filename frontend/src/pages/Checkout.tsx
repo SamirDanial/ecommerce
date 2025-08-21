@@ -192,8 +192,18 @@ const Checkout: React.FC = () => {
           const defaultAddress = addresses.find(addr => addr.isDefault);
           if (defaultAddress) {
             setSelectedAddress(defaultAddress);
-            // Also set it in the cart store
-            setShippingAddress(defaultAddress);
+            // Also set it in the cart store (convert SavedAddress to ShippingAddress)
+            setShippingAddress({
+              id: defaultAddress.id,
+              firstName: defaultAddress.firstName,
+              lastName: defaultAddress.lastName,
+              phone: defaultAddress.phone,
+              address: defaultAddress.address,
+              city: defaultAddress.city,
+              state: defaultAddress.state,
+              postalCode: defaultAddress.postalCode,
+              country: defaultAddress.country
+            });
           }
           setHasInitializedAddresses(true);
         }
@@ -240,7 +250,18 @@ const Checkout: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (selectedAddress) {
-      setShippingAddress(selectedAddress);
+      // Convert SavedAddress to ShippingAddress for cart store
+      setShippingAddress({
+        id: selectedAddress.id,
+        firstName: selectedAddress.firstName,
+        lastName: selectedAddress.lastName,
+        phone: selectedAddress.phone,
+        address: selectedAddress.address,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        postalCode: selectedAddress.postalCode,
+        country: selectedAddress.country
+      });
     }
   }, [selectedAddress, setShippingAddress]);
 
@@ -270,7 +291,18 @@ const Checkout: React.FC = () => {
   // Address management functions
   const handleSelectAddress = (address: SavedAddress) => {
     setSelectedAddress(address);
-    setShippingAddress(address);
+    // Convert SavedAddress to ShippingAddress for cart store
+    setShippingAddress({
+      id: address.id,
+      firstName: address.firstName,
+      lastName: address.lastName,
+      phone: address.phone,
+      address: address.address,
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country
+    });
     toast.success('Address selected successfully');
   };
 
@@ -292,7 +324,7 @@ const Checkout: React.FC = () => {
         return;
       }
       
-      await deleteAddress(addressId, token);
+      await deleteAddress(addressId as any, token);
       
       // Refresh addresses to get updated list
       await handleRefreshAddresses();
@@ -334,7 +366,18 @@ const Checkout: React.FC = () => {
       // Select the newly saved/updated address
       if (savedAddress) {
         setSelectedAddress(savedAddress);
-        setShippingAddress(savedAddress);
+        // Convert SavedAddress to ShippingAddress for cart store
+        setShippingAddress({
+          id: savedAddress.id,
+          firstName: savedAddress.firstName,
+          lastName: savedAddress.lastName,
+          phone: savedAddress.phone,
+          address: savedAddress.address,
+          city: savedAddress.city,
+          state: savedAddress.state,
+          postalCode: savedAddress.postalCode,
+          country: savedAddress.country
+        });
       }
       
       setShowAddressSidebar(false);
@@ -681,27 +724,33 @@ const Checkout: React.FC = () => {
                       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                         <Elements stripe={stripePromise}>
                           <StripePaymentForm
-                            amount={getTotal()}
+                            amount={(() => {
+                              const total = getTotal();
+                              console.log('💰 Checkout - Amount being passed to StripePaymentForm:', {
+                                total,
+                                currency: selectedCurrency.code,
+                                currencyRate: selectedCurrency.rate
+                              });
+                              return total;
+                            })()}
                             currency={selectedCurrency.code.toLowerCase()}
                             customerName={shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}` : 'Customer'}
-                            shippingAddress={{
-                              firstName: shippingAddress?.firstName || '',
-                              lastName: shippingAddress?.lastName || '',
-                              phone: shippingAddress?.phone || '',
-                              address: shippingAddress?.address || '',
-                              city: shippingAddress?.city || '',
-                              state: shippingAddress?.state || '',
-                              postalCode: shippingAddress?.postalCode || '',
-                              country: shippingAddress?.country || ''
-                            }}
+                            shippingAddressId={shippingAddress?.id ? parseInt(shippingAddress.id) : undefined}
                             orderDetails={{
-                              items: items.map(item => ({
-                                id: item.id,
-                                name: item.name,
-                                quantity: item.quantity,
-                                price: item.price,
-                                image: item.image || undefined
-                              })),
+                              items: items.map(item => {
+                                console.log('🔍 Cart item being processed:', item);
+                                return {
+                                  id: item.id,
+                                  name: item.name,
+                                  quantity: item.quantity,
+                                  price: item.price,
+                                  image: item.image || undefined,
+                                  variantId: undefined, // Backend will look this up
+                                  size: item.selectedSize,
+                                  color: item.selectedColor,
+                                  sku: undefined // Backend will look this up
+                                };
+                              }),
                               discount: appliedDiscount ? {
                                 code: appliedDiscount.code,
                                 amount: getDiscountAmount(),
@@ -786,6 +835,31 @@ const Checkout: React.FC = () => {
                 {/* Enhanced Items */}
                 <div className="space-y-4">
                   <h4 className="font-semibold text-gray-900">Items in Cart</h4>
+                  
+                  {/* Variant Information Warning */}
+                  {items.some(item => !item.selectedColor || !item.selectedSize) && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-yellow-800">
+                          <p className="font-medium mb-1">Variant Information Missing</p>
+                          <p>Some items are missing size or color selection. Please return to the cart to select variants before proceeding.</p>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate('/cart')}
+                          className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                        >
+                          ← Return to Cart to Select Variants
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="space-y-3">
                     {items.map((item, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -935,7 +1009,7 @@ const Checkout: React.FC = () => {
                   <div className="pt-6 border-t border-gray-200">
                     <Button 
                       onClick={() => setCurrentStep('payment')} 
-                      disabled={!selectedAddress}
+                      disabled={!selectedAddress || items.some(item => !item.selectedColor || !item.selectedSize)}
                       className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
                     >
                       Continue to Payment
@@ -945,6 +1019,12 @@ const Checkout: React.FC = () => {
                     {!selectedAddress && (
                       <p className="text-sm text-gray-500 text-center mt-3">
                         Please select a shipping address to continue
+                      </p>
+                    )}
+                    
+                    {items.some(item => !item.selectedColor || !item.selectedSize) && (
+                      <p className="text-sm text-yellow-600 text-center mt-3">
+                        Please ensure all items have size and color selected
                       </p>
                     )}
                   </div>

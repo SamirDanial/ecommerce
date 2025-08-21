@@ -25,16 +25,6 @@ const ClerkSessionManager: React.FC = () => {
       return;
     }
 
-    // Debug logging to track session state changes
-    console.log('ClerkSessionManager: State changed', {
-      isLoaded,
-      isSignedIn,
-      hasUser: !!user,
-      userId: user?.id,
-      storeUser: !!storeUser,
-      storeAuthenticated
-    });
-
     // Set loaded state once
     if (!hasSetLoaded.current) {
       setLoaded(true);
@@ -46,7 +36,6 @@ const ClerkSessionManager: React.FC = () => {
       if (user && isSignedIn) {
         // Only update if user actually changed
         if (lastUserId.current !== user.id) {
-          console.log('ClerkSessionManager: Setting authenticated user', user.id);
           
           // Transform Clerk user to our format
           const transformedUser = {
@@ -75,7 +64,7 @@ const ClerkSessionManager: React.FC = () => {
       } else if (!user && !isSignedIn) {
         // Check if we have a stored user - this might be temporary session loss
         if (storeUser && lastUserId.current !== null) {
-          console.log('ClerkSessionManager: Potential session loss detected, waiting before clearing...');
+          
           
           // Clear any existing timeout
           if (sessionCheckTimeout.current) {
@@ -85,15 +74,13 @@ const ClerkSessionManager: React.FC = () => {
           // Wait a bit to see if session recovers
           sessionCheckTimeout.current = setTimeout(() => {
             if (!isSignedIn && !user && isMounted.current) {
-              console.log('ClerkSessionManager: Session confirmed lost, clearing state');
               setUser(null);
               setAuthenticated(false);
               lastUserId.current = null;
             }
           }, 3000); // Wait 3 seconds before clearing
         } else if (lastUserId.current !== null) {
-          // No stored user, clear immediately
-          console.log('ClerkSessionManager: Clearing user state (no stored user)');
+          // No stored user, clear immediately;
           setUser(null);
           setAuthenticated(false);
           lastUserId.current = null;
@@ -108,7 +95,6 @@ const ClerkSessionManager: React.FC = () => {
   // Effect to handle session recovery when Clerk becomes available again
   useEffect(() => {
     if (isLoaded && isSignedIn && user && storeUser && lastUserId.current === null) {
-      console.log('ClerkSessionManager: Session recovered, updating state');
       lastUserId.current = user.id;
       setAuthenticated(true);
     }

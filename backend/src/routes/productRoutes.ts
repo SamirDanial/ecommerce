@@ -798,4 +798,110 @@ router.get('/:id/variants/:color', async (req, res) => {
   }
 });
 
+// Check stock availability for variants
+router.post('/check-stock', async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Items array is required'
+      });
+    }
+
+    const stockResults = [];
+    
+    for (const item of items) {
+      const { productId, size, color, quantity } = item;
+      
+      if (!productId || !size || !color || !quantity) {
+        const missingFields = [];
+        if (!productId) missingFields.push('product ID');
+        if (!size) missingFields.push('size');
+        if (!color) missingFields.push('color');
+        if (!quantity) missingFields.push('quantity');
+        
+        stockResults.push({
+          productId,
+          size,
+          color,
+          quantity,
+          available: false,
+          error: `Missing required fields: ${missingFields.join(', ')}`
+        });
+        continue;
+      }
+
+      try {
+        const variant = await prisma.productVariant.findFirst({
+          where: {
+            productId: parseInt(productId),
+            size,
+            color
+          },
+          select: {
+            id: true,
+            stock: true,
+            allowBackorder: true,
+            lowStockThreshold: true
+          }
+        });
+
+        if (!variant) {
+          stockResults.push({
+            productId,
+            size,
+            color,
+            quantity,
+            available: false,
+            error: 'Variant not found'
+          });
+          continue;
+        }
+
+        const hasStock = variant.allowBackorder || variant.stock >= quantity;
+        const isLowStock = variant.stock > 0 && variant.stock <= variant.lowStockThreshold;
+
+        stockResults.push({
+          productId,
+          size,
+          color,
+          quantity,
+          available: hasStock,
+          currentStock: variant.stock,
+          allowBackorder: variant.allowBackorder,
+          isLowStock,
+          error: null
+        });
+
+      } catch (error) {
+        stockResults.push({
+          productId,
+          size,
+          color,
+          quantity,
+          available: false,
+          error: `Database error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
+      }
+    }
+
+    const allAvailable = stockResults.every(result => result.available);
+    
+    res.json({
+      success: true,
+      allAvailable,
+      results: stockResults
+    });
+
+  } catch (error) {
+    console.error('Error checking stock:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check stock availability'
+    });
+  }
+});
+
 export default router;

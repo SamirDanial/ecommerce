@@ -40,10 +40,4 @@ export const getApiBaseUrl = () => {
 export const logApiConfig = () => {
   const env = getCurrentEnvironment();
   const config = getApiConfig();
-  
-  console.log('🌐 API Configuration:');
-  console.log('  Environment:', env);
-  console.log('  Base URL:', config.baseURL);
-  console.log('  Timeout:', config.timeout);
-  console.log('  REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 };

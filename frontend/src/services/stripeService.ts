@@ -39,7 +39,7 @@ export interface PaymentMethod {
 // Create payment intent
 export const createPaymentIntent = async (data: CreatePaymentIntentRequest): Promise<PaymentIntent> => {
   try {
-    const response = await fetch('/api/stripe/create-payment-intent', {
+    const response = await fetch('/stripe/create-payment-intent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

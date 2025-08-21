@@ -5,26 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { CreditCard, Lock, AlertCircle, CheckCircle, Calendar, Shield, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useClerkAuth } from '../hooks/useClerkAuth';
+import StockService from '../services/stockService';
 
 interface StripePaymentFormProps {
   amount: number;
   currency: string;
   customerName?: string;
-  shippingAddress?: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
+  shippingAddressId?: number;
   orderDetails?: {
     items?: Array<{
+      id: number;
       name: string;
       quantity: number;
       price: number;
+      variantId?: number;
+      size?: string;
+      color?: string;
+      sku?: string;
     }>;
     discount?: {
       code: string;
@@ -48,7 +45,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   amount,
   currency,
   customerName,
-  shippingAddress,
+  shippingAddressId,
   orderDetails,
   onPaymentSuccess,
   onPaymentError,
@@ -96,6 +93,17 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
     }
   };
 
+  // Helper function to get stored order details
+  const getStoredOrderDetails = () => {
+    try {
+      const stored = localStorage.getItem('pendingOrderDetails');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.error('Error retrieving stored order details:', error);
+      return null;
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -113,20 +121,97 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         throw new Error('Authentication required');
       }
 
+      // Check stock availability before proceeding with payment
+      if (orderDetails?.items && orderDetails.items.length > 0) {
+        try {
+          // Filter out items that don't have variant information
+          const itemsWithVariants = orderDetails.items.filter(item => item.size && item.color);
+          const itemsWithoutVariants = orderDetails.items.filter(item => !item.size || !item.color);
+
+          if (itemsWithoutVariants.length > 0) {
+            console.warn('⚠️ Items without variant information found:', itemsWithoutVariants);
+            const missingItems = itemsWithoutVariants.map(item => item.name).join(', ');
+            const errorMessage = `The following items are missing variant information (size/color): ${missingItems}. Please return to the cart and ensure all items have size and color selected.`;
+            setError(errorMessage);
+            onPaymentError(errorMessage);
+            return;
+          }
+
+          const stockCheckItems = orderDetails.items.map(item => ({
+            productId: item.id,
+            size: item.size || '',
+            color: item.color || '',
+            quantity: item.quantity
+          }));
+
+          console.log('🔍 Stock validation - Items being checked:', stockCheckItems);
+          console.log('🔍 Stock validation - Original orderDetails:', orderDetails.items);
+
+          const stockValidation = await StockService.checkStockAvailability(stockCheckItems);
+          
+          if (!stockValidation.allAvailable) {
+            const stockErrors = stockValidation.results
+              .filter(result => !result.available)
+              .map(result => {
+                const itemInfo = `${result.color || 'Unknown Color'} ${result.size || 'Unknown Size'}`;
+                const errorDetails = result.error || 'Insufficient stock';
+                return `${itemInfo}: ${errorDetails}`;
+              });
+            
+            const errorMessage = `Stock validation failed:\n${stockErrors.join('\n')}`;
+            setError(errorMessage);
+            onPaymentError(errorMessage);
+            return;
+          }
+
+          // Check for low stock warnings
+          const lowStockItems = stockValidation.results.filter(result => result.isLowStock);
+          if (lowStockItems.length > 0) {
+            const lowStockWarnings = lowStockItems.map(item => 
+              `${item.color} ${item.size}: Only ${item.currentStock} left in stock`
+            );
+            toast.warning(`Low stock warning:\n${lowStockWarnings.join('\n')}`);
+          }
+        } catch (stockError) {
+          console.error('Stock validation error:', stockError);
+          const errorMessage = stockError instanceof Error ? stockError.message : 'Failed to validate stock availability';
+          setError(`Stock validation failed: ${errorMessage}. Please try again.`);
+          onPaymentError(`Stock validation failed: ${errorMessage}. Please try again.`);
+          return;
+        }
+      }
+
       // Create payment intent on the backend
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/stripe/create-payment-intent`, {
+      
+      // Debug: Log the amounts being sent
+      console.log('💰 Payment amounts:', {
+        originalAmount: amount,
+        amountInCents: Math.round(amount * 100),
+        currency: currency,
+        orderDetails: orderDetails
+      });
+      
+      // Debug: Check metadata size
+      const metadataSize = JSON.stringify(orderDetails).length;
+      console.log('📏 Metadata size check:', {
+        metadataSize,
+        isWithinLimit: metadataSize <= 500,
+        metadataPreview: JSON.stringify(orderDetails).substring(0, 100) + '...'
+      });
+      
+      const response = await fetch(`${apiUrl}/stripe/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          amount: Math.round(amount), // Amount should already be in cents
+          amount: Math.round(amount * 100), // Convert dollars to cents for Stripe
           currency: currency, // Currency is already in correct format (e.g., 'usd')
           orderDetails: orderDetails || {},
           customerName: customerName || 'Customer',
-          shippingAddress: shippingAddress || {}
+          shippingAddressId: shippingAddressId
         }),
       });
 
@@ -140,7 +225,14 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const { client_secret } = await response.json();
+      const { client_secret, orderDetails: storedOrderDetails } = await response.json();
+      
+      // Store the order details for later use when payment succeeds
+      if (storedOrderDetails) {
+        console.log('📦 Order details stored from payment intent:', storedOrderDetails);
+        // You can store this in localStorage or pass it to the parent component
+        localStorage.setItem('pendingOrderDetails', JSON.stringify(storedOrderDetails));
+      }
       
       console.log('Payment intent response:', { client_secret: client_secret ? 'present' : 'missing' });
 
@@ -162,21 +254,36 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       if (stripeError) {
         setError(stripeError.message || 'Payment failed');
         onPaymentError(stripeError.message || 'Payment failed');
+        
+        // Clean up stored order details on error
+        localStorage.removeItem('pendingOrderDetails');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         toast.success('Payment successful!');
         onPaymentSuccess(paymentIntent);
+        
+        // Clean up stored order details
+        localStorage.removeItem('pendingOrderDetails');
       } else if (paymentIntent && paymentIntent.status === 'requires_action') {
         // Handle 3D Secure or other authentication requirements
         setError('Additional authentication required. Please complete the payment.');
         onPaymentError('Additional authentication required. Please complete the payment.');
+        
+        // Clean up stored order details on authentication requirement
+        localStorage.removeItem('pendingOrderDetails');
       } else {
         setError('Payment failed. Please try again.');
         onPaymentError('Payment failed. Please try again.');
+        
+        // Clean up stored order details on failure
+        localStorage.removeItem('pendingOrderDetails');
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Payment failed. Please try again.';
       setError(errorMessage);
       onPaymentError(errorMessage);
+      
+      // Clean up stored order details on error
+      localStorage.removeItem('pendingOrderDetails');
     } finally {
       setProcessing(false);
     }
@@ -309,7 +416,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
             ) : (
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Pay {currency}${(amount / 100).toFixed(1).replace(/\.0$/, '')}
+                Pay {currency}${amount.toFixed(2)}
               </div>
             )}
           </Button>

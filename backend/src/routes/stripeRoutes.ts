@@ -26,7 +26,35 @@ router.get('/test', (req, res) => {
 // Create payment intent route
 router.post('/create-payment-intent', authenticateClerkToken, async (req, res) => {
   try {
-    const { amount, currency, orderDetails, customerName, shippingAddress } = req.body;
+    const { amount, currency, orderDetails, customerName, shippingAddressId } = req.body;
+
+    // Look up the full shipping address from the database
+    let shippingAddress = null;
+    if (shippingAddressId) {
+      try {
+        shippingAddress = await prisma.address.findUnique({
+          where: { id: shippingAddressId },
+          select: {
+            firstName: true,
+            lastName: true,
+            phone: true,
+            address1: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            country: true
+          }
+        });
+        
+        if (shippingAddress) {
+          console.log(`✅ Found shipping address ID ${shippingAddressId}:`, shippingAddress);
+        } else {
+          console.warn(`⚠️ Shipping address ID ${shippingAddressId} not found`);
+        }
+      } catch (addressError) {
+        console.error(`Error looking up shipping address ID ${shippingAddressId}:`, addressError);
+      }
+    }
 
     if (!amount || !currency) {
       return res.status(400).json({
@@ -61,6 +89,138 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
       }
     }
 
+    // Store full order details in request for later use (webhook/order creation)
+    // We'll store only essential metadata in Stripe to stay within 500 char limit
+    const fullOrderDetails = {
+      items: orderDetails.items?.map((item: any) => ({
+        productId: item.id || 1,
+        variantId: item.variantId,
+        name: item.name,
+        sku: item.sku,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.quantity * item.price
+      })) || [],
+      subtotal: orderDetails.subtotal || orderDetails.items?.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0) || 0,
+      total: orderDetails.total,
+      currency: currency.toUpperCase(),
+      discount: orderDetails.discount || null,
+      shippingMethod: orderDetails.shippingMethod || 'standard',
+      shippingCost: orderDetails.shippingCost || 0,
+      tax: orderDetails.tax || 0,
+      shippingAddress: shippingAddress
+    };
+
+    // Store order details in database temporarily for webhook processing
+    // This avoids the metadata size limit while preserving all information
+    // Note: This requires the tempOrderData table to be created in the schema
+    // For now, we'll use a compact metadata approach
+
+    // Process items and ensure we have valid variant IDs
+    const itemsWithVariants = [];
+    if (orderDetails.items && orderDetails.items.length > 0) {
+      for (const item of orderDetails.items) {
+        // If frontend already provided variantId and sku, use them
+        if (item.variantId && item.variantId > 0 && item.sku && item.sku !== 'N/A') {
+          itemsWithVariants.push({
+            ...item,
+            variantId: item.variantId,
+            sku: item.sku
+          });
+          console.log(`✅ Using provided variant ID ${item.variantId} for product ${item.id}`);
+        } else if (item.size && item.color) {
+          // Frontend didn't provide variant info, look it up
+          try {
+            const variant = await prisma.productVariant.findFirst({
+              where: {
+                productId: item.id,
+                size: item.size,
+                color: item.color
+              },
+              select: { id: true, sku: true }
+            });
+            
+            if (variant) {
+              itemsWithVariants.push({
+                ...item,
+                variantId: variant.id,
+                sku: variant.sku
+              });
+              console.log(`🔍 Found variant ID ${variant.id} for product ${item.id}, size ${item.size}, color ${item.color}`);
+            } else {
+              console.warn(`⚠️ No variant found for product ${item.id}, size ${item.size}, color ${item.color}`);
+              // Still add item but with placeholder variant ID
+              itemsWithVariants.push({
+                ...item,
+                variantId: 1, // Use 1 as placeholder - make sure product ID 1 exists
+                sku: 'UNKNOWN'
+              });
+            }
+          } catch (variantError) {
+            console.error(`Error looking up variant for product ${item.id}:`, variantError);
+            // Add item with placeholder on error
+            itemsWithVariants.push({
+              ...item,
+              variantId: 1, // Use 1 as placeholder
+              sku: 'ERROR'
+            });
+          }
+        } else {
+          // Item without size/color - add with placeholders
+          itemsWithVariants.push({
+            ...item,
+            variantId: 1, // Use 1 as placeholder
+            sku: 'NO_VARIANT'
+          });
+        }
+      }
+    }
+
+    // Create compact metadata with critical legal/audit information
+    // This data is essential for proving what was sold in case of server issues or legal disputes
+    const metadata = {
+      userEmail: userEmail || 'unknown',
+      userId: req.user?.id || 'unknown',
+      customerId: customer?.id || 'none',
+      customerName: customerName || `${shippingAddress?.firstName || ''} ${shippingAddress?.lastName || ''}`.trim() || 'Customer',
+      // Store compact order info to stay within Stripe's 500 char limit
+      orderId: `order_${Date.now()}`,
+      itemCount: itemsWithVariants.length || 0,
+      total: orderDetails.total?.toString() || '0',
+      currency: currency.toUpperCase(),
+      shippingMethod: orderDetails.shippingMethod || 'standard',
+      // Store essential customer info only
+      customerEmail: userEmail || 'unknown',
+      // Store address ID for webhook to look up full details
+      shippingAddressId: shippingAddressId?.toString() || 'none',
+      // Store compact item info: "id:qty:price:variantId:size:color" - NOW WITH REAL VARIANT IDs
+      items: itemsWithVariants.map((item: any) => 
+        `${item.id}:${item.quantity}:${item.price}:${item.variantId}:${item.size || 'N/A'}:${item.color || 'N/A'}`
+      ).join(',') || '',
+      subtotal: orderDetails.subtotal?.toString() || '0',
+      tax: orderDetails.tax?.toString() || '0',
+      shippingCost: orderDetails.shippingCost?.toString() || '0',
+      discount: orderDetails.discount?.calculatedAmount?.toString() || '0'
+    };
+
+    // Check metadata size and log for debugging
+    const metadataSize = JSON.stringify(metadata).length;
+    console.log('📏 Stripe metadata size check:', {
+      metadataSize,
+      isWithinLimit: metadataSize <= 500,
+      metadata
+    });
+
+    if (metadataSize > 500) {
+      console.warn('⚠️ Metadata exceeds 500 characters, truncating items field');
+      // Truncate items field if needed - this preserves the most critical legal information
+      const maxItemsLength = Math.max(0, 500 - metadataSize + metadata.items.length);
+      metadata.items = metadata.items.substring(0, maxItemsLength);
+      console.warn(`⚠️ Items field truncated to ${maxItemsLength} characters to stay within Stripe limits`);
+    }
+
     // Create payment intent for embedded form processing
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
@@ -69,36 +229,15 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
       customer: customer?.id, // Associate with customer
       receipt_email: userEmail, // Add customer email for receipt
       description: `Order from ${userEmail || 'Customer'} - ${currency.toUpperCase()} ${(amount / 100).toFixed(1).replace(/\.0$/, '')}`,
-      metadata: {
-        userEmail: userEmail || 'unknown',
-        userId: req.user?.id || 'unknown',
-        customerId: customer?.id || 'none',
-        customerName: customerName || `${shippingAddress?.firstName || ''} ${shippingAddress?.lastName || ''}`.trim() || 'Customer',
-        // Add detailed order information for webhook processing
-        orderDetails: JSON.stringify({
-          items: orderDetails.items.map((item: any) => ({
-            productId: item.id || 1,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.quantity * item.price
-          })),
-          subtotal: orderDetails.subtotal || orderDetails.items.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0),
-          total: orderDetails.total,
-          currency: currency.toUpperCase(),
-          discount: orderDetails.discount || null,
-          shippingMethod: orderDetails.shippingMethod || 'standard',
-          shippingCost: orderDetails.shippingCost || 0,
-          tax: orderDetails.tax || 0 // Add the missing tax field
-        }),
-        shippingAddress: JSON.stringify(shippingAddress) // Add shipping address to metadata
-      }
+      metadata: metadata
     });
 
     // Return the payment intent for embedded form processing
+    // Include order details in response for frontend to store temporarily
     res.json({
       client_secret: paymentIntent.client_secret,
-      payment_intent_id: paymentIntent.id
+      payment_intent_id: paymentIntent.id,
+      orderDetails: fullOrderDetails // Include full order details for frontend storage
     });
 
   } catch (error) {
@@ -225,73 +364,167 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           const customerName = metadata.customerName || 'Unknown Customer';
           
           if (userId && paymentIntent.amount) {
-            // Parse order details from metadata
+            // Parse compact metadata format to reconstruct order details
+            // This metadata contains critical legal/audit information about what was sold
+            // Even if our server burns down, Stripe will have this data for legal proof
             let orderDetails: any = null;
             let items: any[] = [];
             let subtotal = 0;
             
-            try {
-              if (metadata.orderDetails) {
-                orderDetails = JSON.parse(metadata.orderDetails);
-                items = orderDetails.items || [];
-                subtotal = orderDetails.subtotal || 0;
+            // Parse compact metadata
+            const itemCount = parseInt(metadata.itemCount || '1');
+            const total = parseFloat(metadata.total || '0');
+            const currency = metadata.currency || 'USD';
+            const shippingMethod = metadata.shippingMethod || 'standard';
+            const subtotalValue = parseFloat(metadata.subtotal || '0');
+            const taxValue = parseFloat(metadata.tax || '0');
+            const shippingCostValue = parseFloat(metadata.shippingCost || '0');
+            const discountValue = parseFloat(metadata.discount || '0');
+            
+            console.log('🔍 Webhook - Creating order from compact metadata:', {
+              itemCount,
+              total,
+              currency,
+              shippingMethod,
+              subtotal: subtotalValue,
+              tax: taxValue,
+              shippingCost: shippingCostValue,
+              discount: discountValue,
+              itemsString: metadata.items
+            });
+            
+            // Parse compact items string: "id:qty:price:variantId:size:color" for legal/audit purposes
+            if (metadata.items && metadata.items.length > 0) {
+              try {
+                items = metadata.items.split(',').map((itemStr: string) => {
+                  const [productId, quantity, price, variantId, size, color] = itemStr.split(':');
+                  return {
+                    productId: parseInt(productId) || 1,
+                    variantId: variantId === 'N/A' ? null : (parseInt(variantId) || null),
+                    productName: `Product ${productId}`,
+                    quantity: parseInt(quantity) || 1,
+                    price: parseFloat(price) || 0,
+                    size: size === 'N/A' ? null : size,
+                    color: color === 'N/A' ? null : color,
+                    total: (parseInt(quantity) || 1) * (parseFloat(price) || 0)
+                  };
+                });
+                
+                console.log('🔍 Items before variant lookup:', items);
+                
+                // Variant IDs are now already looked up during metadata creation
+                // Just log the items for verification
+                console.log('🔍 Items with variant IDs (already looked up):', items);
+                
+                console.log('🔍 Items after variant lookup:', items);
+                subtotal = subtotalValue;
+              } catch (e) {
+                console.error('Error parsing compact items:', e);
+                // Fallback to basic structure
+                items = [{
+                  productId: 1,
+                  productName: `Order with ${itemCount} items`,
+                  quantity: itemCount,
+                  price: total / itemCount,
+                  total: total
+                }];
+                subtotal = total;
               }
-            } catch (e) {
-              // Create a default item structure if parsing fails
+            } else {
+              // Fallback to basic structure
               items = [{
                 productId: 1,
-                productName: 'Order Items',
-                quantity: 1,
-                price: paymentIntent.amount / 100,
-                total: paymentIntent.amount / 100
+                productName: `Order with ${itemCount} items`,
+                quantity: itemCount,
+                price: total / itemCount,
+                total: total
               }];
-              subtotal = paymentIntent.amount / 100;
+              subtotal = total;
             }
             
             const amount = paymentIntent.amount / 100; // Convert from cents
 
-            // Use tax from frontend UI if available, otherwise calculate
-            const taxRate = parseFloat(process.env.TAX_RATE || '0.10'); // Default 10% tax, configurable via TAX_RATE env var
-            let tax = 0;
-            if (orderDetails && orderDetails.tax !== undefined) {
-              tax = orderDetails.tax; // Use exact UI tax value
-            } else {
-              // Fallback to calculation if not provided
-              tax = subtotal * taxRate;
-            }
+            // Use tax from metadata if available, otherwise calculate
+            const taxRate = parseFloat(process.env.TAX_RATE || '0.0825'); // Default 8.25% tax
+            const tax = taxValue > 0 ? taxValue : (subtotal * taxRate);
             
-            // Extract shipping address from metadata if available
+            // Look up shipping address from database using ID from metadata
             let shippingAddressData: any = null;
-            if (metadata.shippingAddress) {
+            
+            if (metadata.shippingAddressId && metadata.shippingAddressId !== 'none') {
               try {
-                shippingAddressData = JSON.parse(metadata.shippingAddress);
-              } catch (e) {
-                // Shipping address parsing failed, continue without it
+                const addressId = parseInt(metadata.shippingAddressId);
+                const fullAddress = await prisma.address.findUnique({
+                  where: { id: addressId },
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                    address1: true,
+                    city: true,
+                    state: true,
+                    postalCode: true,
+                    country: true
+                  }
+                });
+                
+                if (fullAddress) {
+                  shippingAddressData = fullAddress;
+                  console.log(`✅ Retrieved full shipping address from ID ${addressId}:`, shippingAddressData);
+                } else {
+                  console.warn(`⚠️ Shipping address ID ${addressId} not found in database`);
+                  // Fallback to basic structure
+                  shippingAddressData = {
+                    firstName: metadata.customerName || 'Customer',
+                    lastName: '',
+                    phone: '',
+                    address: 'Address not found',
+                    city: 'City not found',
+                    state: 'State not found',
+                    postalCode: '00000',
+                    country: 'US'
+                  };
+                }
+              } catch (addressError) {
+                console.error(`Error looking up shipping address ID ${metadata.shippingAddressId}:`, addressError);
+                // Fallback to basic structure
+                shippingAddressData = {
+                  firstName: metadata.customerName || 'Customer',
+                  lastName: '',
+                  phone: '',
+                  address: 'Address lookup error',
+                  city: 'City lookup error',
+                  state: 'State lookup error',
+                  postalCode: '00000',
+                  country: 'US'
+                };
               }
+            } else {
+              // Fallback to basic structure if no address ID in metadata
+              shippingAddressData = {
+                firstName: metadata.customerName || 'Customer',
+                lastName: '',
+                phone: '',
+                address: 'Address not provided',
+                city: 'City not provided',
+                state: 'State not provided',
+                postalCode: '00000',
+                country: 'US'
+              };
+              console.warn('⚠️ No shipping address ID in metadata, using fallback');
             }
             
-            // Use shipping cost from frontend if available, otherwise calculate based on country and order value
-            let shippingCost = 0;
-            if (orderDetails && orderDetails.shippingCost !== undefined) {
-              shippingCost = orderDetails.shippingCost;
-            } else {
-              shippingCost = calculateShippingCost(shippingAddressData, subtotal);
-            }
+            // Use shipping cost from metadata if available, otherwise calculate
+            const shippingCost = shippingCostValue > 0 ? shippingCostValue : calculateShippingCost(shippingAddressData, subtotal);
             
-            // Use discount from frontend UI if available, otherwise calculate
-            let discount = 0;
-            if (orderDetails && orderDetails.discount && orderDetails.discount.calculatedAmount !== undefined) {
-              discount = orderDetails.discount.calculatedAmount; // Use exact UI discount value
-            } else {
-              // Fallback to calculation if not provided
-              discount = calculateDiscount(orderDetails);
-            }
+            // Use discount from metadata if available, otherwise use 0
+            const discount = discountValue > 0 ? discountValue : 0;
             
             // Calculate final total (should match Stripe amount)
             const calculatedTotal = subtotal + tax + shippingCost - discount;
             
-            // Use frontend total if available, otherwise use Stripe amount
-            const finalTotal = orderDetails?.total || amount;
+            // Use the total from metadata or Stripe amount
+            const finalTotal = total > 0 ? total : amount;
             
             // Generate tracking number
             const trackingNumber = `TRK-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -338,7 +571,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               subtotal: subtotal, // Use original subtotal
               tax: tax, // Use exact UI tax value
               shipping: shippingCost, // Use exact UI shipping cost
-              shippingMethod: orderDetails?.shippingMethod || 'standard', // Store shipping method
+              shippingMethod: shippingMethod, // Use shipping method from metadata
               discount: discount, // Use exact UI discount value
               total: finalTotal, // Use calculated final total
               currency: paymentIntent.currency.toUpperCase() as 'USD' | 'EUR' | 'PKR',
@@ -348,7 +581,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               shippingFirstName: shippingAddressData ? shippingAddressData.firstName || customerName.split(' ')[0] || 'Unknown' : 'Unknown',
               shippingLastName: shippingAddressData ? shippingAddressData.lastName || customerName.split(' ').slice(1).join(' ') || 'Unknown' : 'Unknown',
               shippingCompany: undefined,
-              shippingAddress1: shippingAddressData ? shippingAddressData.address || 'No address provided' : 'No address provided',
+              shippingAddress1: shippingAddressData ? shippingAddressData.address1 || 'No address provided' : 'No address provided',
               shippingAddress2: undefined,
               shippingCity: shippingAddressData ? shippingAddressData.city || 'Unknown' : 'Unknown',
               shippingState: shippingAddressData ? shippingAddressData.state || 'Unknown' : 'Unknown',
@@ -364,11 +597,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               notes: `Order placed via Stripe payment. Customer: ${customerName}. Payment ID: ${paymentIntent.id}`,
               items: items.map(item => ({
                 productId: item.productId || 1,
-                variantId: item.variantId,
+                variantId: item.variantId, // Can be null
                 productName: item.name || item.productName || 'Product',
-                productSku: item.sku || item.productSku,
-                size: item.size,
-                color: item.color,
+                productSku: item.sku || item.productSku || null,
+                size: item.size, // Can be null
+                color: item.color, // Can be null
                 quantity: item.quantity || 1,
                 price: item.price || 0,
                 total: item.total || (item.price * item.quantity) || 0

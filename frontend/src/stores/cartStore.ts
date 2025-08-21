@@ -59,6 +59,7 @@ export interface CartItem {
 }
 
 export interface ShippingAddress {
+  id?: string;
   firstName: string;
   lastName: string;
   phone: string;
