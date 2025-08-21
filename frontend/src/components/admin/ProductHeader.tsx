@@ -1,16 +1,20 @@
 import React from 'react';
-import { Plus, Package, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Package, RefreshCw, Loader2, Download, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface ProductHeaderProps {
   onAddProduct: () => void;
   onRefresh: () => void;
+  onExportProducts: () => void;
+  onImportProducts: () => void;
   loading: boolean;
 }
 
 const ProductHeader: React.FC<ProductHeaderProps> = ({ 
   onAddProduct, 
   onRefresh, 
+  onExportProducts,
+  onImportProducts,
   loading 
 }) => {
   return (
@@ -40,6 +44,26 @@ const ProductHeader: React.FC<ProductHeaderProps> = ({
             
             {/* Desktop Controls */}
             <div className="hidden sm:flex items-center gap-3">
+              {/* Export Button */}
+              <Button 
+                onClick={onExportProducts} 
+                variant="outline"
+                className="border-purple-200 text-purple-600 hover:bg-purple-50 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+              
+              {/* Import Button */}
+              <Button 
+                onClick={onImportProducts} 
+                variant="outline"
+                className="border-blue-200 text-blue-600 hover:bg-blue-50 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import
+              </Button>
+              
               {/* Refresh Button */}
               <Button
                 variant="outline"
@@ -67,6 +91,41 @@ const ProductHeader: React.FC<ProductHeaderProps> = ({
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+      
+      {/* Mobile Action Buttons */}
+      <div className="sm:hidden mt-4">
+        <div className="flex flex-col gap-3">
+          {/* Import/Export Row */}
+          <div className="flex gap-3">
+            <Button 
+              onClick={onExportProducts} 
+              variant="outline"
+              className="flex-1 border-purple-200 text-purple-600 hover:bg-purple-50 h-12 text-sm font-medium rounded-xl transition-all duration-300"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button 
+              onClick={onImportProducts} 
+              variant="outline"
+              className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 h-12 text-sm font-medium rounded-xl transition-all duration-300"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+          </div>
+          
+          {/* Create Product Button */}
+          <Button 
+            onClick={onAddProduct} 
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-12 text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+            disabled={loading}
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Create Product
+          </Button>
         </div>
       </div>
       

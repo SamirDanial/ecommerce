@@ -170,16 +170,18 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="mb-4 sm:mb-6">
-          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+      <DialogContent className="max-w-4xl w-screen sm:w-[95vw] max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+        <DialogHeader className="mb-3 sm:mb-6">
+          <DialogTitle className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3 text-center sm:text-left">
             <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
               <Download className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
-            Export Products
+            <span className="hidden sm:inline">Export Products</span>
+            <span className="sm:hidden">Export</span>
           </DialogTitle>
-          <p className="text-sm sm:text-base text-gray-600">
-            Export your products in your preferred format with customizable fields
+          <p className="text-xs sm:text-base text-gray-600 text-center sm:text-left">
+            <span className="hidden sm:inline">Export your products in your preferred format with customizable fields</span>
+            <span className="sm:hidden">Export products in your preferred format</span>
           </p>
         </DialogHeader>
 
@@ -198,16 +200,16 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
             {/* Export Format Selection */}
             <Card>
             <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Export Format</CardTitle>
+              <CardTitle className="text-base sm:text-lg text-center sm:text-left">Export Format</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {formatOptions.map((option) => {
                   const Icon = option.icon;
                   return (
                     <div
                       key={option.value}
-                      className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all duration-200 ${
+                      className={`relative cursor-pointer rounded-lg border-2 p-3 sm:p-4 transition-all duration-200 ${
                         exportFormat === option.value
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -216,11 +218,11 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                     >
                       {exportFormat === option.value && (
                         <div className="absolute top-2 right-2">
-                          <Check className="h-5 w-5 text-blue-600" />
+                          <Check className="h-4 h-4 sm:h-5 sm:w-5 text-blue-600" />
                         </div>
                       )}
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-center sm:text-left">
+                        <div className={`p-2 rounded-lg mx-auto sm:mx-0 ${
                           exportFormat === option.value ? 'bg-blue-100' : 'bg-gray-100'
                         }`}>
                           <Icon className={`h-5 w-5 ${
@@ -228,8 +230,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                           }`} />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900">{option.label}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{option.description}</p>
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{option.label}</h3>
+                          <p className="text-xs text-gray-600 mt-1 hidden sm:block">{option.description}</p>
+                          <p className="text-xs text-gray-600 mt-1 sm:hidden">{option.description.substring(0, 30)}...</p>
                         </div>
                       </div>
                     </div>
@@ -242,46 +245,50 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           {/* Field Selection */}
           <Card>
             <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Export Fields</CardTitle>
-              <div className="flex items-center gap-2 mt-2">
+              <CardTitle className="text-base sm:text-lg text-center sm:text-left">Export Fields</CardTitle>
+              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleSelectAll}
-                  className="text-xs"
+                  className="text-xs h-8 px-3"
                 >
-                  Select All
+                  <span className="hidden sm:inline">Select All</span>
+                  <span className="sm:hidden">All</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleSelectNone}
-                  className="text-xs"
+                  className="text-xs h-8 px-3"
                 >
-                  Select None
+                  <span className="hidden sm:inline">Select None</span>
+                  <span className="sm:hidden">None</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleSelectDefaults}
-                  className="text-xs"
+                  className="text-xs h-8 px-3"
                 >
-                  Default Fields
+                  <span className="hidden sm:inline">Default Fields</span>
+                  <span className="sm:hidden">Default</span>
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
                 {getAvailableFields().map((field) => (
                   <div key={field.key} className="flex items-center space-x-2">
                     <Checkbox
                       id={field.key}
                       checked={selectedFields.includes(field.key)}
                       onCheckedChange={() => handleFieldToggle(field.key)}
+                      className="flex-shrink-0"
                     />
                     <Label
                       htmlFor={field.key}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      className="text-xs sm:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer truncate"
                     >
                       {field.label}
                     </Label>
@@ -307,27 +314,27 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           {/* Export Summary */}
           <Card>
             <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Export Summary</CardTitle>
+              <CardTitle className="text-base sm:text-lg text-center sm:text-left">Export Summary</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Products to export:</span>
-                  <span className="font-medium">{products.length} products</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg sm:text-xl font-bold text-blue-600">{products.length}</div>
+                  <div className="text-gray-600">Products</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Selected fields:</span>
-                  <span className="font-medium">{selectedFields.length} fields</span>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg sm:text-xl font-bold text-green-600">{selectedFields.length}</div>
+                  <div className="text-gray-600">Fields</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Export format:</span>
-                  <span className="font-medium capitalize">{exportFormat.toUpperCase()}</span>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg sm:text-xl font-bold text-purple-600 capitalize">{exportFormat}</div>
+                  <div className="text-gray-600">Format</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Estimated file size:</span>
-                  <span className="font-medium">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg sm:text-xl font-bold text-orange-600">
                     {products.length > 0 ? `${Math.round(products.length * selectedFields.length * 0.1)} KB` : '0 KB'}
-                  </span>
+                  </div>
+                  <div className="text-gray-600">File Size</div>
                 </div>
               </div>
               
@@ -346,29 +353,31 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={exporting || fetchingProducts}
-            className="px-6 py-2.5 h-11 rounded-xl"
+            className="w-full sm:w-auto px-6 py-2.5 h-11 rounded-xl order-2 sm:order-1"
           >
             Cancel
           </Button>
           <Button
             onClick={handleExport}
             disabled={exporting || fetchingProducts || selectedFields.length === 0 || products.length === 0}
-            className="px-6 py-2.5 h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-6 py-2.5 h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
           >
             {exporting ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Exporting...</span>
+                <span className="hidden sm:inline">Exporting...</span>
+                <span className="sm:hidden">Exporting...</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Download className="w-4 h-4" />
-                <span>Export Products</span>
+                <span className="hidden sm:inline">Export Products</span>
+                <span className="sm:hidden">Export</span>
               </div>
             )}
           </Button>

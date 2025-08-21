@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Grid3X3, 
@@ -62,6 +62,19 @@ const Products: React.FC = () => {
   const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+  // Listen for custom event to reopen import dialog
+  useEffect(() => {
+    const handleReopenImportDialog = () => {
+      setIsImportDialogOpen(true);
+    };
+
+    window.addEventListener('reopenImportDialog', handleReopenImportDialog);
+
+    return () => {
+      window.removeEventListener('reopenImportDialog', handleReopenImportDialog);
+    };
+  }, []);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
   const [isLoadingProductEdit, setIsLoadingProductEdit] = useState(false);
@@ -169,6 +182,8 @@ const Products: React.FC = () => {
         <ProductHeader
           onAddProduct={openCreateDialog}
           onRefresh={fetchProducts}
+          onExportProducts={openExportDialog}
+          onImportProducts={() => setIsImportDialogOpen(true)}
           loading={loading}
         />
       </div>
@@ -235,18 +250,7 @@ const Products: React.FC = () => {
       {/* Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline"
-            onClick={() => setIsImportDialogOpen(true)}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          
-          <Button variant="outline" onClick={openExportDialog}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          {/* Import and Export buttons moved to header */}
         </div>
 
         <div className="flex items-center gap-2">
