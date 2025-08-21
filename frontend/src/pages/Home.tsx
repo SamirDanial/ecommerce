@@ -331,7 +331,7 @@ const Home: React.FC = () => {
         </section>
       )}
 
-      {/* Trending Section */}
+                {/* Trending Section */}
       <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
@@ -391,12 +391,12 @@ const Home: React.FC = () => {
                 }}>
                   {trendingViewMode === 'grid' ? (
                     <>
-                      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                      <div className="relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl min-h-[200px] flex items-center justify-center">
                         <ImageWithPlaceholder
                           src={getImageUrl(product)}
                           alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          placeholderClassName="w-full h-full"
+                          className="w-auto h-auto max-w-full max-h-[200px] object-contain object-center group-hover:scale-110 transition-transform duration-500"
+                          placeholderClassName="w-auto h-auto max-w-full max-h-[200px]"
                         />
                         {product.isOnSale && (
                           <Badge className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg">
@@ -419,7 +419,7 @@ const Home: React.FC = () => {
                       <CardContent>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl font-black text-blue-600">
+                            <span className="text-xl font-black text-blue-600">
                               {formatPrice(product.salePrice || product.price)}
                             </span>
                             {product.comparePrice && product.comparePrice > product.price && (
@@ -433,12 +433,12 @@ const Home: React.FC = () => {
                     </>
                   ) : (
                     <div className="flex w-full p-6">
-                      <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200">
+                      <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                         <ImageWithPlaceholder
                           src={getImageUrl(product)}
                           alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          placeholderClassName="w-full h-full"
+                          className="max-h-full max-w-full object-contain object-center group-hover:scale-110 transition-transform duration-500"
+                          placeholderClassName="max-h-full max-w-full"
                         />
                         {product.isOnSale && (
                           <Badge className="absolute top-2 left-2 bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 text-xs">
@@ -648,12 +648,12 @@ const Home: React.FC = () => {
                 }}>
                   {featuredViewMode === 'grid' ? (
                     <>
-                      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                      <div className="relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl min-h-[200px] flex items-center justify-center">
                         <ImageWithPlaceholder
                           src={getImageUrl(product)}
                           alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          placeholderClassName="w-full h-full"
+                          className="w-auto h-auto max-w-full max-h-[200px] object-contain object-center group-hover:scale-110 transition-transform duration-500"
+                          placeholderClassName="w-auto h-auto max-w-full max-h-[200px]"
                         />
                         {product.isOnSale && (
                           <Badge className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg">
@@ -688,12 +688,12 @@ const Home: React.FC = () => {
                     </>
                   ) : (
                     <div className="flex w-full p-6">
-                      <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200">
+                      <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                         <ImageWithPlaceholder
                           src={getImageUrl(product)}
                           alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          placeholderClassName="w-full h-full"
+                          className="max-h-full max-w-full object-contain object-center group-hover:scale-110 transition-transform duration-500"
+                          placeholderClassName="max-h-full max-w-full"
                         />
                         {product.isOnSale && (
                           <Badge className="absolute top-2 left-2 bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 text-xs">

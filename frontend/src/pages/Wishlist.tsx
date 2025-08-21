@@ -173,11 +173,11 @@ const Wishlist: React.FC = () => {
                 
                 return (
                   <Card key={item.id} className="group cursor-pointer transition-all hover:shadow-lg">
-                    <div className="relative overflow-hidden">
+                    <div className="relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl min-h-[200px] flex items-center justify-center">
                       <ImageWithPlaceholder
                         src={item.product ? getImageUrl(item.product) : ''}
                         alt={item.product?.name || 'Product'}
-                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-auto h-auto max-w-full max-h-[200px] object-contain object-center group-hover:scale-110 transition-transform duration-300"
                       />
                       {item.product?.comparePrice && 
                        typeof item.product.comparePrice === 'number' && 
