@@ -13,7 +13,8 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  CheckCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Order, OrderItem } from '../services/profileService';
@@ -122,66 +123,100 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
               <p className="text-gray-500">Start shopping to see your order history</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {orders.map((order: Order) => (
-                <div key={order.id} className="border border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors">
+                <div key={order.id} className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:border-gray-300 transition-colors">
                   {/* Order Header - Date Prominent */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900">
-                          {new Date(order.createdAt).getDate()}
+                  <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
+                    {/* Desktop Layout */}
+                    <div className="hidden sm:flex sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-gray-900">
+                            {new Date(order.createdAt).getDate()}
+                          </div>
+                          <div className="text-sm font-medium text-gray-600 uppercase">
+                            {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short' })}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(order.createdAt).getFullYear()}
+                          </div>
                         </div>
-                        <div className="text-sm font-medium text-gray-600 uppercase">
-                          {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short' })}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(order.createdAt).getFullYear()}
+                        <div className="flex-1">
+                          <div className="text-lg font-semibold text-gray-900 mb-1">
+                            {new Date(order.createdAt).toLocaleDateString('en-US', { 
+                              weekday: 'long',
+                              month: 'long', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {order.items?.length || 0} items • {formatPrice(toNumber(order.shipping))} shipping
+                          </div>
                         </div>
                       </div>
-                      <div className="flex-1">
-                        <div className="text-lg font-semibold text-gray-900 mb-1">
-                          {new Date(order.createdAt).toLocaleDateString('en-US', { 
-                            weekday: 'long',
-                            month: 'long', 
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {order.items?.length || 0} items • {formatPrice(toNumber(order.shipping))} shipping
+                      <div className="flex flex-col items-end gap-2">
+                        {getStatusBadge(order.status)}
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-gray-900">
+                            {formatPrice(toNumber(order.total))}
+                          </div>
+                          <div className="text-sm text-gray-500">{order.currency}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      {getStatusBadge(order.status)}
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-gray-900">
-                          {formatPrice(toNumber(order.total))}
+
+                    {/* Mobile Layout */}
+                    <div className="sm:hidden">
+                      {/* Date and Amount Row */}
+                      <div className="grid grid-cols-2 gap-4 mb-2">
+                        <div>
+                          <div className="text-sm text-gray-500 mb-0.5 leading-tight">Order Date</div>
+                          <div className="text-base font-semibold text-gray-900 leading-tight">
+                            {new Date(order.createdAt).toLocaleDateString('en-US', { 
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">{order.currency}</div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500 mb-0.5 leading-tight">Total Amount</div>
+                          <div className="text-lg font-bold text-gray-900 leading-tight">
+                            {formatPrice(toNumber(order.total))} {order.currency}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Items and Shipping Info */}
+                      <div className="text-sm text-gray-500 mb-0 sm:mb-2 leading-tight">
+                        {order.items?.length || 0} items • {formatPrice(toNumber(order.shipping))} shipping
                       </div>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3 pt-4 border-t border-gray-100">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleViewOrderDetails(order)}
-                      className="flex-1"
-                    >
-                      View Details
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleOpenTracking(order.id, order.orderNumber)}
-                      className="flex-1"
-                    >
-                      Track Order
-                    </Button>
+                  <div className="flex items-center justify-between pt-0 sm:pt-4">
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => handleViewOrderDetails(order)}
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors"
+                      >
+                        View Details
+                      </button>
+                      <button 
+                        onClick={() => handleOpenTracking(order.id, order.orderNumber)}
+                        className="text-sm text-green-600 hover:text-green-800 hover:underline font-medium transition-colors"
+                      >
+                        Track Order
+                      </button>
+                    </div>
+                    
+                    {/* Status Badge - Mobile Only */}
+                    <div className="sm:hidden">
+                      {getStatusBadge(order.status)}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -259,59 +294,50 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
 
       {/* Order Details Dialog */}
       <Dialog open={isOrderDetailOpen} onOpenChange={setIsOrderDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           {/* Header */}
-          <DialogHeader className="border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Package className="h-6 w-6 text-gray-600" />
-                <div>
-                  <DialogTitle className="text-xl font-semibold text-gray-900">
-                    Order Details
-                  </DialogTitle>
-                  <p className="text-sm text-gray-500">#{selectedOrder?.orderNumber}</p>
-                </div>
+          <DialogHeader className="mb-4 sm:mb-6">
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                <Package className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-500">Order Date</div>
-                <div className="font-medium text-sm">
-                  {selectedOrder && new Date(selectedOrder.createdAt).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric'
-                  })}
-                </div>
-              </div>
-            </div>
+              Order Details
+              <span className="text-sm sm:text-base font-normal text-gray-500">#{selectedOrder?.orderNumber}</span>
+            </DialogTitle>
           </DialogHeader>
           
           {selectedOrder && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Order Overview */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="text-center p-4 border border-gray-200 rounded-lg">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Status</div>
                   <div className="font-medium">{getStatusBadge(selectedOrder.status)}</div>
                 </div>
-                <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Payment</div>
                   <div className="font-medium">{selectedOrder.paymentStatus}</div>
                 </div>
-                <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Tracking</div>
                   <div className="font-medium text-sm">
                     {selectedOrder.trackingNumber || 'Not available'}
                   </div>
                 </div>
-                <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Items</div>
                   <div className="font-medium">{selectedOrder.items?.length || 0} items</div>
                 </div>
               </div>
 
               {/* Price Breakdown */}
-              <div className="border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Price Breakdown</h3>
+              <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                  </div>
+                  Price Breakdown
+                </h3>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2">
@@ -338,11 +364,11 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                     </div>
                   )}
                   
-                  <hr className="my-4" />
+                  <hr className="my-3 sm:my-4" />
                   
-                  <div className="flex justify-between items-center py-3 bg-gray-50 p-4 rounded-lg">
-                    <span className="text-lg font-semibold text-gray-900">Total</span>
-                    <span className="text-xl font-bold text-gray-900">
+                  <div className="flex justify-between items-center py-3 bg-gray-50 p-3 sm:p-4 rounded-lg">
+                    <span className="text-lg sm:text-xl font-semibold text-gray-900">Total</span>
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">
                       {formatPrice(toNumber(selectedOrder.total))} {selectedOrder.currency}
                     </span>
                   </div>
@@ -350,16 +376,21 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
               </div>
 
               {/* Order Items */}
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Order Items</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                    <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                      <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                    </div>
+                    Order Items
+                  </h3>
                   <span className="text-sm text-gray-500">{selectedOrder.items?.length || 0} items</span>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {selectedOrder.items?.map((item: OrderItem) => (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center gap-4">
+                    <div key={item.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                      <div className="flex items-center gap-3 sm:gap-4">
                         {/* Product Image */}
                         <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center bg-gray-100">
                           {item.product?.images?.[0]?.url ? (
@@ -419,13 +450,18 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
               </div>
 
               {/* Customer Information */}
-              <div className="border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h3>
+              <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="p-1.5 sm:p-2 bg-indigo-100 rounded-lg">
+                    <User className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600" />
+                  </div>
+                  Customer Information
+                </h3>
                 
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 gap-4 sm:gap-6">
                   {/* Contact Details */}
                   <div>
-                    <h4 className="font-medium text-gray-800 mb-3">Contact Details</h4>
+                    <h4 className="font-medium text-gray-800 mb-3 text-base sm:text-lg">Contact Details</h4>
                     
                     <div className="space-y-3">
                       {selectedOrder.user?.email && (
@@ -463,19 +499,15 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                   {/* Shipping Address */}
                   {selectedOrder.shippingFirstName && (
                     <div>
-                      <h4 className="font-medium text-gray-800 mb-3">Shipping Address</h4>
+                      <h4 className="font-medium text-gray-800 mb-3 text-base sm:text-lg">Shipping Address</h4>
                       
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="flex items-start gap-3">
                           <MapPin className="h-4 w-4 text-gray-500 mt-1" />
                           <div>
                             <p className="font-medium text-gray-900 mb-2">
                               {selectedOrder.shippingFirstName} {selectedOrder.shippingLastName}
                             </p>
-                            
-                            {selectedOrder.shippingCompany && (
-                              <p className="text-gray-700 mb-2">{selectedOrder.shippingCompany}</p>
-                            )}
                             
                             <div className="space-y-1 text-gray-600">
                               <p>{selectedOrder.shippingAddress1}</p>
@@ -497,9 +529,14 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
 
               {/* Order Notes */}
               {selectedOrder.notes && (
-                <div className="border border-gray-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Notes</h3>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="p-1.5 sm:p-2 bg-yellow-100 rounded-lg">
+                      <Package className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                    </div>
+                    Order Notes
+                  </h3>
+                  <div className="p-3 sm:p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                     <p className="text-gray-800">{selectedOrder.notes}</p>
                   </div>
                 </div>

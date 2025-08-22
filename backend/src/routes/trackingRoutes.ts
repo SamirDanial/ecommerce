@@ -75,7 +75,7 @@ router.get('/orders', authenticateClerkToken, async (req, res) => {
     // For now, we'll return a simple response
     res.json({
       success: true,
-      message: 'Use /api/profile/orders for order list with tracking info'
+      message: 'Use /profile/orders for order list with tracking info'
     });
   } catch (error) {
     console.error('Error getting user orders:', error);
