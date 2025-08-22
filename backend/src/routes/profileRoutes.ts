@@ -644,18 +644,13 @@ router.get('/orders', async (req, res) => {
           images: item.product.images ? (() => {
             // If item has a color, find matching color image first
             if (item.color) {
-              console.log(`Looking for variant image: item color="${item.color}", available image colors:`, 
-                item.product.images.map(img => img.color).filter(Boolean));
               
               const colorImage = item.product.images.find(img => 
                 img.color && img.color.toLowerCase() === item.color!.toLowerCase()
               );
               
               if (colorImage) {
-                console.log(`Found variant-specific image for color "${item.color}":`, colorImage.url);
                 return [colorImage];
-              } else {
-                console.log(`No variant-specific image found for color "${item.color}", falling back to primary`);
               }
             }
             
@@ -736,10 +731,7 @@ router.get('/orders/:id', async (req, res) => {
               );
               
               if (colorImage) {
-                console.log(`Found variant-specific image for color "${item.color}":`, colorImage.url);
                 return [colorImage];
-              } else {
-                console.log(`No variant-specific image found for color "${item.color}", falling back to primary`);
               }
             }
             
