@@ -126,6 +126,8 @@ router.put('/profile', async (req, res) => {
   }
 });
 
+
+
 // Update user preferences
 router.put('/preferences', async (req, res) => {
   try {
@@ -142,11 +144,12 @@ router.put('/preferences', async (req, res) => {
       newsletter
     } = req.body;
 
+    // Store the actual language and currency codes (not enum values)
     const preferences = await prisma.userPreferences.upsert({
       where: { userId },
       update: {
-        language,
-        currency,
+        language: language, // Store "en" instead of "ENGLISH"
+        currency: currency, // Store "AFN" instead of "AFN" (already correct)
         timezone,
         emailNotifications,
         smsNotifications,
@@ -157,8 +160,8 @@ router.put('/preferences', async (req, res) => {
       },
       create: {
         userId,
-        language,
-        currency,
+        language: language, // Store "en" instead of "ENGLISH"
+        currency: currency, // Store "AFN" instead of "AFN" (already correct)
         timezone,
         emailNotifications,
         smsNotifications,
@@ -169,7 +172,6 @@ router.put('/preferences', async (req, res) => {
       }
     });
 
-    console.log('Preferences updated successfully:', preferences);
     res.json({ message: 'Preferences updated successfully', preferences });
   } catch (error) {
     console.error('Error updating preferences:', error);

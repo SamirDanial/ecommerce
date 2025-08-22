@@ -428,8 +428,8 @@ model UserProfile {
 model UserPreferences {
   id                 Int      @id @default(autoincrement())
   userId             Int      @unique
-  language           Language @default(ENGLISH)
-  currency           Currency @default(USD)
+  language           String   @default("en") @db.VarChar(10)
+  currency           String   @default("USD") @db.VarChar(10)
   timezone           String?  @db.VarChar(50)
   emailNotifications Boolean  @default(true)
   smsNotifications   Boolean  @default(false)
