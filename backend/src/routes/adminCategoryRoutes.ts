@@ -967,6 +967,7 @@ async function importProductsForCategory(products: any[], categoryId: number) {
               sku: variantData.sku,
               price: variantData.price,
               comparePrice: variantData.comparePrice,
+              costPrice: variantData.costPrice,
               isActive: variantData.isActive
             }
           });

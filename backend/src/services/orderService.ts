@@ -43,6 +43,7 @@ export interface CreateOrderData {
     quantity: number;
     price: number;
     total: number;
+    costPrice?: number; // Cost at time of sale for accurate profit calculation
   }>;
   paymentData: {
     amount: number;
@@ -61,6 +62,9 @@ export const createOrderFromPayment = async (orderData: CreateOrderData) => {
       shippingMethod: orderData.shippingMethod,
       shipping: orderData.shipping
     });
+    
+    // Calculate total items
+    const totalItems = orderData.items.reduce((sum, item) => sum + item.quantity, 0);
     
     // Create the order
     const order = await prisma.order.create({
@@ -83,6 +87,7 @@ export const createOrderFromPayment = async (orderData: CreateOrderData) => {
         shippingMethod: orderData.shippingMethod, // Add shipping method
         discount: orderData.discount,
         total: orderData.total,
+        totalItems: totalItems, // Store calculated total items
         currency: orderData.currency,
         language: orderData.language,
         
@@ -115,7 +120,8 @@ export const createOrderFromPayment = async (orderData: CreateOrderData) => {
             color: item.color,
             quantity: item.quantity,
             price: item.price,
-            total: item.total
+            total: item.total,
+            costPrice: item.costPrice // Store cost at time of sale
           }))
         },
         payments: {

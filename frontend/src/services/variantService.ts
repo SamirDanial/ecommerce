@@ -8,6 +8,7 @@ export interface CreateVariantData {
   sku?: string;
   price?: number;
   comparePrice?: number;
+  costPrice?: number;  // NEW: Variant-specific cost for accurate profit calculation
   isActive: boolean;
 }
 
@@ -25,6 +26,7 @@ export interface ProductVariant {
   sku?: string;
   price?: number;
   comparePrice?: number;
+  costPrice?: number;  // NEW: Variant-specific cost for accurate profit calculation
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -40,6 +42,7 @@ export interface VariantOperation {
   sku?: string;
   price?: number;
   comparePrice?: number;
+  costPrice?: number;  // NEW: Variant-specific cost for accurate profit calculation
   isActive?: boolean;
 }
 

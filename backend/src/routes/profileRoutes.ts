@@ -609,10 +609,9 @@ router.get('/orders', async (req, res) => {
                       id: true,
                       url: true,
                       alt: true,
-                      isPrimary: true 
-                    },
-                    take: 1,
-                    orderBy: { isPrimary: 'desc' }
+                      isPrimary: true,
+                      color: true
+                    }
                   }
                 }
               }
@@ -635,8 +634,46 @@ router.get('/orders', async (req, res) => {
       prisma.order.count({ where })
     ]);
 
+    // Transform orders to include variant-specific images
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        product: item.product ? {
+          ...item.product,
+          images: item.product.images ? (() => {
+            // If item has a color, find matching color image first
+            if (item.color) {
+              console.log(`Looking for variant image: item color="${item.color}", available image colors:`, 
+                item.product.images.map(img => img.color).filter(Boolean));
+              
+              const colorImage = item.product.images.find(img => 
+                img.color && img.color.toLowerCase() === item.color!.toLowerCase()
+              );
+              
+              if (colorImage) {
+                console.log(`Found variant-specific image for color "${item.color}":`, colorImage.url);
+                return [colorImage];
+              } else {
+                console.log(`No variant-specific image found for color "${item.color}", falling back to primary`);
+              }
+            }
+            
+            // Fallback to primary image or first available image
+            const primaryImage = item.product.images.find(img => img.isPrimary);
+            if (primaryImage) {
+              return [primaryImage];
+            }
+            
+            // Return first image if no primary found
+            return item.product.images.length > 0 ? [item.product.images[0]] : [];
+          })() : []
+        } : null
+      }))
+    }));
+
     res.json({
-      orders,
+      orders: transformedOrders,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -681,7 +718,45 @@ router.get('/orders/:id', async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    res.json(order);
+    // Transform order to include variant-specific images
+    const transformedOrder = {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        product: item.product ? {
+          ...item.product,
+          images: item.product.images ? (() => {
+            // If item has a color, find matching color image first
+            if (item.color) {
+              console.log(`Looking for variant image: item color="${item.color}", available image colors:`, 
+                item.product.images.map(img => img.color).filter(Boolean));
+              
+              const colorImage = item.product.images.find(img => 
+                img.color && img.color.toLowerCase() === item.color!.toLowerCase()
+              );
+              
+              if (colorImage) {
+                console.log(`Found variant-specific image for color "${item.color}":`, colorImage.url);
+                return [colorImage];
+              } else {
+                console.log(`No variant-specific image found for color "${item.color}", falling back to primary`);
+              }
+            }
+            
+            // Fallback to primary image or first available image
+            const primaryImage = item.product.images.find(img => img.isPrimary);
+            if (primaryImage) {
+              return [primaryImage];
+            }
+            
+            // Return first image if no primary found
+            return item.product.images.length > 0 ? [item.product.images[0]] : [];
+          })() : []
+        } : null
+      }))
+    };
+
+    res.json(transformedOrder);
   } catch (error) {
     console.error('Error fetching order:', error);
     res.status(500).json({ message: 'Failed to fetch order' });

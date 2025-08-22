@@ -595,16 +595,45 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               paymentMethodId: paymentMethod.id,
               trackingNumber: trackingNumber,
               notes: `Order placed via Stripe payment. Customer: ${customerName}. Payment ID: ${paymentIntent.id}`,
-              items: items.map(item => ({
-                productId: item.productId || 1,
-                variantId: item.variantId, // Can be null
-                productName: item.name || item.productName || 'Product',
-                productSku: item.sku || item.productSku || null,
-                size: item.size, // Can be null
-                color: item.color, // Can be null
-                quantity: item.quantity || 1,
-                price: item.price || 0,
-                total: item.total || (item.price * item.quantity) || 0
+              items: await Promise.all(items.map(async item => {
+                // Fetch actual product data from database to get correct name and cost
+                const product = await prisma.product.findUnique({
+                  where: { id: item.productId || 1 },
+                  select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                    costPrice: true
+                  }
+                });
+
+                // Fetch variant data if variantId exists
+                let variant = null;
+                if (item.variantId) {
+                  variant = await prisma.productVariant.findUnique({
+                    where: { id: item.variantId },
+                    select: {
+                      sku: true,
+                      costPrice: true
+                    }
+                  });
+                }
+
+                // Determine the actual cost price (variant > product > 0)
+                const actualCostPrice = Number(variant?.costPrice || product?.costPrice || 0);
+                
+                return {
+                  productId: item.productId || 1,
+                  variantId: item.variantId, // Can be null
+                  productName: product?.name || item.name || item.productName || 'Product', // Use actual product name from DB
+                  productSku: variant?.sku || product?.sku || item.sku || item.productSku || null,
+                  size: item.size, // Can be null
+                  color: item.color, // Can be null
+                  quantity: item.quantity || 1,
+                  price: item.price || 0,
+                  total: item.total || (item.price * item.quantity) || 0,
+                  costPrice: actualCostPrice // Add cost price for accurate profit calculation
+                };
               })),
               paymentData: {
                 amount: amount,

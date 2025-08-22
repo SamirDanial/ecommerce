@@ -56,6 +56,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
   const [selectedColors, setSelectedColors] = useState<string[]>(['Black', 'White']);
   const [basePrice, setBasePrice] = useState<number>(0);
   const [baseStock, setBaseStock] = useState<number>(10);
+  const [baseCostPrice, setBaseCostPrice] = useState<number>(0);
 
   // Load existing variants when dialog opens
   useEffect(() => {
@@ -81,10 +82,11 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
           setSelectedSizes(sizes);
           setSelectedColors(colors);
           
-          // Set base price and stock from first variant
+          // Set base price, stock, and cost price from first variant
           if (existingVariants[0]) {
             setBasePrice(existingVariants[0].price || 0);
             setBaseStock(existingVariants[0].stock || 10);
+            setBaseCostPrice(existingVariants[0].costPrice || 0);
           }
         } else {
           // Set default values if no variants exist
@@ -143,6 +145,7 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
             colorCode: colorData?.code,
             stock: baseStock,
             price: basePrice,
+            costPrice: baseCostPrice,
             isActive: true
           });
         }
@@ -407,6 +410,35 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                         Starting inventory for all new variants
                       </p>
                     </div>
+                    
+                    <div>
+                      <Label htmlFor="baseCostPrice" className="text-xs text-gray-600 block mb-1">
+                        Base Cost Price ($)
+                      </Label>
+                      <Input
+                        id="baseCostPrice"
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        placeholder="15.00"
+                        value={Number.isNaN(baseCostPrice) ? '' : baseCostPrice}
+                        onChange={(e) => {
+                          const { value } = e.target;
+                          if (value === '') {
+                            setBaseCostPrice(0);
+                            return;
+                          }
+                          const parsed = parseFloat(value);
+                          if (!Number.isNaN(parsed)) {
+                            setBaseCostPrice(parsed);
+                          }
+                        }}
+                        className="font-mono text-sm sm:text-base"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Starting cost for all new variants (for profit calculation)
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -532,6 +564,33 @@ export const VariantManagementDialog: React.FC<VariantManagementDialogProps> = (
                                   disabled={deletedVariantIds.includes(variant.id)}
                                   onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
                                   className="w-20 sm:w-24 text-xs sm:text-sm"
+                                />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <Label className="text-xs text-gray-600 mb-1">Cost ($)</Label>
+                                <Input
+                                  type="text"
+                                  placeholder="15.00"
+                                  value={variant.costPrice || ''}
+                                  disabled={deletedVariantIds.includes(variant.id)}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '' || /^[\d.]*$/.test(value)) {
+                                      if ((value.match(/\./g) || []).length <= 1) {
+                                        if (value === '') {
+                                          updateVariant(variant.id, 'costPrice', undefined);
+                                        } else if (value === '.') {
+                                          return;
+                                        } else {
+                                          const parsed = parseFloat(value);
+                                          if (!isNaN(parsed)) {
+                                            updateVariant(variant.id, 'costPrice', parsed);
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }}
+                                  className="w-16 sm:w-20 font-mono text-xs sm:text-sm"
                                 />
                               </div>
                             </div>

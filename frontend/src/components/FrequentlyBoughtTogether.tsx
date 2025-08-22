@@ -108,7 +108,7 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
     // Add each selected item to cart
     selectedBundle.forEach(item => {
       const quantity = 1; // itemQuantities[item.product.id] || 1; // This line was removed
-      addToCart(item.product, quantity, undefined, undefined, item.product.images?.[0]?.url);
+      addToCart(item.product, quantity, undefined, undefined, item.product.images?.[0]?.url, undefined, undefined);
       
       // Track interaction
       addInteraction({

@@ -11,7 +11,8 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
-  FolderOpen
+  FolderOpen,
+  BarChart3
 } from 'lucide-react';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useSidebarStore } from '../../stores/sidebarStore';
@@ -102,6 +103,14 @@ const AdminLayout: React.FC = () => {
       current: location.pathname.startsWith('/admin/orders'),
       description: 'Order management',
       badge: '12'
+    },
+    {
+      name: 'Analytics',
+      href: '/admin/analytics',
+      icon: BarChart3,
+      current: location.pathname.startsWith('/admin/analytics'),
+      description: 'Advanced charts & insights',
+      badge: 'Charts'
     },
     {
       name: 'Localization',

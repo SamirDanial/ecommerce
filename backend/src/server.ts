@@ -23,6 +23,7 @@ import adminRoutes from './routes/adminRoutes';
 import adminLocalizationRoutes from './routes/adminLocalizationRoutes';
 import adminProductRoutes from './routes/adminProductRoutes';
 import adminCategoryRoutes from './routes/adminCategoryRoutes';
+import adminOrderRoutes from './routes/adminOrderRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import currencyRoutes from './routes/currencyRoutes';
 import languageRoutes from './routes/languageRoutes';
@@ -94,11 +95,12 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/reviews', reviewRoutes);
 
-// Admin routes
-app.use('/api/admin', adminRoutes);
-app.use('/api/admin/localization', adminLocalizationRoutes);
-app.use('/api/admin/products', adminProductRoutes);
-app.use('/api/admin/categories', adminCategoryRoutes);
+// Admin routes - ORDER MATTERS! More specific routes MUST come before general ones
+app.use('/api/admin/orders', adminOrderRoutes);        // ← MUST be before /api/admin
+app.use('/api/admin/products', adminProductRoutes);     // ← MUST be before /api/admin  
+app.use('/api/admin/categories', adminCategoryRoutes);  // ← MUST be before /api/admin
+app.use('/api/admin/localization', adminLocalizationRoutes); // ← MUST be before /api/admin
+app.use('/api/admin', adminRoutes);                     // ← General admin routes (LAST)
 app.use('/api/categories', categoryRoutes);
 // These routes come AFTER admin routes to avoid conflicts
 app.use('/api/currencies', currencyRoutes);

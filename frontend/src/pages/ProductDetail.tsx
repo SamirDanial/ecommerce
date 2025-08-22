@@ -1034,7 +1034,15 @@ const ProductDetail: React.FC = () => {
         // Now add the product with selected variants
         const colorImages = getImagesForColor(selectedColor);
         const selectedImage = colorImages.length > 0 ? colorImages[0] : product.images?.[0]?.url;
-        addToCart(product, quantity, selectedColor, selectedSize, selectedImage);
+        addToCart(
+          product, 
+          quantity, 
+          selectedColor, 
+          selectedSize, 
+          selectedImage,
+          selectedVariant?.finalPrice,
+          selectedVariant?.finalComparePrice
+        );
         
         addInteraction({
           type: 'cart_add',
@@ -1052,7 +1060,15 @@ const ProductDetail: React.FC = () => {
         // Add new item to cart
         const colorImages = getImagesForColor(selectedColor);
         const selectedImage = colorImages.length > 0 ? colorImages[0] : product.images?.[0]?.url;
-        addToCart(product, quantity, selectedColor, selectedSize, selectedImage);
+        addToCart(
+          product, 
+          quantity, 
+          selectedColor, 
+          selectedSize, 
+          selectedImage,
+          selectedVariant?.finalPrice,
+          selectedVariant?.finalComparePrice
+        );
         
         addInteraction({
           type: 'cart_add',

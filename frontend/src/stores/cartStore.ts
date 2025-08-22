@@ -102,7 +102,7 @@ export interface DynamicLanguage extends Language {
 interface CartState {
   // Cart Items
   items: CartItem[];
-  addToCart: (product: any, quantity?: number, color?: string, size?: string, imageUrl?: string) => void;
+  addToCart: (product: any, quantity?: number, color?: string, size?: string, imageUrl?: string, variantPrice?: number, variantComparePrice?: number) => void;
   removeFromCart: (productId: number, color?: string, size?: string) => void;
   updateQuantity: (productId: number, quantity: number, color?: string, size?: string) => void;
   clearCart: () => void;
@@ -170,7 +170,7 @@ export const useCartStore = create<CartState>()(
       isLoadingLanguages: false,
 
       // Cart item methods
-      addToCart: (product, quantity = 1, color, size, imageUrl?: string) => {
+      addToCart: (product, quantity = 1, color, size, imageUrl?: string, variantPrice?: number, variantComparePrice?: number) => {
         const { items } = get();
         const existingItemIndex = items.findIndex(
           item => 
@@ -196,12 +196,16 @@ export const useCartStore = create<CartState>()(
             productImage = product.images[0]?.url;
           }
           
+          // Use variant price if available, otherwise fall back to product price
+          const finalPrice = variantPrice || product.price;
+          const finalComparePrice = variantComparePrice || product.comparePrice;
+          
           const newItem: CartItem = {
             id: product.id,
             name: product.name,
             slug: product.slug,
-            price: product.price,
-            comparePrice: product.comparePrice,
+            price: finalPrice,
+            comparePrice: finalComparePrice,
             image: productImage,
             quantity,
             selectedColor: color,

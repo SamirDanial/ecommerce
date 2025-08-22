@@ -48,7 +48,7 @@ export interface StatusUpdateRequest {
 export const trackingService = {
   // Get order tracking information
   async getOrderTracking(orderId: number, token: string): Promise<OrderTracking> {
-    const response = await api.get(`/api/tracking/order/${orderId}`, {
+    const response = await api.get(`/tracking/order/${orderId}`, {
       headers: createAuthHeaders(token),
     });
     return response.data.tracking;
@@ -56,7 +56,7 @@ export const trackingService = {
 
   // Update order status (admin function)
   async updateOrderStatus(orderId: number, data: StatusUpdateRequest, token: string) {
-    const response = await api.put(`/api/tracking/order/${orderId}/status`, data, {
+    const response = await api.put(`/tracking/order/${orderId}/status`, data, {
       headers: createAuthHeaders(token),
     });
     return response.data;

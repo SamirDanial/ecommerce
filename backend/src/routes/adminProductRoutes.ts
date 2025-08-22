@@ -495,6 +495,7 @@ router.post('/', authenticateClerkToken, async (req, res) => {
         sku: variant.sku,
         price: variant.price ? parseFloat(variant.price) : null,
         comparePrice: variant.comparePrice ? parseFloat(variant.comparePrice) : null,
+        costPrice: variant.costPrice ? parseFloat(variant.costPrice) : null,
         isActive: variant.isActive !== false
       }));
 
@@ -1247,6 +1248,7 @@ router.post('/import/execute', authenticateClerkToken, async (req, res) => {
                   sku: variantData.sku,
                   price: variantData.price,
                   comparePrice: variantData.comparePrice,
+                  costPrice: variantData.costPrice,
                   isActive: variantData.isActive !== false,
                   lowStockThreshold: variantData.lowStockThreshold || 3,
                   allowBackorder: variantData.allowBackorder || false

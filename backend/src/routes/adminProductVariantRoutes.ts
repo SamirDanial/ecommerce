@@ -78,6 +78,7 @@ router.put('/', authenticateClerkToken, async (req, res) => {
               sku: variantData.sku,
               price: variantData.price ? parseFloat(variantData.price) : null,
               comparePrice: variantData.comparePrice ? parseFloat(variantData.comparePrice) : null,
+              costPrice: variantData.costPrice ? parseFloat(variantData.costPrice) : null,
               isActive: variantData.isActive
             }
           });
