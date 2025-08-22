@@ -8,7 +8,7 @@ export const useProfile = () => {
   const { getToken } = useClerkAuth();
   const queryClient = useQueryClient();
 
-  // Get orders with pagination
+  // Get orders with pagination (minimal data for list view)
   const useOrders = (page: number = 1, limit: number = 3) => {
     return useQuery({
       queryKey: ['profile', 'orders', page, limit],
@@ -19,6 +19,20 @@ export const useProfile = () => {
         return data;
       },
       enabled: !!getToken,
+    });
+  };
+
+  // Get detailed order information (full data for detail view)
+  const useOrderDetails = (orderId: number | null) => {
+    return useQuery({
+      queryKey: ['profile', 'order-details', orderId],
+      queryFn: async () => {
+        const token = await getToken();
+        if (!token) throw new Error('No authentication token');
+        const data = await profileService.getOrderDetails(token, orderId!);
+        return data;
+      },
+      enabled: !!getToken && !!orderId,
     });
   };
 
@@ -257,6 +271,7 @@ export const useProfile = () => {
   return {
     // Queries
     useOrders,
+    useOrderDetails,
     useAddresses,
     usePaymentMethods,
     usePreferences,

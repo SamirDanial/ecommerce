@@ -1,6 +1,7 @@
 import express from 'express';
 import { trackingService } from '../services/trackingService';
 import { authenticateClerkToken } from '../middleware/clerkAuth';
+import { prisma } from '../lib/prisma';
 
 const router = express.Router();
 
@@ -13,7 +14,20 @@ router.get('/order/:orderId', authenticateClerkToken, async (req, res) => {
     // Verify the order belongs to the authenticated user
     const order = await trackingService.getOrderTracking(orderId);
     
-    if (!order || order.customer?.id !== userId) {
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Verify the order belongs to the authenticated user by checking the profile orders
+    const userOrder = await prisma.order.findFirst({
+      where: { 
+        id: orderId,
+        userId: userId 
+      },
+      select: { id: true }
+    });
+    
+    if (!userOrder) {
       return res.status(404).json({ message: 'Order not found or access denied' });
     }
 

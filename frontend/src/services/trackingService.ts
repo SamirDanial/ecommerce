@@ -12,32 +12,8 @@ export interface OrderTracking {
   orderNumber: string;
   currentStatus: string;
   statusHistory: StatusHistoryEntry[];
-  lastStatusUpdate: string;
   estimatedDelivery?: string;
   trackingNumber?: string;
-  items: Array<{
-    id: number;
-    productName: string;
-    quantity: number;
-    price: number;
-    total: number;
-    product?: {
-      id: number;
-      name: string;
-      images?: Array<{
-        url: string;
-        isPrimary: boolean;
-      }>;
-    };
-  }>;
-  customer?: {
-    id: number;
-    name: string;
-    email: string;
-  };
-  createdAt: string;
-  shippedAt?: string;
-  deliveredAt?: string;
 }
 
 export interface StatusUpdateRequest {

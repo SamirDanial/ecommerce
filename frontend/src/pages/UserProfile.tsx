@@ -298,6 +298,7 @@ const UserProfile: React.FC = () => {
   // Use React Query hooks
   const {
     useOrders,
+    useOrderDetails,
     useAddresses,
     usePaymentMethods,
     usePreferences,
@@ -658,16 +659,17 @@ const UserProfile: React.FC = () => {
           </TabsList>
 
           {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6">
-            <OrdersSection
-              orders={orders}
-              ordersLoading={ordersLoading}
-              pagination={pagination}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </TabsContent>
+                  <TabsContent value="orders" className="space-y-6">
+          <OrdersSection
+            orders={orders}
+            ordersLoading={ordersLoading}
+            pagination={pagination}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            useOrderDetails={useOrderDetails}
+          />
+        </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-6">

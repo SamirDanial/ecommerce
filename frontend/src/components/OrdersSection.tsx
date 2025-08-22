@@ -29,6 +29,7 @@ interface OrdersSectionProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  useOrderDetails: (orderId: number | null) => any;
 }
 
 const OrdersSection: React.FC<OrdersSectionProps> = ({
@@ -37,14 +38,18 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
   pagination,
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
+  useOrderDetails
 }) => {
   const { formatPrice } = useCurrency();
   const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<number | null>(null);
   const [trackingOrderNumber, setTrackingOrderNumber] = useState<string>('');
+
+  // Fetch order details when selectedOrderId changes
+  const { data: selectedOrder, isLoading: orderDetailsLoading } = useOrderDetails(selectedOrderId);
 
   // Helper function to convert string to number
   const toNumber = (value: string | number | null | undefined): number => {
@@ -76,14 +81,14 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
 
   // Handle opening order detail view
   const handleViewOrderDetails = (order: Order) => {
-    setSelectedOrder(order);
+    setSelectedOrderId(order.id);
     setIsOrderDetailOpen(true);
   };
 
   // Handle closing order detail view
   const handleCloseOrderDetails = () => {
     setIsOrderDetailOpen(false);
-    setSelectedOrder(null);
+    setSelectedOrderId(null);
   };
 
   const handleOpenTracking = (orderId: number, orderNumber: string) => {
@@ -151,9 +156,9 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                               year: 'numeric'
                             })}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {order.items?.length || 0} items • {formatPrice(toNumber(order.shipping))} shipping
-                          </div>
+                                                  <div className="text-sm text-gray-500">
+                          {order.itemCount} items • {formatPrice(toNumber(order.shipping))} shipping
+                        </div>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
@@ -191,7 +196,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                       
                       {/* Items and Shipping Info */}
                       <div className="text-sm text-gray-500 mb-0 sm:mb-2 leading-tight">
-                        {order.items?.length || 0} items • {formatPrice(toNumber(order.shipping))} shipping
+                        {order.itemCount} items • {formatPrice(toNumber(order.shipping))} shipping
                       </div>
                     </div>
                   </div>
@@ -302,11 +307,22 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                 <Package className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               </div>
               Order Details
-              <span className="text-sm sm:text-base font-normal text-gray-500">#{selectedOrder?.orderNumber}</span>
+              {selectedOrder && (
+                <span className="text-sm sm:text-base font-normal text-gray-500">#{selectedOrder.orderNumber}</span>
+              )}
             </DialogTitle>
           </DialogHeader>
           
-          {selectedOrder && (
+          {/* Loading State */}
+          {orderDetailsLoading && (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 text-gray-400 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Loading order details...</p>
+            </div>
+          )}
+          
+          {/* Order Details Content */}
+          {selectedOrder && !orderDetailsLoading && (
             <div className="space-y-4 sm:space-y-6">
               {/* Order Overview */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -326,7 +342,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                 </div>
                 <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Items</div>
-                  <div className="font-medium">{selectedOrder.items?.length || 0} items</div>
+                  <div className="font-medium">{selectedOrder.itemCount || selectedOrder.items?.length || 0} items</div>
                 </div>
               </div>
 
@@ -375,78 +391,80 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                 </div>
               </div>
 
-              {/* Order Items */}
-              <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
-                    <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
-                      <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                    </div>
-                    Order Items
-                  </h3>
-                  <span className="text-sm text-gray-500">{selectedOrder.items?.length || 0} items</span>
-                </div>
-                
-                <div className="space-y-3 sm:space-y-4">
-                  {selectedOrder.items?.map((item: OrderItem) => (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        {/* Product Image */}
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center bg-gray-100">
-                          {item.product?.images?.[0]?.url ? (
-                            <ImageWithPlaceholder
-                              src={getFullImageUrl(item.product.images[0].url)}
-                              alt={item.productName}
-                              className="w-auto h-auto max-w-full max-h-[60px] object-contain object-center"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                              <Package className="h-6 w-6 text-gray-400" />
-                            </div>
-                          )}
+                                {/* Order Items */}
+                  <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                        <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                          <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                         </div>
-                        
-                        {/* Product Details */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 mb-1 truncate">
-                            {item.productName}
-                          </h4>
-                          
-                          {/* Product Attributes */}
-                          {(item.size || item.color || item.productSku) && (
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              {item.size && (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                                  Size: {item.size}
-                                </span>
-                              )}
-                              {item.color && (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                                  Color: {item.color}
-                                </span>
-                              )}
-                              {item.productSku && (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 font-mono">
-                                  SKU: {item.productSku}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Price and Quantity */}
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm text-gray-600">
-                              Qty: {item.quantity} × {formatPrice(toNumber(item.price))}
-                            </div>
-                            <div className="font-semibold text-gray-900">
-                              {formatPrice(toNumber(item.total))}
+                        Order Items
+                      </h3>
+                      <span className="text-sm text-gray-500">{selectedOrder.itemCount || selectedOrder.items?.length || 0} items</span>
+                    </div>
+                    
+                    <div className="space-y-3 sm:space-y-4">
+                      {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                        selectedOrder.items.map((item: OrderItem) => (
+                          <div key={item.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                              {/* Product Image */}
+                              <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center bg-gray-100">
+                                {item.product?.images?.[0]?.url ? (
+                                  <ImageWithPlaceholder
+                                    src={getFullImageUrl(item.product.images[0].url)}
+                                    alt={item.productName}
+                                    className="w-auto h-auto max-w-full max-h-[60px] object-contain object-center"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                    <Package className="h-6 w-6 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Product Details */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 mb-1 truncate">
+                                  {item.productName}
+                                </h4>
+                                
+                                                            {/* Product Attributes */}
+                            {(item.size || item.color) && (
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {item.size && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                    Size: {item.size}
+                                  </span>
+                                )}
+                                {item.color && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                    Color: {item.color}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                                
+                                {/* Price and Quantity */}
+                                <div className="flex items-center justify-between">
+                                  <div className="text-sm text-gray-600">
+                                    Qty: {item.quantity} × {formatPrice(toNumber(item.price))}
+                                  </div>
+                                  <div className="font-semibold text-gray-900">
+                                    {formatPrice(toNumber(item.total))}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Package className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                          <p>No items available for this order</p>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
               </div>
 
               {/* Customer Information */}
@@ -562,6 +580,22 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                   </Button>
                 )}
               </div>
+            </div>
+          )}
+          
+          {/* Error State - if order details failed to load */}
+          {!orderDetailsLoading && !selectedOrder && selectedOrderId && (
+            <div className="text-center py-12">
+              <Package className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load order details</h3>
+              <p className="text-gray-500">Please try again or contact support if the problem persists.</p>
+              <Button 
+                variant="outline" 
+                onClick={handleCloseOrderDetails}
+                className="mt-4"
+              >
+                Close
+              </Button>
             </div>
           )}
         </DialogContent>

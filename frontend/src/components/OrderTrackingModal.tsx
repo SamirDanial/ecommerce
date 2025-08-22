@@ -224,7 +224,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
             </h3>
             
             <div className="space-y-3 sm:space-y-4">
-              {trackingData.timeline?.map((event: any, index: number) => (
+              {trackingData.statusHistory?.map((event: any, index: number) => (
                 <div key={index} className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
                     <Calendar className="h-4 w-4 text-blue-600" />
@@ -241,11 +241,11 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                         })}
                       </span>
                     </div>
-                    {event.description && (
-                      <p className="text-sm text-gray-600">{event.description}</p>
+                    {event.notes && (
+                      <p className="text-sm text-gray-600">{event.notes}</p>
                     )}
-                    {event.location && (
-                      <p className="text-xs text-gray-500 mt-1">📍 {event.location}</p>
+                    {event.updatedBy && event.updatedBy !== 'system' && (
+                      <p className="text-xs text-gray-500 mt-1">👤 Updated by: {event.updatedBy}</p>
                     )}
                   </div>
                 </div>

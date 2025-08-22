@@ -580,12 +580,13 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
-// Get orders with optional status filter
+// Get orders with optional status filter and minimal data option
 router.get('/orders', async (req, res) => {
   try {
     const userId = req.user!.id;
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 10, status, minimal } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
+    const isMinimal = minimal === 'true';
 
     const where: any = { userId: userId };
     
@@ -593,7 +594,57 @@ router.get('/orders', async (req, res) => {
       where.status = status as any;
     }
 
-    const [orders, total] = await Promise.all([
+    // If minimal is true, only fetch essential fields
+    if (isMinimal) {
+      const [orders, total] = await Promise.all([
+        prisma.order.findMany({
+          where,
+          select: {
+            id: true,
+            orderNumber: true,
+            createdAt: true,
+            status: true,
+            total: true,
+            currency: true,
+            shipping: true,
+            // Count items for each order
+            _count: {
+              select: {
+                items: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: offset,
+          take: Number(limit)
+        }),
+        prisma.order.count({ where })
+      ]);
+
+      res.json({
+        orders: orders.map(order => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          createdAt: order.createdAt,
+          status: order.status,
+          total: order.total,
+          currency: order.currency,
+          shipping: order.shipping,
+          // Add item count instead of empty array
+          itemCount: order._count.items
+        })),
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit))
+        }
+      });
+      return;
+    }
+
+    // Full data fetch (existing logic)
+    const [fullOrders, total] = await Promise.all([
       prisma.order.findMany({
         where,
         include: {
@@ -635,7 +686,7 @@ router.get('/orders', async (req, res) => {
     ]);
 
     // Transform orders to include variant-specific images
-    const transformedOrders = orders.map(order => ({
+    const transformedOrders = fullOrders.map(order => ({
       ...order,
       items: order.items.map(item => ({
         ...item,
@@ -682,7 +733,7 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// Get specific order details
+// Get specific order details (optimized for view details dialog)
 router.get('/orders/:id', async (req, res) => {
   try {
     const userId = req.user!.id;
@@ -693,19 +744,67 @@ router.get('/orders/:id', async (req, res) => {
         id: orderId,
         userId: userId
       },
-      include: {
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        trackingNumber: true,
+        notes: true,
+        subtotal: true,
+        tax: true,
+        shipping: true,
+        discount: true,
+        total: true,
+        currency: true,
+        // User info
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        // Shipping address
+        shippingFirstName: true,
+        shippingLastName: true,
+        shippingAddress1: true,
+        shippingAddress2: true,
+        shippingCity: true,
+        shippingState: true,
+        shippingPostalCode: true,
+        shippingCountry: true,
+        shippingPhone: true,
+        // Items with minimal product info
         items: {
-          include: {
+          select: {
+            id: true,
+            productId: true,
+            variantId: true,
+            productName: true,
+            productSku: true,
+            size: true,
+            color: true,
+            quantity: true,
+            price: true,
+            total: true,
             product: {
-              include: {
-                images: true,
-                category: true
+              select: {
+                id: true,
+                name: true,
+                images: {
+                  select: {
+                    id: true,
+                    url: true,
+                    alt: true,
+                    color: true,
+                    isPrimary: true
+                  }
+                }
               }
             }
           }
-        },
-        billingAddress: true,
-        payments: true
+        }
       }
     });
 
@@ -723,9 +822,6 @@ router.get('/orders/:id', async (req, res) => {
           images: item.product.images ? (() => {
             // If item has a color, find matching color image first
             if (item.color) {
-              console.log(`Looking for variant image: item color="${item.color}", available image colors:`, 
-                item.product.images.map(img => img.color).filter(Boolean));
-              
               const colorImage = item.product.images.find(img => 
                 img.color && img.color.toLowerCase() === item.color!.toLowerCase()
               );

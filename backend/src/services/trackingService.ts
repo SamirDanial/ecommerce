@@ -59,34 +59,18 @@ export const trackingService = {
     }
   },
 
-  // Get order tracking information
+  // Get order tracking information (optimized for frontend display)
   async getOrderTracking(orderId: number) {
     try {
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  images: {
-                    select: { url: true, isPrimary: true },
-                    take: 1,
-                    orderBy: { isPrimary: 'desc' }
-                  }
-                }
-              }
-            }
-          },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
+        select: {
+          id: true,
+          orderNumber: true,
+          currentStatus: true,
+          statusHistory: true,
+          estimatedDelivery: true,
+          trackingNumber: true
         }
       });
 
@@ -103,14 +87,8 @@ export const trackingService = {
         statusHistory: statusHistory.sort((a: any, b: any) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         ),
-        lastStatusUpdate: order.lastStatusUpdate,
         estimatedDelivery: order.estimatedDelivery,
-        trackingNumber: order.trackingNumber,
-        items: order.items,
-        customer: order.user,
-        createdAt: order.createdAt,
-        shippedAt: order.shippedAt,
-        deliveredAt: order.deliveredAt
+        trackingNumber: order.trackingNumber
       };
     } catch (error) {
       console.error('Error getting order tracking:', error);

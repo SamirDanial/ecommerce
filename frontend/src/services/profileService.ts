@@ -53,8 +53,11 @@ export interface Order {
     email: string;
   };
   
-  // Order items
-  items: OrderItem[];
+  // Order items (optional for minimal view)
+  items?: OrderItem[];
+  
+  // Item count for minimal view
+  itemCount?: number;
   
   // Payment information
   paymentStatus: string;
@@ -145,9 +148,17 @@ export interface ChangePasswordRequest {
 
 // Profile API functions
 export const profileService = {
-  // Get user orders with pagination
+  // Get user orders with pagination (minimal data for list view)
   getOrders: async (token: string, page: number = 1, limit: number = 3): Promise<PaginatedOrdersResponse> => {
-    const response = await api.get(`/profile/orders?page=${page}&limit=${limit}`, {
+    const response = await api.get(`/profile/orders?page=${page}&limit=${limit}&minimal=true`, {
+      headers: createAuthHeaders(token),
+    });
+    return response.data;
+  },
+
+  // Get detailed order information (full data for detail view)
+  getOrderDetails: async (token: string, orderId: number): Promise<Order> => {
+    const response = await api.get(`/profile/orders/${orderId}`, {
       headers: createAuthHeaders(token),
     });
     return response.data;
