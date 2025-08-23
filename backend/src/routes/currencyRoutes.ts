@@ -1,5 +1,6 @@
 import express from 'express';
 import { CurrencyService } from '../services/currencyService';
+import currencyService from '../services/currencyService';
 
 const router = express.Router();
 
@@ -166,6 +167,34 @@ router.get('/stripe-supported', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Stripe supported currencies'
+    });
+  }
+});
+
+/**
+ * GET /api/currencies/business-base-currency
+ * Get the business's base currency information
+ */
+router.get('/business-base-currency', async (req, res) => {
+  try {
+    const baseCurrencyInfo = await currencyService.getBusinessBaseCurrency();
+    
+    if (!baseCurrencyInfo) {
+      return res.status(404).json({
+        success: false,
+        error: 'Business base currency not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: baseCurrencyInfo
+    });
+  } catch (error) {
+    console.error('Error fetching business base currency:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch business base currency'
     });
   }
 });

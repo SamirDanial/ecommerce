@@ -40,7 +40,8 @@ const CurrencyManagement: React.FC = () => {
   const { getToken } = useClerkAuth();
   
   // State
-  const [baseCurrency, setBaseCurrency] = useState<string>('USD');
+        const [baseCurrency, setBaseCurrency] = useState<string>('USD');
+      const [baseCurrencyInfo, setBaseCurrencyInfo] = useState<{ code: string; symbol: string; name: string } | null>(null);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [loading, setLoading] = useState(false);
@@ -94,7 +95,14 @@ const CurrencyManagement: React.FC = () => {
       console.log('🔍 Debug - Exchange rates response:', ratesResponse.data);
       console.log('🔍 Debug - Currencies response:', currenciesResponse.data);
 
-      setBaseCurrency(baseResponse.data.baseCurrency);
+      // Handle new base currency response format
+      if (baseResponse.data && baseResponse.data.code) {
+        setBaseCurrency(baseResponse.data.code);
+        setBaseCurrencyInfo(baseResponse.data);
+      } else {
+        setBaseCurrency('USD');
+        setBaseCurrencyInfo(null);
+      }
       
       // Convert string rates to numbers and ensure proper data structure
       const processedRates = ratesResponse.data.map((rate: any) => ({
@@ -312,10 +320,10 @@ const CurrencyManagement: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Badge variant="secondary" className="text-lg px-4 py-2">
-                {baseCurrency || 'Not loaded'}
+                {baseCurrencyInfo ? `${baseCurrencyInfo.symbol} ${baseCurrencyInfo.code}` : baseCurrency || 'Not loaded'}
               </Badge>
               <span className="text-muted-foreground">
-                {getCurrencyName(baseCurrency)}
+                {baseCurrencyInfo ? baseCurrencyInfo.name : getCurrencyName(baseCurrency)}
               </span>
             </div>
             <Button onClick={() => setShowChangeDialog(true)} disabled={!baseCurrency}>

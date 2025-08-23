@@ -62,6 +62,36 @@ const Products: React.FC = () => {
   const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  
+  // Currency state
+  const [defaultCurrency, setDefaultCurrency] = useState<{ code: string; symbol: string; name: string } | null>(null);
+
+  // Fetch default currency
+  const fetchDefaultCurrency = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/admin/currency/default-currency`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const currencyData = await response.json();
+        setDefaultCurrency(currencyData);
+      }
+    } catch (error) {
+      console.error('Error fetching default currency:', error);
+    }
+  };
+
+  // Fetch default currency on mount
+  useEffect(() => {
+    fetchDefaultCurrency();
+  }, []);
 
   // Listen for custom event to reopen import dialog
   useEffect(() => {
@@ -323,6 +353,7 @@ const Products: React.FC = () => {
                   key={product.id}
                   product={product}
                   viewMode="grid"
+                  defaultCurrency={defaultCurrency}
                   onView={openViewDialog}
                   onEdit={openEditDialog}
                   onDelete={openDeleteDialog}
@@ -340,6 +371,7 @@ const Products: React.FC = () => {
                   key={product.id}
                   product={product}
                   viewMode="list"
+                  defaultCurrency={defaultCurrency}
                   onView={openViewDialog}
                   onEdit={openEditDialog}
                   onDelete={openDeleteDialog}

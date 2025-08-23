@@ -11,13 +11,14 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { Product } from '../../types';
-import { formatPrice, generatePlaceholderSVG } from '../../utils/productUtils';
+import { generatePlaceholderSVG } from '../../utils/productUtils';
 import { getFullImageUrl } from '../../utils/imageUtils';
 
 
 interface ProductCardProps {
   product: Product;
   viewMode?: 'grid' | 'list';
+  defaultCurrency?: { code: string; symbol: string; name: string } | null;
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
@@ -30,6 +31,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   viewMode = 'grid',
+  defaultCurrency,
   onView,
   onEdit,
   onDelete,
@@ -92,6 +94,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.stopPropagation();
     setIsDropdownOpen(false);
     onDelete(product);
+  };
+
+  // Custom format price function that uses default currency
+  const formatPriceWithCurrency = (price: number): string => {
+    if (!defaultCurrency) {
+      // Fallback to USD if no default currency
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(price);
+    }
+    
+    // Use the default currency symbol and code
+    const formattedPrice = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(price);
+    
+    // Check if currency symbol should be before or after (most are before)
+    return `${defaultCurrency.symbol}${formattedPrice}`;
   };
 
   return (
@@ -241,11 +263,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <div className="flex items-center gap-2 text-sm">
                   {product.isOnSale && product.salePrice ? (
                     <>
-                      <span className="text-gray-400 line-through">${product.price}</span>
-                      <span className="font-semibold text-orange-600">${product.salePrice}</span>
+                      <span className="text-gray-400 line-through">{formatPriceWithCurrency(product.price)}</span>
+                      <span className="font-semibold text-orange-600">{formatPriceWithCurrency(product.salePrice)}</span>
                     </>
                   ) : (
-                    <span className="font-semibold text-gray-900">${product.price}</span>
+                    <span className="font-semibold text-gray-900">{formatPriceWithCurrency(product.price)}</span>
                   )}
                 </div>
               </div>
@@ -361,7 +383,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   <span className="text-xs text-red-600 font-medium">SALE</span>
                 )}
                 <span className="text-sm font-bold text-gray-900">
-                  {formatPrice(product.salePrice || product.price)}
+                  {formatPriceWithCurrency(product.salePrice || product.price)}
                 </span>
               </div>
             </div>

@@ -135,6 +135,19 @@ export class CurrencyService {
   }
 
   /**
+   * Get the business's base currency information
+   */
+  static async getBusinessBaseCurrency(): Promise<{ code: string; symbol: string; name: string } | null> {
+    try {
+      const response = await api.get('/currencies/business-base-currency');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching business base currency:', error);
+      return null;
+    }
+  }
+
+  /**
    * Format currency locally (fallback when API is not available)
    */
   static formatCurrencyLocal(amount: number, currency: CurrencyConfig): string {

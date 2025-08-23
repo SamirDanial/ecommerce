@@ -182,47 +182,62 @@ export class CurrencyService {
    * 3. Update product variant prices using conversion rate
    * 4. Update isBase flags in exchange_rates table
    * 5. Update isDefault flags and rates in currency_config table
+   * 
+   * Handles the scenario: USD → any currency → any currency safely
    */
   async changeBaseCurrency(newBaseCurrency: string, conversionRate: number): Promise<{ success: boolean; message: string; updatedProducts: number }> {
     try {
       console.log(`🔄 Starting base currency change to ${newBaseCurrency} with rate ${conversionRate}`);
 
-      // 1. Update or create business config
-      const businessConfig = await prisma.businessConfig.upsert({
-        where: { businessId: 'default-business' },
-        update: { 
+      // 1. Get current business config and base currency
+      const currentConfig = await prisma.businessConfig.findFirst({
+        where: { isActive: true }
+      });
+      
+      if (!currentConfig) {
+        throw new Error('No business configuration found. Please complete business setup first.');
+      }
+
+      const oldBaseCurrency = currentConfig.baseCurrency;
+      
+      if (oldBaseCurrency === newBaseCurrency) {
+        throw new Error('New base currency must be different from current base currency');
+      }
+
+      console.log(`📊 Current base currency: ${oldBaseCurrency}, New base currency: ${newBaseCurrency}`);
+
+      // 2. Update business config with new base currency
+      const businessConfig = await prisma.businessConfig.update({
+        where: { id: currentConfig.id },
+        data: { 
           baseCurrency: newBaseCurrency,
           updatedAt: new Date()
-        },
-        create: {
-          businessId: 'default-business',
-          baseCurrency: newBaseCurrency,
-          businessName: 'Default Business',
-          isActive: true
         }
       });
 
       console.log(`✅ Business config updated with base currency: ${newBaseCurrency}`);
 
-      // 2. Update all product prices
+      // 3. Update all product prices
       const updatedProducts = await this.updateProductPrices(conversionRate);
       console.log(`✅ Updated ${updatedProducts} products`);
 
-      // 3. Update all product variant prices
+      // 4. Update all product variant prices
       const updatedVariants = await this.updateProductVariantPrices(conversionRate);
       console.log(`✅ Updated ${updatedVariants} product variants`);
 
-      // 4. Update isBase flags in exchange_rates table
-      await this.updateExchangeRateBaseFlags(newBaseCurrency);
+      // 5. Update isBase flags in exchange_rates table (REMOVED - not needed)
+      // await this.updateExchangeRateBaseFlags(newBaseCurrency);
+      // console.log(`✅ Updated exchange rate base flags`);
 
-      // 5. Update currency_config table (isDefault flags and rates)
-      await this.updateCurrencyConfigRates(newBaseCurrency, conversionRate);
+      // 6. Update currency_config table (isDefault flags and rates)
+      await this.updateCurrencyConfigRates(oldBaseCurrency, newBaseCurrency, conversionRate);
+      console.log(`✅ Updated currency config rates`);
 
       console.log(`🎉 Base currency change completed successfully!`);
       
       return {
         success: true,
-        message: `Base currency changed to ${newBaseCurrency}. Updated ${updatedProducts} products and ${updatedVariants} variants.`,
+        message: `Base currency changed from ${oldBaseCurrency} to ${newBaseCurrency}. Updated ${updatedProducts} products and ${updatedVariants} variants.`,
         updatedProducts: updatedProducts + updatedVariants
       };
 
@@ -331,116 +346,24 @@ export class CurrencyService {
   }
 
   /**
-   * Convert price using the conversion rate
-   * Example: If conversionRate is 280 (USD→PKR), then 2 USD becomes 560 PKR
+   * Update isBase flags in exchange_rates table (REMOVED - not needed)
+   * The base currency is identified by business_configs.baseCurrency
    */
-  private convertPrice(price: number, conversionRate: number): number {
-    const convertedPrice = price * conversionRate;
-    // Round to 2 decimal places for currency
-    return Math.round(convertedPrice * 100) / 100;
-  }
-
-  /**
-   * Create exchange rates for the new base currency
-   */
-  private async createExchangeRates(newBaseCurrency: string): Promise<void> {
-    // Get all available currencies from the existing system
-    const currencies = ['USD', 'EUR', 'GBP', 'PKR', 'CAD', 'AUD']; // Add more as needed
-
-    for (const currency of currencies) {
-      if (currency === newBaseCurrency) {
-        // Base currency rate is always 1
-        await prisma.exchangeRate.upsert({
-          where: { 
-            fromCurrency_toCurrency: {
-              fromCurrency: newBaseCurrency,
-              toCurrency: newBaseCurrency
-            }
-          },
-          update: { rate: 1.0, isBase: true, lastUpdated: new Date() },
-          create: {
-            fromCurrency: newBaseCurrency,
-            toCurrency: newBaseCurrency,
-            rate: 1.0,
-            isBase: true,
-            isActive: true,
-            source: 'System'
-          }
-        });
-      } else {
-        // For now, create placeholder rates that need to be updated manually
-        // In production, you'd call an external API to get real rates
-        const placeholderRate = this.getPlaceholderRate(newBaseCurrency, currency);
-        
-        await prisma.exchangeRate.upsert({
-          where: { 
-            fromCurrency_toCurrency: {
-              fromCurrency: newBaseCurrency,
-              toCurrency: currency
-            }
-          },
-          update: { 
-            rate: placeholderRate, 
-            lastUpdated: new Date(),
-            source: 'Placeholder'
-          },
-          create: {
-            fromCurrency: newBaseCurrency,
-            toCurrency: currency,
-            rate: placeholderRate,
-            isBase: false,
-            isActive: true,
-            source: 'Placeholder'
-          }
-        });
-      }
-    }
-  }
-
-  /**
-   * Update isBase flags in exchange_rates table
-   */
-  private async updateExchangeRateBaseFlags(newBaseCurrency: string): Promise<void> {
-    await prisma.exchangeRate.updateMany({
-      where: {
-        fromCurrency: newBaseCurrency,
-        toCurrency: newBaseCurrency
-      },
-      data: {
-        isBase: true,
-        isActive: true
-      }
-    });
-
-    await prisma.exchangeRate.updateMany({
-      where: {
-        fromCurrency: newBaseCurrency,
-        toCurrency: {
-          not: newBaseCurrency
-        }
-      },
-      data: {
-        isBase: false,
-        isActive: true
-      }
-    });
-  }
+  // private async updateExchangeRateBaseFlags(newBaseCurrency: string): Promise<void> {
+  //   // This function is not needed as we use business_configs.baseCurrency
+  //   // to identify the current base currency
+  // }
 
   /**
    * Update currency_config table (isDefault flags and rates)
+   * This handles the scenario: USD → any currency → any currency safely
    */
-  private async updateCurrencyConfigRates(newBaseCurrency: string, conversionRate: number): Promise<void> {
-    // Get the current base currency before we change it
-    const currentConfig = await prisma.businessConfig.findFirst({
-      where: { isActive: true }
-    });
-    
-    const oldBaseCurrency = currentConfig?.baseCurrency;
-    
-    if (!oldBaseCurrency || oldBaseCurrency === newBaseCurrency) {
-      console.log('No base currency change needed or old base currency not found');
-      return;
-    }
+  private async updateCurrencyConfigRates(
+    oldBaseCurrency: string, 
+    newBaseCurrency: string, 
+    conversionRate: number
+  ): Promise<void> {
+    console.log(`🔄 Updating currency config rates from ${oldBaseCurrency} to ${newBaseCurrency}`);
 
     // Get all currencies from currency_config table
     const currencies = await prisma.currencyConfig.findMany({
@@ -458,23 +381,25 @@ export class CurrencyService {
             updatedAt: new Date()
           }
         });
+        console.log(`✅ Set ${newBaseCurrency} as new base (rate: 1.0)`);
       } else if (currency.code === oldBaseCurrency) {
         // Old base currency: rate = 1/conversionRate, isDefault = false
+        const newRate = 1 / conversionRate;
         await prisma.currencyConfig.update({
           where: { id: currency.id },
           data: {
             isDefault: false,
-            rate: 1 / conversionRate,
+            rate: newRate,
             updatedAt: new Date()
           }
         });
+        console.log(`✅ Updated ${oldBaseCurrency} rate to ${newRate} (1/${conversionRate})`);
       } else {
-        // Other currencies: calculate new rate using formula
+        // Other currencies: calculate new rate using the enhanced formula
         // Formula: newRate = (1 / conversionRate) × oldRate
-        // Where oldRate is the current rate from old base to this currency
+        // This works for any base currency change, not just USD
         
-        // Get the current rate from old base to this currency
-        const currentRate = currency.rate;
+        const currentRate = Number(currency.rate);
         
         if (currentRate && currentRate > 0) {
           const newRate = (1 / conversionRate) * currentRate;
@@ -487,6 +412,9 @@ export class CurrencyService {
               updatedAt: new Date()
             }
           });
+          console.log(`✅ Updated ${currency.code} rate from ${currentRate} to ${newRate}`);
+        } else {
+          console.warn(`⚠️ Skipping ${currency.code} - invalid rate: ${currentRate}`);
         }
       }
     }
@@ -497,7 +425,7 @@ export class CurrencyService {
    */
   async getBaseCurrency(): Promise<string> {
     const config = await prisma.businessConfig.findFirst({
-      where: { businessId: 'default-business', isActive: true }
+      where: { isActive: true }
     });
     
     return config?.baseCurrency || 'USD'; // Default to USD if not set
@@ -517,7 +445,7 @@ export class CurrencyService {
       }
     });
 
-    return rate?.rate || 1.0;
+    return rate ? Number(rate.rate) : 1.0;
   }
 
   /**
@@ -535,6 +463,41 @@ export class CurrencyService {
     
     // Round to 2 decimal places for currency
     return Math.round(convertedPrice * 100) / 100;
+  }
+
+  /**
+   * Get business base currency with symbol and name
+   */
+  async getBusinessBaseCurrency(): Promise<{ code: string; symbol: string; name: string } | null> {
+    try {
+      const businessConfig = await prisma.businessConfig.findFirst({
+        where: { isActive: true }
+      });
+
+      if (!businessConfig) {
+        return null;
+      }
+
+      const currencyConfig = await prisma.currencyConfig.findFirst({
+        where: { 
+          code: businessConfig.baseCurrency,
+          isActive: true 
+        }
+      });
+
+      if (!currencyConfig) {
+        return null;
+      }
+
+      return {
+        code: currencyConfig.code,
+        symbol: currencyConfig.symbol,
+        name: currencyConfig.name
+      };
+    } catch (error) {
+      console.error('Error getting business base currency:', error);
+      return null;
+    }
   }
 }
 

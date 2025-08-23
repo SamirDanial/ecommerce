@@ -79,6 +79,22 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
           setSelectedCurrency(userPreferredCurrency);
         }
       } else {
+        // Try to get business base currency first, then fallback to default
+        try {
+          const businessBaseCurrency = await CurrencyService.getBusinessBaseCurrency();
+          if (businessBaseCurrency) {
+            const businessCurrency = currencies.find(
+              currency => currency.code === businessBaseCurrency.code
+            );
+            if (businessCurrency) {
+              setSelectedCurrency(businessCurrency);
+              return;
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch business base currency, using default');
+        }
+        
         // Find default currency from backend
         const defaultCurrency = currencies.find(currency => currency.isDefault);
         if (defaultCurrency) {

@@ -14,14 +14,36 @@ const requireAdmin = requireRole(['ADMIN']);
 
 // ===== BASE CURRENCY MANAGEMENT =====
 
-// Get current business base currency
+// Get current business base currency with symbol and name
 router.get('/base-currency', requireAdmin, async (req, res) => {
   try {
-    const baseCurrency = await currencyService.getBaseCurrency();
-    res.json({ baseCurrency });
+    const baseCurrencyInfo = await currencyService.getBusinessBaseCurrency();
+    if (!baseCurrencyInfo) {
+      return res.status(404).json({ error: 'Business base currency not found' });
+    }
+    res.json(baseCurrencyInfo);
   } catch (error) {
     console.error('Error getting base currency:', error);
     res.status(500).json({ error: 'Failed to get base currency' });
+  }
+});
+
+// Get default currency (for product display)
+router.get('/default-currency', requireAdmin, async (req, res) => {
+  try {
+    const defaultCurrency = await prisma.currencyConfig.findFirst({
+      where: { isDefault: true, isActive: true },
+      select: { code: true, symbol: true, name: true }
+    });
+    
+    if (!defaultCurrency) {
+      return res.status(404).json({ error: 'Default currency not found' });
+    }
+    
+    res.json(defaultCurrency);
+  } catch (error) {
+    console.error('Error getting default currency:', error);
+    res.status(500).json({ error: 'Failed to get default currency' });
   }
 });
 
