@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -23,10 +23,15 @@ import { useSidebarStore } from '../../stores/sidebarStore';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Toaster } from 'sonner';
+import BusinessSetupDialog from './BusinessSetupDialog';
+import { toast } from 'sonner';
+import axios from 'axios';
 
 
 const AdminLayout: React.FC = () => {
-  const { signOut } = useClerkAuth();
+  console.log('🏗️ AdminLayout component mounted');
+  
+  const { signOut, getToken } = useClerkAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -40,6 +45,27 @@ const AdminLayout: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Business setup state
+  const [isBusinessSetupOpen, setIsBusinessSetupOpen] = useState(false);
+  const [isCheckingSetup, setIsCheckingSetup] = useState(true);
+  const [businessSetupComplete, setBusinessSetupComplete] = useState(false);
+
+  // Create authenticated API instance
+  const createAuthenticatedApi = async () => {
+    const token = await getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+    
+    return axios.create({
+      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+  };
+
   // Check if we're on mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -50,6 +76,51 @@ const AdminLayout: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Check business setup status
+  useEffect(() => {
+    console.log('🚀 useEffect triggered - starting business setup check');
+    
+    const checkBusinessSetup = async () => {
+      console.log('🔍 Starting business setup check...');
+      try {
+        console.log('🔑 Getting authenticated API...');
+        const api = await createAuthenticatedApi();
+        console.log('📡 Making API call to /admin/currency/business-setup-status...');
+        
+        const response = await api.get('/admin/currency/business-setup-status');
+        console.log('✅ API response received:', response.data);
+        
+        const { exists } = response.data;
+        console.log('📊 Business config exists:', exists);
+        
+        if (!exists) {
+          console.log('❌ No business config found, showing dialog');
+          setIsBusinessSetupOpen(true);
+          setBusinessSetupComplete(false);
+        } else {
+          console.log('✅ Business config found, hiding dialog');
+          setIsBusinessSetupOpen(false);
+          setBusinessSetupComplete(true);
+        }
+      } catch (error: any) {
+        console.error('💥 Error checking business setup:', error);
+        console.error('💥 Error details:', error.response?.data);
+        console.error('💥 Error status:', error.response?.status);
+        // If there's an error, assume setup is needed
+        console.log('⚠️ Assuming setup needed due to error');
+        setIsBusinessSetupOpen(true);
+      } finally {
+        console.log('🏁 Business setup check completed');
+        setIsCheckingSetup(false);
+      }
+    };
+
+    console.log('📞 Calling checkBusinessSetup function...');
+    checkBusinessSetup();
+    
+    console.log('🏁 useEffect setup complete');
   }, []);
 
   // Close mobile sidebar when route changes
@@ -77,7 +148,7 @@ const AdminLayout: React.FC = () => {
     };
   }, [isMobileSidebarOpen]);
 
-  const navigation = [
+  const navigation = useMemo(() => [
     {
       name: 'Dashboard',
       href: '/admin',
@@ -144,12 +215,37 @@ const AdminLayout: React.FC = () => {
       current: location.pathname.startsWith('/admin/currency'),
       description: 'Base currency & exchange rates'
     }
-  ];
+  ], [location.pathname]); // Add location.pathname back as dependency
 
-  const handleSignOut = () => {
-    signOut();
-    navigate('/');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
+
+  const handleBusinessSetupComplete = () => {
+    setIsBusinessSetupOpen(false);
+    setBusinessSetupComplete(true);
+    toast.success('Business setup completed successfully! You now have full access to the admin panel.');
+  };
+
+  // Show loading state while checking setup
+  if (isCheckingSetup) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking business configuration...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Simple approach - show dialog when needed
+  // No API calls that could cause infinite loops
 
   const goToMainSite = () => {
     navigate('/');
@@ -175,7 +271,6 @@ const AdminLayout: React.FC = () => {
     // Don't auto-collapse when menu items are clicked
     // Sidebar stays open for easy navigation between sections
   };
-
 
 
   const renderSidebarContent = () => (
@@ -482,6 +577,12 @@ const AdminLayout: React.FC = () => {
       
       {/* Toast notifications for admin panel */}
       <Toaster position="top-right" richColors />
+
+      {/* Business Setup Dialog */}
+      <BusinessSetupDialog
+        isOpen={isBusinessSetupOpen}
+        onComplete={handleBusinessSetupComplete}
+      />
     </div>
   );
 };

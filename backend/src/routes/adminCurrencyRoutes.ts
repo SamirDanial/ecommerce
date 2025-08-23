@@ -218,4 +218,88 @@ router.post('/test-conversion', requireAdmin, async (req, res) => {
   }
 });
 
+// Check if business config exists
+router.get('/business-setup-status', authenticateClerkToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const config = await prisma.businessConfig.findFirst({
+      where: { isActive: true }
+    });
+    
+    res.json({
+      exists: !!config,
+      config: config ? {
+        businessName: config.businessName,
+        baseCurrency: config.baseCurrency
+      } : null
+    });
+  } catch (error) {
+    console.error('Error checking business setup status:', error);
+    res.status(500).json({ error: 'Failed to check business setup status' });
+  }
+});
+
+// Create initial business config
+router.post('/business-setup', authenticateClerkToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { businessName, baseCurrency } = req.body;
+    
+    if (!businessName || !baseCurrency) {
+      return res.status(400).json({ error: 'Business name and base currency are required' });
+    }
+    
+    // Check if config already exists
+    const existingConfig = await prisma.businessConfig.findFirst({
+      where: { isActive: true }
+    });
+    
+    if (existingConfig) {
+      return res.status(400).json({ error: 'Business config already exists' });
+    }
+    
+    // Create business config
+    const businessConfig = await prisma.businessConfig.create({
+      data: {
+        businessId: 'main-business', // Simple ID for single business
+        businessName,
+        baseCurrency,
+        isActive: true
+      }
+    });
+    
+    // Create or update initial exchange rate (base currency to itself = 1.0)
+    await prisma.$queryRaw`
+      INSERT INTO exchange_rates ("fromCurrency", "toCurrency", rate, "isBase", "isActive", source, "lastUpdated")
+      VALUES (${baseCurrency}, ${baseCurrency}, 1.0, true, true, 'Initial Setup', NOW())
+      ON CONFLICT ("fromCurrency", "toCurrency") 
+      DO UPDATE SET 
+        rate = 1.0,
+        "isBase" = true,
+        "isActive" = true,
+        source = 'Initial Setup',
+        "lastUpdated" = NOW()
+    `;
+    
+    // Create or update currency config entry for base currency
+    await prisma.$queryRaw`
+      INSERT INTO currency_configs (code, name, symbol, rate, "isDefault", "isActive", "createdAt", "updatedAt")
+      VALUES (${baseCurrency}, ${baseCurrency}, ${baseCurrency}, 1.0, true, true, NOW(), NOW())
+      ON CONFLICT (code) 
+      DO UPDATE SET 
+        rate = 1.0,
+        "isDefault" = true,
+        "isActive" = true,
+        "updatedAt" = NOW()
+    `;
+    
+    res.json({
+      success: true,
+      message: 'Business configuration created successfully',
+      config: businessConfig
+    });
+  } catch (error) {
+    console.error('Error creating business setup:', error);
+    res.status(500).json({ error: 'Failed to create business configuration' });
+  }
+});
+
 export default router;
