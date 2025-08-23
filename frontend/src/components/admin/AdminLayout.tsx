@@ -14,7 +14,8 @@ import {
   FolderOpen,
   BarChart3,
   DollarSign,
-  Truck
+  Truck,
+  Languages
 } from 'lucide-react';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useSidebarStore } from '../../stores/sidebarStore';
@@ -117,7 +118,7 @@ const AdminLayout: React.FC = () => {
     {
       name: 'Localization',
       href: '/admin/localization',
-      icon: Globe,
+      icon: Languages,
       current: location.pathname.startsWith('/admin/localization'),
       description: 'Languages & currencies'
     },
