@@ -21,6 +21,8 @@ import AdminCategories from './pages/admin/Categories';
 import AdminOrders from './pages/admin/Orders';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminLocalization from './pages/admin/Localization';
+import AdminTaxShipping from './pages/admin/TaxShipping';
+import AdminDeliveryScope from './pages/admin/DeliveryScope';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Categories from './pages/Categories';
@@ -72,6 +74,8 @@ function App() {
                     <Route path="orders" element={<AdminOrders />} />
                     <Route path="analytics" element={<AdminAnalytics />} />
                     <Route path="localization" element={<AdminLocalization />} />
+                    <Route path="tax-shipping" element={<AdminTaxShipping />} />
+                    <Route path="delivery-scope" element={<AdminDeliveryScope />} />
                   </Route>
                   
                   {/* Main Site Routes - With Header/Footer */}

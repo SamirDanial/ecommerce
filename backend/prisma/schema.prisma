@@ -826,6 +826,85 @@ enum InteractionType {
   REPORT
 }
 
+// Tax and Shipping Configuration Tables
+model TaxRate {
+  id          Int      @id @default(autoincrement())
+  countryCode String   @db.VarChar(10)  // e.g., "US", "CA", "UK"
+  countryName String   @db.VarChar(100) // e.g., "United States", "Canada", "United Kingdom"
+  stateCode   String?  @db.VarChar(10)  // e.g., "CA", "TX", "NY" (optional)
+  stateName   String?  @db.VarChar(100) // e.g., "California", "Texas", "New York" (optional)
+  taxRate     Decimal  @db.Decimal(5, 2) // e.g., 7.25 for 7.25%
+  taxName     String   @db.VarChar(100)  // e.g., "Sales Tax", "GST", "VAT"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tax_rates")
+}
+
+model ShippingRate {
+  id            Int      @id @default(autoincrement())
+  countryCode   String   @db.VarChar(10)  // e.g., "US", "CA", "UK"
+  countryName   String   @db.VarChar(100) // e.g., "United States", "Canada", "United Kingdom"
+  stateCode     String?  @db.VarChar(10)  // e.g., "CA", "TX", "NY" (optional)
+  stateName     String?  @db.VarChar(100) // e.g., "California", "Texas", "New York" (optional)
+  shippingCost  Decimal  @db.Decimal(10, 2) // e.g., 5.00 for $5.00
+  deliveryDays  Int      @default(3)      // e.g., 3 for 3-5 business days
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("shipping_rates")
+}
+
+// Delivery Scope Configuration
+model DeliveryScope {
+  id                    Int      @id @default(autoincrement())
+  businessId            String   @unique @db.VarChar(100) // Unique identifier for the business
+  businessName          String   @db.VarChar(200) // Business name
+  hasInternationalDelivery Boolean @default(false) // Can ship internationally
+  primaryCountryCode    String   @db.VarChar(10)  // Business's primary country
+  primaryCountryName    String   @db.VarChar(100) // Business's primary country name
+  primaryCurrency       String   @db.VarChar(10)  // Business's primary currency (e.g., USD, EUR, GBP)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("delivery_scopes")
+}
+
+// Local City/State Shipping Rates
+model LocalShippingRate {
+  id            Int      @id @default(autoincrement())
+  businessId    String   @db.VarChar(100) // Reference to business
+  cityName      String   @db.VarChar(100) // City name
+  stateCode     String?  @db.VarChar(10)  // State/province code (optional)
+  stateName     String?  @db.VarChar(100) // State/province name (optional)
+  shippingCost  Decimal  @db.Decimal(10, 2) // Shipping cost for this city
+  deliveryDays  Int      @default(1)      // Delivery days (usually 1-2 for local)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("local_shipping_rates")
+}
+
+// Local Tax Rates
+model LocalTaxRate {
+  id            Int      @id @default(autoincrement())
+  businessId    String   @db.VarChar(100) // Reference to business
+  cityName      String?  @db.VarChar(100) // City name (optional, for city-specific rates)
+  stateCode     String?  @db.VarChar(10)  // State/province code
+  stateName     String?  @db.VarChar(100) // State/province name
+  taxRate       Decimal  @db.Decimal(5, 2) // Tax rate percentage
+  taxName       String   @db.VarChar(100)  // Tax name (e.g., "Sales Tax", "VAT")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("local_tax_rates")
+}
+
 // NEW ENUMS FOR SALES MANAGEMENT
 enum ReturnStatus {
   NONE

@@ -12,7 +12,9 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderOpen,
-  BarChart3
+  BarChart3,
+  DollarSign,
+  Truck
 } from 'lucide-react';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useSidebarStore } from '../../stores/sidebarStore';
@@ -118,6 +120,20 @@ const AdminLayout: React.FC = () => {
       icon: Globe,
       current: location.pathname.startsWith('/admin/localization'),
       description: 'Languages & currencies'
+    },
+    {
+      name: 'Tax & Shipping',
+      href: '/admin/tax-shipping',
+      icon: DollarSign,
+      current: location.pathname.startsWith('/admin/tax-shipping'),
+      description: 'Tax rates & shipping costs'
+    },
+    {
+      name: 'Delivery Scope',
+      href: '/admin/delivery-scope',
+      icon: Globe,
+      current: location.pathname.startsWith('/admin/delivery-scope'),
+      description: 'Business delivery configuration'
     }
   ];
 

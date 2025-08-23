@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { 
   Settings, 
   ShoppingBag, 
-  MapPin,
+  MapPin, 
   Shield, 
   Star,
   Loader2
@@ -180,11 +180,11 @@ const UserProfile: React.FC = () => {
               <span className="hidden sm:inline">Orders</span>
               <span className="sm:hidden">Orders</span>
             </TabsTrigger>
-                          <TabsTrigger value="addresses" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Addresses</span>
-                <span className="sm:hidden">Addr</span>
-              </TabsTrigger>
+            <TabsTrigger value="addresses" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Addresses</span>
+              <span className="sm:hidden">Addr</span>
+            </TabsTrigger>
 
             <TabsTrigger value="preferences" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
               <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -200,7 +200,7 @@ const UserProfile: React.FC = () => {
           </TabsList>
 
           {/* Orders Tab */}
-                  <TabsContent value="orders" className="space-y-6">
+          <TabsContent value="orders" className="space-y-6">
           <OrdersSection
             orders={orders}
             ordersLoading={ordersLoading}
@@ -210,7 +210,7 @@ const UserProfile: React.FC = () => {
             onPageChange={handlePageChange}
             useOrderDetails={useOrderDetails}
           />
-        </TabsContent>
+          </TabsContent>
 
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-6">
@@ -224,7 +224,7 @@ const UserProfile: React.FC = () => {
               countries={countries}
             />
           </TabsContent>
-                    {/* Enhanced Preferences Tab */}
+          {/* Enhanced Preferences Tab */}
           <TabsContent value="preferences" className="space-y-6">
             <PreferencesSection
               preferences={preferences}
@@ -275,13 +275,13 @@ const UserProfile: React.FC = () => {
               <p className="text-sm text-muted-foreground">Average Rating</p>
             </CardContent>
           </Card>
-                      <Card>
-              <CardContent className="p-4 text-center">
-                <MapPin className="h-8 w-8 mx-auto mb-2 text-green-500" />
-                <p className="text-2xl font-bold">{addresses.length}</p>
-                <p className="text-sm text-muted-foreground">Saved Addresses</p>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <MapPin className="h-8 w-8 mx-auto mb-2 text-green-500" />
+              <p className="text-2xl font-bold">{addresses.length}</p>
+              <p className="text-sm text-muted-foreground">Saved Addresses</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
