@@ -905,6 +905,34 @@ model LocalTaxRate {
   @@map("local_tax_rates")
 }
 
+// Business Configuration
+model BusinessConfig {
+  id              Int      @id @default(autoincrement())
+  businessId      String   @unique @db.VarChar(100) // Unique identifier for the business
+  baseCurrency    String   @db.VarChar(10)          // Business base currency (e.g., PKR)
+  businessName    String   @db.VarChar(200)         // Business name
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("business_configs")
+}
+
+// Exchange Rate Configuration
+model ExchangeRate {
+  id              Int      @id @default(autoincrement())
+  fromCurrency    String   @db.VarChar(10)          // Base currency (e.g., PKR)
+  toCurrency      String   @db.VarChar(10)          // Target currency (e.g., USD, EUR)
+  rate            Decimal  @db.Decimal(10, 6)       // Exchange rate (e.g., 0.0036 for PKR→USD)
+  isBase          Boolean  @default(false)          // True if this is the base currency rate
+  isActive        Boolean  @default(true)
+  lastUpdated     DateTime @default(now())
+  source          String?  @db.VarChar(50)          // Rate source (e.g., "API", "Manual", "Fixer.io")
+
+  @@unique([fromCurrency, toCurrency])
+  @@map("exchange_rates")
+}
+
 // NEW ENUMS FOR SALES MANAGEMENT
 enum ReturnStatus {
   NONE

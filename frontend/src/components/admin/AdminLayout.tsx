@@ -15,7 +15,8 @@ import {
   BarChart3,
   DollarSign,
   Truck,
-  Languages
+  Languages,
+  Currency
 } from 'lucide-react';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useSidebarStore } from '../../stores/sidebarStore';
@@ -135,6 +136,13 @@ const AdminLayout: React.FC = () => {
       icon: Globe,
       current: location.pathname.startsWith('/admin/delivery-scope'),
       description: 'Business delivery configuration'
+    },
+    {
+      name: 'Currency Management',
+      href: '/admin/currency',
+      icon: Currency,
+      current: location.pathname.startsWith('/admin/currency'),
+      description: 'Base currency & exchange rates'
     }
   ];
 

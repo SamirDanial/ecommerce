@@ -26,6 +26,7 @@ import adminCategoryRoutes from './routes/adminCategoryRoutes';
 import adminOrderRoutes from './routes/adminOrderRoutes';
 import adminTaxShippingRoutes from './routes/adminTaxShippingRoutes';
 import adminDeliveryScopeRoutes from './routes/adminDeliveryScopeRoutes';
+import adminCurrencyRoutes from './routes/adminCurrencyRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import currencyRoutes from './routes/currencyRoutes';
 import languageRoutes from './routes/languageRoutes';
@@ -104,6 +105,7 @@ app.use('/api/admin/categories', adminCategoryRoutes);  // ← MUST be before /a
 app.use('/api/admin/localization', adminLocalizationRoutes); // ← MUST be before /api/admin
 app.use('/api/admin/tax-shipping', adminTaxShippingRoutes); // ← MUST be before /api/admin
 app.use('/api/admin/delivery-scope', adminDeliveryScopeRoutes); // ← MUST be before /api/admin
+app.use('/api/admin/currency', adminCurrencyRoutes); // ← MUST be before /api/admin
 app.use('/api/admin', adminRoutes);                     // ← General admin routes (LAST)
 app.use('/api/categories', categoryRoutes);
 // These routes come AFTER admin routes to avoid conflicts

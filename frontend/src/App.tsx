@@ -23,6 +23,7 @@ import AdminAnalytics from './pages/admin/Analytics';
 import AdminLocalization from './pages/admin/Localization';
 import AdminTaxShipping from './pages/admin/TaxShipping';
 import AdminDeliveryScope from './pages/admin/DeliveryScope';
+import CurrencyManagement from './pages/admin/CurrencyManagement';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Categories from './pages/Categories';
@@ -76,6 +77,7 @@ function App() {
                     <Route path="localization" element={<AdminLocalization />} />
                     <Route path="tax-shipping" element={<AdminTaxShipping />} />
                     <Route path="delivery-scope" element={<AdminDeliveryScope />} />
+                                          <Route path="currency" element={<CurrencyManagement />} />
                   </Route>
                   
                   {/* Main Site Routes - With Header/Footer */}
