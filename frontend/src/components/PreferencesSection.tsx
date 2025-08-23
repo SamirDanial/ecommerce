@@ -32,9 +32,6 @@ interface PreferencesSectionProps {
   currenciesLoading: boolean;
   currenciesError: any;
   timezones: Array<{ value: string; label: string; offset: string }>;
-  getFlagEmoji: (languageCode: string) => string;
-  toBackendLanguageCode: (code: string) => string;
-  toBackendCurrencyCode: (code: string) => string;
 }
 
 const PreferencesSection: React.FC<PreferencesSectionProps> = ({
@@ -48,10 +45,7 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   currencies,
   currenciesLoading,
   currenciesError,
-  timezones,
-  getFlagEmoji,
-  toBackendLanguageCode,
-  toBackendCurrencyCode
+  timezones
 }) => {
   // Handle save preferences
   const handleSavePreferences = async () => {
@@ -66,15 +60,8 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
       return;
     }
 
-    // Convert frontend codes to backend codes for API
-    const backendPreferences = {
-      ...localPreferences,
-      language: localPreferences.language ? toBackendLanguageCode(localPreferences.language) : 'ENGLISH',
-      currency: localPreferences.currency ? toBackendCurrencyCode(localPreferences.currency) : 'USD'
-    };
-
     try {
-      await updatePreferencesMutation.mutateAsync(backendPreferences);
+      await updatePreferencesMutation.mutateAsync(localPreferences);
       toast.success('Preferences saved successfully!');
     } catch (error) {
       console.error('Error saving preferences:', error);
@@ -275,12 +262,7 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
                             .map((lang) => ({
                               value: lang.code,
                               label: lang.name,
-                              description: lang.nativeName,
-                              icon: (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg">{getFlagEmoji(lang.code)}</span>
-                                </div>
-                              )
+                              description: lang.nativeName
                             }))}
                           value={localPreferences?.language}
                           onValueChange={(value: string) => setLocalPreferences((prev: UserPreferences) => ({ ...prev, language: value }))}
