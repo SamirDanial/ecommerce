@@ -41,7 +41,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
   onPageChange,
   useOrderDetails
 }) => {
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatConvertedPrice, formatPriceWithCurrency } = useCurrency();
   const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
@@ -157,7 +157,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                             })}
                           </div>
                                                   <div className="text-sm text-gray-500">
-                          {order.itemCount} items • {formatPrice(toNumber(order.shipping))} shipping
+                          {order.itemCount} items • {formatPriceWithCurrency(toNumber(order.shipping), order.currency)} shipping
                         </div>
                         </div>
                       </div>
@@ -165,7 +165,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                         {getStatusBadge(order.status)}
                         <div className="text-right">
                           <div className="text-xl font-bold text-gray-900">
-                            {formatPrice(toNumber(order.total))}
+                            {formatPriceWithCurrency(toNumber(order.total), order.currency)}
                           </div>
                           <div className="text-sm text-gray-500">{order.currency}</div>
                         </div>
@@ -189,14 +189,14 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                         <div className="text-right">
                           <div className="text-sm text-gray-500 mb-0.5 leading-tight">Total Amount</div>
                           <div className="text-lg font-bold text-gray-900 leading-tight">
-                            {formatPrice(toNumber(order.total))} {order.currency}
+                            {formatPriceWithCurrency(toNumber(order.total), order.currency)}
                           </div>
                         </div>
                       </div>
                       
                       {/* Items and Shipping Info */}
                       <div className="text-sm text-gray-500 mb-0 sm:mb-2 leading-tight">
-                        {order.itemCount} items • {formatPrice(toNumber(order.shipping))} shipping
+                        {order.itemCount} items • {formatPriceWithCurrency(toNumber(order.shipping), order.currency)} shipping
                       </div>
                     </div>
                   </div>
@@ -358,24 +358,24 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">{formatPrice(toNumber(selectedOrder.subtotal))}</span>
+                    <span className="font-medium">{formatPriceWithCurrency(toNumber(selectedOrder.subtotal), selectedOrder.currency)}</span>
                   </div>
                   
                   <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">Tax</span>
-                    <span className="font-medium">{formatPrice(toNumber(selectedOrder.tax))}</span>
+                    <span className="font-medium">{formatPriceWithCurrency(toNumber(selectedOrder.tax), selectedOrder.currency)}</span>
                   </div>
                   
                   <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">Shipping</span>
-                    <span className="font-medium">{formatPrice(toNumber(selectedOrder.shipping))}</span>
+                    <span className="font-medium">{formatPriceWithCurrency(toNumber(selectedOrder.shipping), selectedOrder.currency)}</span>
                   </div>
                   
                   {toNumber(selectedOrder.discount) > 0 && (
                     <div className="flex justify-between items-center py-2 bg-green-50 p-3 rounded-lg">
                       <span className="text-green-700 font-medium">Discount Applied</span>
                       <span className="text-green-700 font-bold">
-                        -{formatPrice(toNumber(selectedOrder.discount))}
+                        -{formatPriceWithCurrency(toNumber(selectedOrder.discount), selectedOrder.currency)}
                       </span>
                     </div>
                   )}
@@ -385,7 +385,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                   <div className="flex justify-between items-center py-3 bg-gray-50 p-3 sm:p-4 rounded-lg">
                     <span className="text-lg sm:text-xl font-semibold text-gray-900">Total</span>
                     <span className="text-xl sm:text-2xl font-bold text-gray-900">
-                      {formatPrice(toNumber(selectedOrder.total))} {selectedOrder.currency}
+                      {formatPriceWithCurrency(toNumber(selectedOrder.total), selectedOrder.currency)}
                     </span>
                   </div>
                 </div>
@@ -448,10 +448,10 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                                 {/* Price and Quantity */}
                                 <div className="flex items-center justify-between">
                                   <div className="text-sm text-gray-600">
-                                    Qty: {item.quantity} × {formatPrice(toNumber(item.price))}
+                                    Qty: {item.quantity} × {formatPriceWithCurrency(toNumber(item.price), selectedOrder.currency)}
                                   </div>
                                   <div className="font-semibold text-gray-900">
-                                    {formatPrice(toNumber(item.total))}
+                                    {formatPriceWithCurrency(toNumber(item.total), selectedOrder.currency)}
                                   </div>
                                 </div>
                               </div>

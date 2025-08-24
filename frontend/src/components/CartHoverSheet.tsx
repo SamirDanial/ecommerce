@@ -35,7 +35,9 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
     removeFromCart
   } = useCartStore();
   
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatConvertedPrice } = useCurrency();
+  
+
 
   // Detect mobile device
   useEffect(() => {
@@ -96,6 +98,8 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
 
   const cartTotal = getTotalItems();
   const total = getTotal();
+  
+
 
   return (
     <div 
@@ -272,7 +276,7 @@ const CartHoverSheet: React.FC<CartHoverSheetProps> = ({ children }) => {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-lg font-bold text-gray-900 dark:text-gray-100">Total:</span>
                   <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {formatPrice(total)}
+                    {formatConvertedPrice(total)}
                   </span>
                 </div>
                 

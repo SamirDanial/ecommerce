@@ -4,6 +4,7 @@ import { validateDiscountCode, DiscountCode } from '../services/discountService'
 import { CurrencyService } from '../services/currencyService';
 import { LanguageService } from '../services/languageService';
 import { DeliveryScopeService, DeliveryScope, ShippingRate } from '../services/deliveryScopeService';
+import { TaxService, TaxRate } from '../services/taxService';
 
 // Fallback currencies (used when API is not available)
 export const fallbackCurrencies: DynamicCurrency[] = [
@@ -35,12 +36,7 @@ export const fallbackLanguages: DynamicLanguage[] = [
   { id: 15, code: 'th', name: 'Thai', nativeName: 'ไทย', isActive: true, isDefault: false, isRTL: false }
 ];
 
-// Shipping costs
-export const shippingCosts = {
-  standard: 5.99,
-  express: 12.99,
-  overnight: 24.99
-};
+
 
 // Tax rate (8.25%)
 export const TAX_RATE = 0.0825;
@@ -129,10 +125,19 @@ interface CartState {
   // Shipping & Taxes
   shippingAddress: ShippingAddress | null;
   setShippingAddress: (address: ShippingAddress | null) => void;
-  shippingMethod: 'standard' | 'express' | 'overnight';
-  setShippingMethod: (method: 'standard' | 'express' | 'overnight') => void;
+  currentShippingRate: ShippingRate | null;
+  isLoadingShippingRate: boolean;
+  fetchShippingRate: (countryCode: string, stateCode?: string, token?: string) => Promise<void>;
+  currentTaxRate: TaxRate | null;
+  isLoadingTaxRate: boolean;
+  fetchTaxRate: (countryCode: string, stateCode?: string, cityCode?: string, token?: string) => Promise<void>;
+
   getShippingCost: () => number;
   getTaxAmount: () => number;
+  
+  // Delivery Availability
+  isDeliveryAvailable: () => boolean;
+  getDeliveryUnavailableMessage: () => string;
   
   // Delivery Scope & International Delivery
   deliveryScope: DeliveryScope | null;
@@ -165,7 +170,7 @@ export const useCartStore = create<CartState>()(
       items: [],
       selectedCurrency: fallbackCurrencies[0],
       shippingAddress: null,
-      shippingMethod: 'standard',
+      
       appliedDiscount: null,
       selectedLanguage: fallbackLanguages[0],
       
@@ -178,6 +183,14 @@ export const useCartStore = create<CartState>()(
       // Delivery scope state
       deliveryScope: null,
       isLoadingDeliveryScope: false,
+      
+      // Shipping rate state
+      currentShippingRate: null,
+      isLoadingShippingRate: false,
+      
+      // Tax rate state
+      currentTaxRate: null,
+      isLoadingTaxRate: false,
 
       // Cart item methods
       addToCart: (product, quantity = 1, color, size, imageUrl?: string, variantPrice?: number, variantComparePrice?: number) => {
@@ -303,19 +316,45 @@ export const useCartStore = create<CartState>()(
       },
 
       getSubtotal: () => {
-        const { items } = get();
+        const { items, selectedCurrency } = get();
         const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
-        return subtotal;
+        // Convert to user's selected currency
+        return subtotal * selectedCurrency.rate;
       },
 
       getTotal: () => {
-        const { getSubtotal, getShippingCost, getTaxAmount, getDiscountAmount } = get();
+        const { getSubtotal, getDiscountAmount, getShippingCost, getTaxAmount, shippingAddress, selectedCurrency } = get();
         const subtotal = getSubtotal();
-        const shipping = getShippingCost();
-        const tax = getTaxAmount();
         const discount = getDiscountAmount();
         
-        return Math.max(0, subtotal + shipping + tax - discount);
+        // If no shipping address is selected, total should just be subtotal
+        if (!shippingAddress) {
+          return Math.max(0, subtotal - discount);
+        }
+        
+        // Get amounts in their respective currencies
+        const baseShippingCost = getShippingCost(); // Base currency (PKR)
+        const taxAmount = getTaxAmount(); // User's selected currency
+        
+        // Convert shipping cost from base currency to user currency
+        const shippingCost = baseShippingCost * selectedCurrency.rate;
+        
+        // Total = subtotal + shipping + tax - discount
+        // All amounts are now in the same currency (user's selected currency)
+        const total = Math.max(0, subtotal + shippingCost + taxAmount - discount);
+        
+        // Debug logging
+        console.log('🔍 Total Calculation Debug:', {
+          subtotal,
+          baseShippingCost,
+          taxAmount,
+          shippingCost,
+          discount,
+          total,
+          hasAddress: !!shippingAddress
+        });
+        
+        return total;
       },
 
       getSavings: () => {
@@ -334,32 +373,107 @@ export const useCartStore = create<CartState>()(
         set({ shippingAddress: address });
       },
 
-      setShippingMethod: (method) => {
-        set({ shippingMethod: method });
-      },
+      
 
-      getShippingCost: () => {
-        const { shippingMethod, selectedCurrency } = get();
-        const baseCost = shippingCosts[shippingMethod];
-        return baseCost * selectedCurrency.rate;
-      },
+              getShippingCost: () => {
+          const { currentShippingRate, shippingAddress } = get();
+          
+          // If no shipping address is selected, return 0
+          if (!shippingAddress) {
+            return 0;
+          }
+          
+          // Use dynamic shipping rate if available, otherwise fallback to standard
+          // Return shipping cost in base currency (PKR) - frontend will convert for display
+          return currentShippingRate?.shippingCost || 5.99;
+        },
 
       getTaxAmount: () => {
-        const { getSubtotal, getShippingCost, getDiscountAmount } = get();
+        const { getSubtotal, getDiscountAmount, currentTaxRate, shippingAddress, selectedCurrency } = get();
+        
+        // If no shipping address is selected, return 0
+        if (!shippingAddress) {
+          return 0;
+        }
+        
         const subtotal = getSubtotal();
-        const shipping = getShippingCost();
         const discount = getDiscountAmount();
         
-        // Tax is calculated on subtotal + shipping - discount
-        const taxableAmount = Math.max(0, subtotal + shipping - discount);
-        return taxableAmount * TAX_RATE;
+        // Use dynamic tax rate if available, otherwise fallback to default
+        // The taxRate from backend is a percentage (e.g., "15" for 15%)
+        const taxRatePercentage = currentTaxRate?.taxRate || TAX_RATE;
+        
+        // Convert percentage to decimal (e.g., "15" → 0.15)
+        const taxRate = typeof taxRatePercentage === 'string' 
+          ? parseFloat(taxRatePercentage) / 100 
+          : taxRatePercentage / 100;
+        
+        // Tax is calculated ONLY on subtotal - discount (not on shipping)
+        // Both subtotal and discount are in user's selected currency
+        const taxableAmount = Math.max(0, subtotal - discount);
+        const taxAmount = taxableAmount * taxRate;
+        
+        // Debug logging for tax calculation
+        console.log('🔍 Tax Calculation Debug:', {
+          subtotal,
+          discount,
+          taxableAmount,
+          taxRatePercentage,
+          taxRate,
+          taxAmount,
+          currency: selectedCurrency.code
+        });
+        
+        // Return tax amount in user's selected currency (no conversion needed)
+        return taxAmount;
+      },
+
+      // Delivery availability methods
+      isDeliveryAvailable: () => {
+        const { currentShippingRate, currentTaxRate, shippingAddress } = get();
+        
+        // If no address selected, delivery is not available
+        if (!shippingAddress) {
+          return false;
+        }
+        
+        // Check if both shipping and tax rates are available AND active
+        return !!(currentShippingRate?.isActive && currentTaxRate);
+      },
+
+      getDeliveryUnavailableMessage: () => {
+        const { shippingAddress, currentShippingRate, currentTaxRate } = get();
+        
+        if (!shippingAddress) {
+          return "Please select a shipping address to continue";
+        }
+        
+        const countryName = shippingAddress.country;
+        
+        // Check if shipping rate exists but is inactive
+        if (currentShippingRate && !currentShippingRate.isActive) {
+          return `Sorry, we currently don't have delivery in ${currentShippingRate.countryName || countryName} yet. Please contact support for more information.`;
+        }
+        
+        if (!currentShippingRate && !currentTaxRate) {
+          return `Sorry, we currently don't have delivery in ${countryName} yet. Please contact support for more information.`;
+        } else if (!currentShippingRate) {
+          return `Sorry, we currently don't have shipping rates for ${countryName} yet. Please contact support for more information.`;
+        } else if (!currentTaxRate) {
+          return `Sorry, we currently don't have tax rates for ${countryName} yet. Please contact support for more information.`;
+        }
+        
+        return "Delivery is available for this location";
       },
 
       // Discount methods
       applyDiscountCode: async (code, token?: string) => {
         try {
-          const subtotal = get().getSubtotal();
-          const validation = await validateDiscountCode(code, subtotal, token);
+          // Get subtotal in base currency for backend validation
+          const { items, selectedCurrency } = get();
+          const baseSubtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
+          
+          const validation = await validateDiscountCode(code, baseSubtotal, token);
           
           if (validation.isValid && validation.discount) {
             // Store both the discount code and the calculated amount
@@ -384,12 +498,13 @@ export const useCartStore = create<CartState>()(
       },
 
       getDiscountAmount: () => {
-        const { appliedDiscount, getSubtotal } = get();
+        const { appliedDiscount, getSubtotal, selectedCurrency } = get();
         if (!appliedDiscount) return 0;
         
         // Use the pre-calculated amount from the backend if available
         if (appliedDiscount.calculatedAmount !== undefined) {
-          return appliedDiscount.calculatedAmount;
+          // Convert backend amount to user's currency
+          return appliedDiscount.calculatedAmount * selectedCurrency.rate;
         }
         
         // Fallback to local calculation if needed
@@ -400,12 +515,13 @@ export const useCartStore = create<CartState>()(
         if (appliedDiscount.type === 'PERCENTAGE') {
           discountAmount = subtotal * (appliedDiscount.value / 100);
         } else {
-          discountAmount = appliedDiscount.value;
+          // Convert fixed amount to user's currency
+          discountAmount = appliedDiscount.value * selectedCurrency.rate;
         }
         
         // Apply max discount limit if specified
         if (appliedDiscount.maxDiscount) {
-          discountAmount = Math.min(discountAmount, appliedDiscount.maxDiscount);
+          discountAmount = Math.min(discountAmount, appliedDiscount.maxDiscount * selectedCurrency.rate);
         }
         
         return discountAmount;
@@ -482,6 +598,38 @@ export const useCartStore = create<CartState>()(
           set({ isLoadingDeliveryScope: false });
         }
       },
+      
+      // Shipping rate methods
+      fetchShippingRate: async (countryCode: string, stateCode?: string, token?: string) => {
+        try {
+          set({ isLoadingShippingRate: true });
+          const rates = await DeliveryScopeService.getShippingRates(countryCode, stateCode, token);
+          // Use the first matching rate or null if none found
+          const rate = rates.length > 0 ? rates[0] : null;
+          set({ 
+            currentShippingRate: rate,
+            isLoadingShippingRate: false 
+          });
+        } catch (error) {
+          console.error('Failed to fetch shipping rate:', error);
+          set({ isLoadingShippingRate: false });
+        }
+      },
+      
+      // Tax rate methods
+      fetchTaxRate: async (countryCode: string, stateCode?: string, cityCode?: string, token?: string) => {
+        try {
+          set({ isLoadingTaxRate: true });
+          const taxRate = await TaxService.getTaxRate(countryCode, stateCode, cityCode, token);
+          set({ 
+            currentTaxRate: taxRate,
+            isLoadingTaxRate: false 
+          });
+        } catch (error) {
+          console.error('Failed to fetch tax rate:', error);
+          set({ isLoadingTaxRate: false });
+        }
+      },
     }),
     {
       name: 'cart-store',
@@ -489,7 +637,7 @@ export const useCartStore = create<CartState>()(
         items: state.items,
         selectedCurrency: state.selectedCurrency,
         shippingAddress: state.shippingAddress,
-        shippingMethod: state.shippingMethod,
+
         selectedLanguage: state.selectedLanguage,
       }),
     }

@@ -252,5 +252,171 @@ router.post('/format', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/currencies/checkout/tax-rate
+ * Get tax rate for checkout (public endpoint - no authentication required)
+ */
+router.get('/checkout/tax-rate', async (req, res) => {
+  try {
+    const { country, state, city } = req.query;
+    
+    if (!country) {
+      return res.status(400).json({
+        success: false,
+        error: 'Country code is required'
+      });
+    }
+
+    // Import Prisma here to avoid circular dependencies
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    // Build where clause for location matching
+    const where: any = {
+      countryCode: country as string,
+      isActive: true
+    };
+
+    // Add state if provided
+    if (state) {
+      where.stateCode = state as string;
+    }
+
+    // Note: TaxRate model doesn't have cityCode field, only countryCode and stateCode
+    console.log('🔍 Tax Rate Query Debug:', { country, state, city, where });
+
+    // Debug: Show all tax rates for this country
+    const allRatesForCountry = await prisma.taxRate.findMany({
+      where: { countryCode: country as string, isActive: true }
+    });
+    console.log('🔍 All tax rates for country:', allRatesForCountry);
+
+    // Find the most specific tax rate for the location
+    let taxRate = await prisma.taxRate.findFirst({
+      where,
+      orderBy: [
+        { stateCode: 'desc' }, // Most specific first (state > country)
+        { countryCode: 'desc' }
+      ]
+    });
+
+    // If no state-specific rate found and state was provided, try country-level only
+    if (!taxRate && state) {
+      console.log('🔍 No state-specific rate found, trying country-level...');
+      taxRate = await prisma.taxRate.findFirst({
+        where: {
+          countryCode: country as string,
+          isActive: true,
+          stateCode: null // Country-level rate
+        }
+      });
+    }
+
+    await prisma.$disconnect();
+
+    if (!taxRate) {
+      return res.status(404).json({
+        success: false,
+        error: 'No tax rate found for this location'
+      });
+    }
+
+    // Return only the essential tax information
+    res.json({
+      success: true,
+      data: {
+        taxRate: taxRate.taxRate,
+        taxName: taxRate.taxName
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching checkout tax rate:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tax rate'
+    });
+  }
+});
+
+/**
+ * GET /api/currencies/checkout/shipping-rate
+ * Get shipping rate for checkout (public endpoint - no authentication required)
+ */
+router.get('/checkout/shipping-rate', async (req, res) => {
+  try {
+    const { country, state } = req.query;
+    
+    if (!country) {
+      return res.status(400).json({
+        success: false,
+        error: 'Country code is required'
+      });
+    }
+
+    // Import Prisma here to avoid circular dependencies
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    // Build where clause for location matching
+    const where: any = {
+      countryCode: country as string,
+      isActive: true
+    };
+
+    // Add state if provided
+    if (state) {
+      where.stateCode = state as string;
+    }
+
+    console.log('🔍 Shipping Rate Query Debug:', { country, state, where });
+
+    // Find the most specific shipping rate for the location
+    let shippingRate = await prisma.shippingRate.findFirst({
+      where,
+      orderBy: [
+        { stateCode: 'desc' }, // Most specific first (state > country)
+        { countryCode: 'desc' }
+      ]
+    });
+
+    // If no state-specific rate found and state was provided, try country-level only
+    if (!shippingRate && state) {
+      console.log('🔍 No state-specific shipping rate found, trying country-level...');
+      shippingRate = await prisma.shippingRate.findFirst({
+        where: {
+          countryCode: country as string,
+          isActive: true,
+          stateCode: null // Country-level rate
+        }
+      });
+    }
+
+    await prisma.$disconnect();
+
+    if (!shippingRate) {
+      return res.status(404).json({
+        success: false,
+        error: 'No shipping rate found for this location'
+      });
+    }
+
+    // Return only the essential shipping information
+    res.json({
+      success: true,
+      data: {
+        shippingCost: shippingRate.shippingCost,
+        deliveryDays: shippingRate.deliveryDays,
+        countryName: shippingRate.countryName
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching checkout shipping rate:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch shipping rate'
+    });
+  }
+});
+
 export default router;
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore, shippingCosts } from '../stores/cartStore';
+import { useCartStore } from '../stores/cartStore';
 import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useProfile } from '../hooks/useProfile';
 import { getSavedAddresses, SavedAddress, createAddress, updateAddress, deleteAddress, CreateAddressRequest } from '../services/addressService';
@@ -135,8 +135,7 @@ const Checkout: React.FC = () => {
     setCurrency,
     shippingAddress,
     setShippingAddress,
-    shippingMethod,
-    setShippingMethod,
+
     appliedDiscount,
     applyDiscountCode,
     removeDiscountCode,
@@ -156,7 +155,15 @@ const Checkout: React.FC = () => {
     fetchCurrencies,
     fetchLanguages,
     deliveryScope,
-    fetchDeliveryScope
+    fetchDeliveryScope,
+    currentShippingRate,
+    isLoadingShippingRate,
+    fetchShippingRate,
+    currentTaxRate,
+    isLoadingTaxRate,
+    fetchTaxRate,
+    isDeliveryAvailable,
+    getDeliveryUnavailableMessage
   } = useCartStore();
 
   // Load currencies and languages on component mount
@@ -165,6 +172,24 @@ const Checkout: React.FC = () => {
     fetchLanguages();
     fetchDeliveryScope();
   }, [fetchCurrencies, fetchLanguages, fetchDeliveryScope]);
+  
+  // Fetch shipping rates and tax rates when address is selected
+  useEffect(() => {
+    if (selectedAddress) {
+      // Get token for authenticated API calls
+      getToken().then(token => {
+        if (token) {
+          fetchShippingRate(selectedAddress.country, selectedAddress.state, token);
+          fetchTaxRate(selectedAddress.country, selectedAddress.state, selectedAddress.city, token);
+        }
+      }).catch(error => {
+        console.error('Failed to get token for shipping/tax rates:', error);
+        // Fallback to unauthenticated calls
+        fetchShippingRate(selectedAddress.country, selectedAddress.state);
+        fetchTaxRate(selectedAddress.country, selectedAddress.state, selectedAddress.city);
+      });
+    }
+  }, [selectedAddress, fetchShippingRate, fetchTaxRate, getToken]);
 
   // Load saved addresses only once when component mounts and user is authenticated
   useEffect(() => {
@@ -265,6 +290,9 @@ const Checkout: React.FC = () => {
         postalCode: selectedAddress.postalCode,
         country: selectedAddress.country
       });
+    } else {
+      // Clear shipping address when no address is selected
+      setShippingAddress(null);
     }
   }, [selectedAddress, setShippingAddress]);
 
@@ -765,6 +793,8 @@ const Checkout: React.FC = () => {
                           <StripePaymentForm
                             amount={(() => {
                               const total = getTotal();
+                              // Pass the total amount in dollars (not cents) - StripePaymentForm will convert to cents
+                              
                               console.log('💰 Checkout - Amount being passed to StripePaymentForm:', {
                                 total,
                                 currency: selectedCurrency.code,
@@ -778,30 +808,54 @@ const Checkout: React.FC = () => {
                             orderDetails={{
                               items: items.map(item => {
                                 console.log('🔍 Cart item being processed:', item);
-                                return {
+                                // Convert item prices from base currency to user's selected currency
+                                const itemPriceInUserCurrency = item.price * selectedCurrency.rate;
+                                const itemTotalInUserCurrency = itemPriceInUserCurrency * item.quantity;
+                                const itemComparePriceInUserCurrency = item.comparePrice ? item.comparePrice * selectedCurrency.rate : undefined;
+                                
+                                const convertedItem = {
                                   id: item.id,
                                   name: item.name,
                                   quantity: item.quantity,
-                                  price: item.price,
+                                  price: itemPriceInUserCurrency, // Store in user's selected currency
+                                  total: itemTotalInUserCurrency, // Store total in user's selected currency
+                                  comparePrice: itemComparePriceInUserCurrency, // Store compare price in user's selected currency
                                   image: item.image || undefined,
                                   variantId: undefined, // Backend will look this up
                                   size: item.selectedSize,
                                   color: item.selectedColor,
-                                  sku: undefined // Backend will look this up
+                                  sku: undefined, // Backend will look this up
+                                  basePrice: item.price, // Keep original base currency price for reference
+                                  baseCurrency: 'PKR' // Store base currency info
                                 };
+                                
+                                console.log('💰 Converted item prices:', {
+                                  original: { price: item.price, comparePrice: item.comparePrice },
+                                  converted: { 
+                                    price: itemPriceInUserCurrency, 
+                                    total: itemTotalInUserCurrency,
+                                    comparePrice: itemComparePriceInUserCurrency 
+                                  },
+                                  currency: selectedCurrency.code,
+                                  rate: selectedCurrency.rate
+                                });
+                                
+                                return convertedItem;
                               }),
                               discount: appliedDiscount ? {
                                 code: appliedDiscount.code,
-                                amount: getDiscountAmount(),
+                                amount: getDiscountAmount(), // Store in user's selected currency
                                 type: appliedDiscount.type,
                                 value: appliedDiscount.value,
-                                calculatedAmount: getDiscountAmount()
+                                calculatedAmount: getDiscountAmount() // Store in user's selected currency
                               } : null,
-                              subtotal: getSubtotal(),
-                              total: getTotal(),
-                              shippingMethod: shippingMethod,
-                              shippingCost: getShippingCost(),
-                              tax: getTaxAmount()
+                              subtotal: getSubtotal(), // Store in user's selected currency
+                              total: getTotal(), // Store in user's selected currency
+                              shippingMethod: 'Standard',
+                              shippingCost: (currentShippingRate?.shippingCost || 5.99) * selectedCurrency.rate, // Convert to user's currency
+                              tax: getTaxAmount(), // Already in user's selected currency
+                              currency: selectedCurrency.code, // Store the currency used for payment
+                              currencyRate: selectedCurrency.rate // Store the exchange rate used
                             }}
                             onPaymentSuccess={(paymentIntent) => {
                               clearCart();
@@ -918,7 +972,7 @@ const Checkout: React.FC = () => {
                           </p>
                         </div>
                         <p className="font-semibold text-sm text-gray-900">
-                          {formatPrice(item.price * item.quantity * selectedCurrency.rate)}
+                                                          {formatPrice(item.price * item.quantity * selectedCurrency.rate)}
                         </p>
                       </div>
                     ))}
@@ -927,35 +981,7 @@ const Checkout: React.FC = () => {
                 
                 <Separator className="bg-gray-200" />
                 
-                {/* Enhanced Shipping Method */}
-                <div className="space-y-3">
-                  <Label className="text-gray-900 font-semibold">Shipping Method</Label>
-                  <div className="space-y-2">
-                    {Object.entries(shippingCosts).map(([method, cost]) => (
-                      <label key={method} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                        shippingMethod === method 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }`}>
-                        <input
-                          type="radio"
-                          id={method}
-                          name="shippingMethod"
-                          value={method}
-                          checked={shippingMethod === method}
-                          onChange={(e) => setShippingMethod(e.target.value as any)}
-                          className="h-4 w-4 text-blue-600"
-                        />
-                        <div className="flex items-center justify-between w-full">
-                          <span className="capitalize font-medium text-gray-900">{method}</span>
-                          <span className="font-semibold text-gray-900">{formatPrice(cost * selectedCurrency.rate)}</span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                
-                <Separator className="bg-gray-200" />
+
                 
                 {/* Enhanced Discount Code */}
                 <div className="space-y-3">
@@ -1019,12 +1045,34 @@ const Checkout: React.FC = () => {
                     
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Shipping</span>
-                      <span className="font-medium text-gray-900">{formatPrice(getShippingCost())}</span>
+                      <span className="font-medium text-gray-900">
+                        {!selectedAddress ? (
+                          <span className="text-gray-400">Select address</span>
+                        ) : isLoadingShippingRate ? (
+                          <span className="text-gray-400">Calculating...</span>
+                        ) : !isDeliveryAvailable() ? (
+                          <span className="text-red-500 text-xs">
+                            {currentShippingRate && !currentShippingRate.isActive ? 'Inactive' : 'Not available'}
+                          </span>
+                        ) : (
+                          formatPrice(getShippingCost() * selectedCurrency.rate)
+                        )}
+                      </span>
                     </div>
                     
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Tax</span>
-                      <span className="font-medium text-gray-900">{formatPrice(getTaxAmount())}</span>
+                      <span className="font-medium text-gray-900">
+                        {!selectedAddress ? (
+                          <span className="text-gray-400">Select address</span>
+                        ) : isLoadingTaxRate ? (
+                          <span className="text-gray-400">Calculating...</span>
+                        ) : !isDeliveryAvailable() ? (
+                          <span className="text-red-500 text-xs">Not available</span>
+                        ) : (
+                          formatPrice(getTaxAmount())
+                        )}
+                      </span>
                     </div>
                     
                     {appliedDiscount && (
@@ -1041,6 +1089,18 @@ const Checkout: React.FC = () => {
                     <span>Total</span>
                     <span className="text-2xl">{formatPrice(getTotal())}</span>
                   </div>
+                  
+                  {/* Delivery Unavailable Message */}
+                  {selectedAddress && !isDeliveryAvailable() && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start space-x-2 text-red-600">
+                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                          {getDeliveryUnavailableMessage()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Continue to Payment Button - Mobile First */}
@@ -1055,7 +1115,7 @@ const Checkout: React.FC = () => {
                         <>
                           <Button 
                             onClick={() => setCurrentStep('payment')} 
-                            disabled={!selectedAddress || items.some(item => !item.selectedColor || !item.selectedSize) || isInternationalBlocked}
+                            disabled={!selectedAddress || items.some(item => !item.selectedColor || !item.selectedSize) || isInternationalBlocked || !isDeliveryAvailable()}
                             className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
                           >
                             Continue to Payment

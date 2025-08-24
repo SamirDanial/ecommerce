@@ -25,12 +25,14 @@ const Cart: React.FC = () => {
     getSavings
   } = useCartStore();
   
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatConvertedPrice } = useCurrency();
   
   const { addInteraction } = useUserInteractionStore();
   const { isAuthenticated } = useClerkAuth();
   const { navigateToLogin } = useAuthRedirect();
   const [isClearing, setIsClearing] = useState(false);
+  
+
 
   // Use actual authentication state
   const isLoggedIn = isAuthenticated;
@@ -271,7 +273,7 @@ const Cart: React.FC = () => {
                 {getSavings() > 0 && (
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-full">
                     <span className="text-sm font-medium text-green-800">
-                      Save {formatPrice(getSavings())}
+                      Save {formatConvertedPrice(getSavings())}
                     </span>
                   </div>
                 )}
@@ -394,7 +396,7 @@ const Cart: React.FC = () => {
                                 </>
                               ) : (
                                 <span className="font-bold text-2xl text-blue-600">
-                                  {formatPrice(item.price)}
+                                                                      {formatPrice(item.price)}
                                 </span>
                               )}
                             </div>
@@ -482,13 +484,13 @@ const Cart: React.FC = () => {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600">Subtotal ({getTotalItems()} items)</span>
-                    <span className="font-semibold text-gray-900">{formatPrice(getSubtotal())}</span>
+                    <span className="font-semibold text-gray-900">{formatConvertedPrice(getSubtotal())}</span>
                   </div>
                   
                   {getSavings() > 0 && (
                     <div className="flex justify-between items-center py-2 bg-green-50 px-3 rounded-lg">
                       <span className="text-green-700 font-medium">Total Savings</span>
-                      <span className="font-bold text-green-700">-{formatPrice(getSavings())}</span>
+                      <span className="font-bold text-green-700">-{formatConvertedPrice(getSavings())}</span>
                     </div>
                   )}
                 </div>

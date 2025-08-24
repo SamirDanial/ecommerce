@@ -21,6 +21,8 @@ interface CurrencyContextType {
   availableCurrencies: CurrencyConfig[];
   isLoading: boolean;
   formatPrice: (price: number) => string;
+  formatConvertedPrice: (price: number) => string;
+  formatPriceWithCurrency: (price: number, currencyCode: string, currencySymbol?: string) => string;
   convertPrice: (price: number) => number;
   setCurrency: (currency: CurrencyConfig) => void;
   refreshCurrencies: () => Promise<void>;
@@ -120,9 +122,11 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
   }, [preferencesLoading, preferences?.currency, fetchCurrencies]);
 
   // Format price with currency symbol and proper positioning
+  // This function converts from base currency to selected currency
   const formatPrice = (price: number): string => {
     if (!selectedCurrency) return `$${price.toFixed(1).replace(/\.0$/, '')}`;
     
+    // Convert from base currency to selected currency
     const convertedPrice = convertPrice(price);
     const formattedAmount = convertedPrice.toFixed(1).replace(/\.0$/, '');
     
@@ -130,6 +134,43 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
       return `${selectedCurrency.symbol}${formattedAmount}`;
     } else {
       return `${formattedAmount}${selectedCurrency.symbol}`;
+    }
+  };
+
+  // Format already-converted price with currency symbol (no conversion)
+  const formatConvertedPrice = (price: number): string => {
+    if (!selectedCurrency) return `$${price.toFixed(1).replace(/\.0$/, '')}`;
+    
+    // Don't convert again - price should already be in selected currency
+    const formattedAmount = price.toFixed(1).replace(/\.0$/, '');
+    
+    if (selectedCurrency.position === 'before') {
+      return `${selectedCurrency.symbol}${formattedAmount}`;
+    } else {
+      return `${formattedAmount}${selectedCurrency.symbol}`;
+    }
+  };
+
+  // Format price with specific currency (for order history, etc.)
+  const formatPriceWithCurrency = (price: number, currencyCode: string, currencySymbol?: string): string => {
+    // Find the currency config for the specified currency code
+    const currency = availableCurrencies.find(c => c.code === currencyCode);
+    
+    if (!currency && !currencySymbol) {
+      // Fallback to currency code if no symbol available
+      return `${currencyCode} ${price.toFixed(1).replace(/\.0$/, '')}`;
+    }
+    
+    const formattedAmount = price.toFixed(1).replace(/\.0$/, '');
+    const symbol = currencySymbol || currency?.symbol || currencyCode;
+    
+    // Default to before position for most currencies
+    const position = currency?.position || 'before';
+    
+    if (position === 'before') {
+      return `${symbol}${formattedAmount}`;
+    } else {
+      return `${formattedAmount}${symbol}`;
     }
   };
 
@@ -154,6 +195,8 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
     availableCurrencies,
     isLoading: isLoading || preferencesLoading,
     formatPrice,
+    formatConvertedPrice,
+    formatPriceWithCurrency,
     convertPrice,
     setCurrency: handleSetCurrency,
     refreshCurrencies

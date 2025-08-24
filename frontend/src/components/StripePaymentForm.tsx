@@ -18,10 +18,14 @@ interface StripePaymentFormProps {
       name: string;
       quantity: number;
       price: number;
+      total: number; // Total price for this item in user's currency
+      comparePrice?: number; // Compare price in user's currency
       variantId?: number;
       size?: string;
       color?: string;
       sku?: string;
+      basePrice?: number; // Original price in base currency
+      baseCurrency?: string; // Base currency code
     }>;
     discount?: {
       code: string;
@@ -35,6 +39,8 @@ interface StripePaymentFormProps {
     shippingMethod?: string;
     shippingCost?: number;
     tax?: number; // Add tax field for UI values
+    currency?: string; // Currency used for payment (e.g., 'USD', 'EUR')
+    currencyRate?: number; // Exchange rate used for conversion
   };
   onPaymentSuccess: (paymentIntent: any) => void;
   onPaymentError: (error: string) => void;
