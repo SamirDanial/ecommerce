@@ -551,7 +551,8 @@ const DeliveryScope: React.FC = () => {
                 {loading ? (
                   <div className="text-center py-8">Loading...</div>
                 ) : deliveryScope ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    {/* Basic Info Section */}
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Business Name</Label>
@@ -566,9 +567,11 @@ const DeliveryScope: React.FC = () => {
                         <p className="text-lg font-semibold">{deliveryScope.primaryCurrency}</p>
                       </div>
                     </div>
+                    
+                    {/* Settings Section */}
                     <div className="space-y-4">
-                      <div className="flex items-start space-x-8">
-                        <div className="flex-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
                           <Label className="text-sm font-medium text-muted-foreground">International Delivery</Label>
                           <div className="flex items-center space-x-2 mt-2">
                             <Switch checked={deliveryScope.hasInternationalDelivery} disabled />
@@ -577,7 +580,7 @@ const DeliveryScope: React.FC = () => {
                             </Badge>
                           </div>
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <Label className="text-sm font-medium text-muted-foreground">Tax Application</Label>
                           <div className="flex items-center space-x-2 mt-2">
                             <Switch checked={deliveryScope.applyTaxesAtCheckout} disabled />
@@ -587,14 +590,13 @@ const DeliveryScope: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-start space-x-8">
-                        <div className="flex-1">
-                          <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                          <div className="mt-2">
-                            <Badge variant={deliveryScope.isActive ? "default" : "secondary"}>
-                              {deliveryScope.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                        <div className="mt-2">
+                          <Badge variant={deliveryScope.isActive ? "default" : "secondary"}>
+                            {deliveryScope.isActive ? "Active" : "Inactive"}
+                          </Badge>
                         </div>
                       </div>
                     </div>
