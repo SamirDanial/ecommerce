@@ -285,7 +285,14 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => {
-        set({ items: [] });
+        console.log('🧹 Clearing cart and resetting currency-related data');
+        set({ 
+          items: [],
+          shippingAddress: null,
+          currentShippingRate: null,
+          currentTaxRate: null,
+          appliedDiscount: null
+        });
       },
 
       getItemQuantity: (productId, color, size) => {
@@ -306,7 +313,27 @@ export const useCartStore = create<CartState>()(
 
       // Currency methods
       setCurrency: (currency: DynamicCurrency) => {
-        set({ selectedCurrency: currency });
+        const { selectedCurrency: currentCurrency } = get();
+        
+        // If currency is actually changing, clear cart and reset currency-related data
+        if (currentCurrency.code !== currency.code) {
+          console.log(`🔄 Currency changed from ${currentCurrency.code} to ${currency.code}, clearing cart data`);
+          
+          // Clear all cart and currency-related data
+          set({
+            selectedCurrency: currency,
+            items: [],
+            shippingAddress: null,
+            currentShippingRate: null,
+            currentTaxRate: null,
+            appliedDiscount: null
+          });
+          
+          console.log('🧹 Cart cleared due to currency change');
+        } else {
+          // Same currency, just update
+          set({ selectedCurrency: currency });
+        }
       },
 
       getConvertedPrice: (price) => {

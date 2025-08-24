@@ -24,7 +24,7 @@ interface CurrencyContextType {
   formatConvertedPrice: (price: number) => string;
   formatPriceWithCurrency: (price: number, currencyCode: string, currencySymbol?: string) => string;
   convertPrice: (price: number) => number;
-  setCurrency: (currency: CurrencyConfig) => void;
+  setCurrency: (currency: CurrencyConfig, clearCart?: boolean) => void;
   refreshCurrencies: () => Promise<void>;
 }
 
@@ -181,7 +181,27 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
   };
 
   // Set new currency
-  const handleSetCurrency = (currency: CurrencyConfig) => {
+  const handleSetCurrency = (currency: CurrencyConfig, clearCart: boolean = false) => {
+    // If currency is actually changing, clear cart and reset currency-related data
+    if (selectedCurrency.code !== currency.code) {
+      console.log(`🔄 Currency changed from ${selectedCurrency.code} to ${currency.code}, clearing cart data`);
+      
+      // Clear cart and currency-related data
+      if (clearCart) {
+        // Import and clear cart store
+        import('../stores/cartStore').then(({ useCartStore }) => {
+          const cartStore = useCartStore.getState();
+          cartStore.clearCart();
+          cartStore.setShippingAddress(null);
+          cartStore.currentShippingRate = null;
+          cartStore.currentTaxRate = null;
+          console.log('🧹 Cart cleared due to currency change');
+        }).catch(error => {
+          console.error('Failed to clear cart on currency change:', error);
+        });
+      }
+    }
+    
     setSelectedCurrency(currency);
   };
 
