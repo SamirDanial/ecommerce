@@ -84,7 +84,7 @@ router.get('/scope', requireAdmin, async (req, res) => {
 // Update delivery scope configuration
 router.put('/scope', requireAdmin, async (req, res) => {
   try {
-    const { businessName, hasInternationalDelivery, primaryCountryCode, primaryCountryName, primaryCurrency } = req.body;
+    const { businessName, hasInternationalDelivery, primaryCountryCode, primaryCountryName, primaryCurrency, applyTaxesAtCheckout } = req.body;
     const businessId = 'default-business';
 
     const updatedScope = await prisma.deliveryScope.upsert({
@@ -94,7 +94,8 @@ router.put('/scope', requireAdmin, async (req, res) => {
         hasInternationalDelivery,
         primaryCountryCode,
         primaryCountryName,
-        primaryCurrency
+        primaryCurrency,
+        applyTaxesAtCheckout
       },
       create: {
         businessId,
@@ -103,6 +104,7 @@ router.put('/scope', requireAdmin, async (req, res) => {
         primaryCountryCode,
         primaryCountryName,
         primaryCurrency,
+        applyTaxesAtCheckout: applyTaxesAtCheckout !== undefined ? applyTaxesAtCheckout : true,
         isActive: true
       }
     });
@@ -304,7 +306,7 @@ router.get('/local-tax', requireAdmin, async (req, res) => {
 // Create local tax rate
 router.post('/local-tax', requireAdmin, async (req, res) => {
   try {
-    const { cityName, stateCode, stateName, taxRate, taxName } = req.body;
+    const { cityName, stateCode, stateName, taxRate, taxName, isUniformTax, isActive } = req.body;
     const businessId = 'default-business';
 
     const newRate = await prisma.localTaxRate.create({
@@ -315,7 +317,8 @@ router.post('/local-tax', requireAdmin, async (req, res) => {
         stateName,
         taxRate: parseFloat(taxRate),
         taxName,
-        isActive: true
+        isUniformTax: isUniformTax || false,
+        isActive: isActive !== undefined ? isActive : true
       }
     });
 
@@ -330,7 +333,7 @@ router.post('/local-tax', requireAdmin, async (req, res) => {
 router.put('/local-tax/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { cityName, stateCode, stateName, taxRate, taxName, isActive } = req.body;
+    const { cityName, stateCode, stateName, taxRate, taxName, isActive, isUniformTax } = req.body;
 
     const updatedRate = await prisma.localTaxRate.update({
       where: { id: parseInt(id) },
@@ -340,7 +343,8 @@ router.put('/local-tax/:id', requireAdmin, async (req, res) => {
         stateName,
         taxRate: parseFloat(taxRate),
         taxName,
-        isActive
+        isActive,
+        isUniformTax
       }
     });
 

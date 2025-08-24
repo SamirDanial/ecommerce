@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Globe, Truck, DollarSign, MapPin, Plus, Edit, Trash2, RefreshCw, Building } from 'lucide-react';
+import { Globe, Truck, DollarSign, MapPin, Plus, Edit, Trash2, Building, Package, Calculator, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import axios from 'axios';
@@ -21,6 +21,7 @@ interface DeliveryScope {
   primaryCountryCode: string;
   primaryCountryName: string;
   primaryCurrency: string;
+  applyTaxesAtCheckout: boolean;
   isActive: boolean;
 }
 
@@ -61,8 +62,8 @@ const DeliveryScope: React.FC = () => {
   const { getToken } = useClerkAuth();
   const [activeTab, setActiveTab] = useState('scope');
   const [deliveryScope, setDeliveryScope] = useState<DeliveryScope | null>(null);
-  const [localShippingRates, setLocalShippingRates] = useState<LocalShippingRate[]>([]);
-  const [localTaxRates, setLocalTaxRates] = useState<LocalTaxRate[]>([]);
+  const [localShippingRates, setLocalShippingRates] = useState<LocalShippingRate[] | null>(null);
+  const [localTaxRates, setLocalTaxRates] = useState<LocalTaxRate[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isScopeDialogOpen, setIsScopeDialogOpen] = useState(false);
   const [isShippingDialogOpen, setIsShippingDialogOpen] = useState(false);
@@ -75,13 +76,20 @@ const DeliveryScope: React.FC = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
 
+  // Filter states
+  const [shippingSearchTerm, setShippingSearchTerm] = useState('');
+  const [shippingStatusFilter, setShippingStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [taxSearchTerm, setTaxSearchTerm] = useState('');
+  const [taxStatusFilter, setTaxStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
   // Form data
   const [scopeFormData, setScopeFormData] = useState({
     businessName: '',
     hasInternationalDelivery: false,
     primaryCountryCode: '',
     primaryCountryName: '',
-    primaryCurrency: ''
+    primaryCurrency: '',
+    applyTaxesAtCheckout: true
   });
 
   const [shippingFormData, setShippingFormData] = useState({
@@ -106,15 +114,11 @@ const DeliveryScope: React.FC = () => {
   // Create authenticated API instance
   const createAuthenticatedApi = async () => {
     const token = await getToken();
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
-    
     return axios.create({
-      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+      baseURL: 'http://localhost:5000/api',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     });
   };
@@ -122,30 +126,38 @@ const DeliveryScope: React.FC = () => {
   // Fetch data
   const fetchData = async () => {
     try {
-      setLoading(true);
-      
       const api = await createAuthenticatedApi();
-      
-      const [scopeResponse, countriesResponse, currenciesResponse, shippingResponse, taxResponse] = await Promise.all([
+      const [scopeRes, shippingRes, taxRes, countriesRes, currenciesRes] = await Promise.all([
         api.get('/admin/delivery-scope/scope'),
-        api.get('/admin/delivery-scope/countries'),
-        api.get('/admin/delivery-scope/currencies'),
         api.get('/admin/delivery-scope/local-shipping'),
-        api.get('/admin/delivery-scope/local-tax')
+        api.get('/admin/delivery-scope/local-tax'),
+        api.get('/admin/delivery-scope/countries'),
+        api.get('/admin/delivery-scope/currencies')
       ]);
 
-      setDeliveryScope(scopeResponse.data);
-      setCountries(countriesResponse.data);
-      setCurrencies(currenciesResponse.data);
-      setLocalShippingRates(shippingResponse.data.rates || []);
-      setLocalTaxRates(taxResponse.data.rates || []);
+      console.log('Scope response:', scopeRes.data);
+      console.log('Shipping response:', shippingRes.data);
+      console.log('Tax response:', taxRes.data);
+      console.log('Countries response:', countriesRes.data);
+      console.log('Currencies response:', currenciesRes.data);
+      
+      setDeliveryScope(scopeRes.data);
+      setLocalShippingRates(shippingRes.data?.rates || []);
+      setLocalTaxRates(taxRes.data?.rates || []);
+      setCountries(countriesRes.data || []);
+      setCurrencies(currenciesRes.data || []);
+      
+      // Debug: Log what we're setting in state
+      console.log('Setting shipping rates:', shippingRes.data?.rates || []);
+      console.log('Setting tax rates:', taxRes.data?.rates || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      if (error.response?.status === 401) {
-        toast.error('Authentication failed. Please log in again.');
-      } else {
-        toast.error(error.response?.data?.error || 'Failed to fetch data');
-      }
+      toast.error('Failed to fetch data');
+      // Set empty arrays on error to prevent undefined errors
+      setLocalShippingRates([]);
+      setLocalTaxRates([]);
+      setCountries([]);
+      setCurrencies([]);
     } finally {
       setLoading(false);
     }
@@ -158,7 +170,6 @@ const DeliveryScope: React.FC = () => {
   // Handle scope form submission
   const handleScopeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       const api = await createAuthenticatedApi();
       
@@ -167,23 +178,29 @@ const DeliveryScope: React.FC = () => {
         hasInternationalDelivery: scopeFormData.hasInternationalDelivery,
         primaryCountryCode: scopeFormData.primaryCountryCode,
         primaryCountryName: scopeFormData.primaryCountryName,
-        primaryCurrency: scopeFormData.primaryCurrency
+        primaryCurrency: scopeFormData.primaryCurrency,
+        applyTaxesAtCheckout: scopeFormData.applyTaxesAtCheckout
       };
 
-      await api.put('/admin/delivery-scope/scope', data);
-      toast.success('Delivery scope updated successfully');
+      if (deliveryScope) {
+        await api.put('/admin/delivery-scope/scope', data);
+        toast.success('Delivery scope updated successfully');
+      } else {
+        await api.post('/admin/delivery-scope/scope', data);
+        toast.success('Delivery scope created successfully');
+      }
+
       setIsScopeDialogOpen(false);
       fetchData();
     } catch (error: any) {
-      console.error('Error updating scope:', error);
-      toast.error(error.response?.data?.error || 'Failed to update scope');
+      console.error('Error saving scope:', error);
+      toast.error(error.response?.data?.error || 'Failed to save scope');
     }
   };
 
   // Handle shipping form submission
   const handleShippingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       const api = await createAuthenticatedApi();
       
@@ -220,7 +237,7 @@ const DeliveryScope: React.FC = () => {
     
     // Prevent creating multiple uniform tax rates
     if (taxFormData.isUniformTax && !editingTaxRate) {
-      const existingUniformTax = localTaxRates.find(rate => rate.isUniformTax);
+      const existingUniformTax = localTaxRates?.find(rate => rate.isUniformTax);
       if (existingUniformTax) {
         toast.error('A uniform tax rate already exists. You can only have one country-wide tax rate.');
         return;
@@ -307,13 +324,6 @@ const DeliveryScope: React.FC = () => {
     setIsShippingDialogOpen(true);
   };
 
-  // Handle delete shipping rate
-  const handleDeleteShipping = async (id: number) => {
-    setDeletingRateId(id);
-    setDeletingRateType('shipping');
-    setIsDeleteConfirmOpen(true);
-  };
-
   // Handle edit tax rate
   const handleEditTax = (rate: LocalTaxRate) => {
     setEditingTaxRate(rate);
@@ -329,25 +339,28 @@ const DeliveryScope: React.FC = () => {
     setIsTaxDialogOpen(true);
   };
 
-  // Handle delete tax rate
-  const handleDeleteTax = async (id: number) => {
+  // Handle delete rate
+  const handleDeleteRate = (id: number, type: 'shipping' | 'tax') => {
     setDeletingRateId(id);
-    setDeletingRateType('tax');
+    setDeletingRateType(type);
     setIsDeleteConfirmOpen(true);
   };
 
+  // Handle confirm delete
   const handleConfirmDelete = async () => {
-    if (deletingRateId === null) return;
+    if (!deletingRateId || !deletingRateType) return;
 
     try {
       const api = await createAuthenticatedApi();
+      
       if (deletingRateType === 'shipping') {
         await api.delete(`/admin/delivery-scope/local-shipping/${deletingRateId}`);
         toast.success('Shipping rate deleted successfully');
-      } else if (deletingRateType === 'tax') {
+      } else {
         await api.delete(`/admin/delivery-scope/local-tax/${deletingRateId}`);
         toast.success('Tax rate deleted successfully');
       }
+      
       fetchData();
     } catch (error: any) {
       console.error('Error deleting rate:', error);
@@ -363,348 +376,481 @@ const DeliveryScope: React.FC = () => {
     setIsDeleteConfirmOpen(false);
   };
 
+  // Calculate stats with additional safety checks
+  const stats = {
+    totalShippingRates: Array.isArray(localShippingRates) ? localShippingRates.length : 0,
+    activeShippingRates: Array.isArray(localShippingRates) ? localShippingRates.filter(rate => rate?.isActive).length : 0,
+    totalTaxRates: Array.isArray(localTaxRates) ? localTaxRates.length : 0,
+    activeTaxRates: Array.isArray(localTaxRates) ? localTaxRates.filter(rate => rate?.isActive).length : 0,
+    hasInternationalDelivery: deliveryScope?.hasInternationalDelivery || false,
+    primaryCountry: deliveryScope?.primaryCountryName || 'Not Set'
+  };
+
+  // Filter functions
+  const getFilteredShippingRates = () => {
+    if (!Array.isArray(localShippingRates)) return [];
+    
+    return localShippingRates.filter(rate => {
+      const matchesSearch = !shippingSearchTerm || 
+        rate.cityName?.toLowerCase().includes(shippingSearchTerm.toLowerCase()) ||
+        rate.stateName?.toLowerCase().includes(shippingSearchTerm.toLowerCase());
+      
+      const matchesStatus = shippingStatusFilter === 'all' || 
+        (shippingStatusFilter === 'active' && rate.isActive) ||
+        (shippingStatusFilter === 'inactive' && !rate.isActive);
+      
+      return matchesSearch && matchesStatus;
+    });
+  };
+
+  const getFilteredTaxRates = () => {
+    if (!Array.isArray(localTaxRates)) return [];
+    
+    return localTaxRates.filter(rate => {
+      const matchesSearch = !taxSearchTerm || 
+        rate.cityName?.toLowerCase().includes(taxSearchTerm.toLowerCase()) ||
+        rate.stateName?.toLowerCase().includes(taxSearchTerm.toLowerCase()) ||
+        rate.taxName?.toLowerCase().includes(taxSearchTerm.toLowerCase());
+      
+      const matchesStatus = taxStatusFilter === 'all' || 
+        (taxStatusFilter === 'active' && rate.isActive) ||
+        (taxStatusFilter === 'inactive' && !rate.isActive);
+      
+      return matchesSearch && matchesStatus;
+    });
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Delivery Scope Management</h1>
-          <p className="text-muted-foreground">
-            Configure your business delivery scope and local rates
-          </p>
-        </div>
-        <Button onClick={fetchData} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="scope" className="flex items-center gap-2">
-            <Building className="h-4 w-4" />
-            Business Scope
-          </TabsTrigger>
-          <TabsTrigger value="shipping" className="flex items-center gap-2">
-            <Truck className="h-4 w-4" />
-            Local Shipping
-          </TabsTrigger>
-          <TabsTrigger value="tax" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Local Tax
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Business Scope Tab */}
-        <TabsContent value="scope" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Business Delivery Scope</CardTitle>
-                  <CardDescription>
-                    Configure your business delivery capabilities and primary location
-                  </CardDescription>
-                </div>
-                <Button onClick={() => {
-                  if (deliveryScope) {
-                    setScopeFormData({
-                      businessName: deliveryScope.businessName,
-                      hasInternationalDelivery: deliveryScope.hasInternationalDelivery,
-                      primaryCountryCode: deliveryScope.primaryCountryCode,
-                      primaryCountryName: deliveryScope.primaryCountryName,
-                      primaryCurrency: deliveryScope.primaryCurrency
-                    });
-                  }
-                  setIsScopeDialogOpen(true);
-                }}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Scope
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">Loading...</div>
-              ) : deliveryScope ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Business Name</Label>
-                      <p className="text-lg font-semibold">{deliveryScope.businessName}</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-1 sm:p-3 md:p-6">
+      <div className="w-full space-y-3 sm:space-y-6 md:space-y-8">
+        {/* Enhanced Header with Better Glassmorphism */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-green-600/20 to-purple-600/20 rounded-xl sm:rounded-2xl md:rounded-3xl blur-3xl group-hover:blur-2xl transition-all duration-700"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl rounded-xl sm:rounded-2xl md:rounded-3xl p-2 sm:p-4 md:p-8 border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-500">
+            <div className="flex items-center justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <div className="p-3 bg-gradient-to-br from-blue-500 via-green-600 to-purple-600 rounded-2xl shadow-lg">
+                      <Truck className="w-7 h-7 text-white" />
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Primary Country</Label>
-                      <p className="text-lg font-semibold">{deliveryScope.primaryCountryName}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Primary Currency</Label>
-                      <p className="text-lg font-semibold">{deliveryScope.primaryCurrency}</p>
-                    </div>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">International Delivery</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Switch checked={deliveryScope.hasInternationalDelivery} disabled />
-                        <Badge variant={deliveryScope.hasInternationalDelivery ? "default" : "secondary"}>
-                          {deliveryScope.hasInternationalDelivery ? "Enabled" : "Disabled"}
-                        </Badge>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 via-green-600 to-purple-600 bg-clip-text text-transparent">
+                      Delivery Scope Management
+                    </h1>
+                    <p className="text-slate-600 text-sm sm:text-base font-medium">Configure your business delivery scope and local rates with style</p>
+                  </div>
+                </div>
+              </div>
+              
+              
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+                <Globe className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 font-medium">Primary Country</p>
+                <p className="text-lg font-bold text-slate-800">{stats.primaryCountry}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-xl">
+                <Package className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 font-medium">Shipping Rates</p>
+                <p className="text-lg font-bold text-slate-800">{stats.totalShippingRates} ({stats.activeShippingRates} active)</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
+                <Calculator className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 font-medium">Tax Rates</p>
+                <p className="text-lg font-bold text-slate-800">{stats.totalTaxRates} ({stats.activeTaxRates} active)</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl">
+                <Truck className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 font-medium">International</p>
+                <p className="text-lg font-bold text-slate-800">{stats.hasInternationalDelivery ? 'Enabled' : 'Disabled'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="scope" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Business Scope
+            </TabsTrigger>
+            <TabsTrigger value="shipping" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Local Shipping
+            </TabsTrigger>
+            <TabsTrigger value="tax" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Local Tax
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Business Scope Tab */}
+          <TabsContent value="scope" className="space-y-4">
+            <Card className="bg-white/80 backdrop-blur-xl border border-white/30 shadow-lg">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Business Delivery Scope</CardTitle>
+                    <CardDescription>
+                      Configure your business delivery capabilities and primary location
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => {
+                    if (deliveryScope) {
+                      setScopeFormData({
+                        businessName: deliveryScope.businessName,
+                        hasInternationalDelivery: deliveryScope.hasInternationalDelivery,
+                        primaryCountryCode: deliveryScope.primaryCountryCode,
+                        primaryCountryName: deliveryScope.primaryCountryName,
+                        primaryCurrency: deliveryScope.primaryCurrency,
+                        applyTaxesAtCheckout: deliveryScope.applyTaxesAtCheckout
+                      });
+                    }
+                    setIsScopeDialogOpen(true);
+                  }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Scope
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : deliveryScope ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Business Name</Label>
+                        <p className="text-lg font-semibold">{deliveryScope.businessName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Primary Country</Label>
+                        <p className="text-lg font-semibold">{deliveryScope.primaryCountryName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Primary Currency</Label>
+                        <p className="text-lg font-semibold">{deliveryScope.primaryCurrency}</p>
                       </div>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                      <Badge variant={deliveryScope.isActive ? "default" : "secondary"}>
-                        {deliveryScope.isActive ? "Active" : "Inactive"}
-                      </Badge>
+                    <div className="space-y-4">
+                      <div className="flex items-start space-x-8">
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium text-muted-foreground">International Delivery</Label>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <Switch checked={deliveryScope.hasInternationalDelivery} disabled />
+                            <Badge variant={deliveryScope.hasInternationalDelivery ? "default" : "secondary"}>
+                              {deliveryScope.hasInternationalDelivery ? "Enabled" : "Disabled"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Tax Application</Label>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <Switch checked={deliveryScope.applyTaxesAtCheckout} disabled />
+                            <Badge variant={deliveryScope.applyTaxesAtCheckout ? "default" : "secondary"}>
+                              {deliveryScope.applyTaxesAtCheckout ? "Apply at Checkout" : "Included in Prices"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-8">
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                          <div className="mt-2">
+                            <Badge variant={deliveryScope.isActive ? "default" : "secondary"}>
+                              {deliveryScope.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No delivery scope configured
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No delivery scope configured
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Local Shipping Tab */}
-        <TabsContent value="shipping" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Local Shipping Rates</CardTitle>
-                  <CardDescription>
-                    Manage shipping costs and delivery times for specific cities and states
-                    {deliveryScope?.primaryCurrency && (
-                      <span className="block text-sm text-muted-foreground mt-1">
-                        All costs are in {deliveryScope.primaryCurrency}
-                      </span>
-                    )}
-                  </CardDescription>
+          {/* Local Shipping Tab */}
+          <TabsContent value="shipping" className="space-y-4">
+            <Card className="bg-white/80 backdrop-blur-xl border border-white/30 shadow-lg">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Local Shipping Rates</CardTitle>
+                    <CardDescription>
+                      Manage shipping costs and delivery times for specific cities and states
+                      {deliveryScope?.primaryCurrency && (
+                        <span className="block text-sm text-muted-foreground mt-1">
+                          All costs are in {deliveryScope.primaryCurrency}
+                        </span>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => {
+                    setEditingShippingRate(null);
+                    resetShippingForm();
+                    setIsShippingDialogOpen(true);
+                  }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Local Rate
+                  </Button>
                 </div>
-                <Button onClick={() => {
-                  setEditingShippingRate(null);
-                  resetShippingForm();
-                  setIsShippingDialogOpen(true);
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Local Rate
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">Loading...</div>
-              ) : localShippingRates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No local shipping rates configured
-                </div>
-              ) : (
-                <div className="rounded-md border">
-                  <div className="relative w-full overflow-auto">
-                    <table className="w-full caption-bottom text-sm">
-                      <thead className="[&_tr]:border-b">
-                        <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Location
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Shipping Cost
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Delivery Days
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Status
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="[&_tr:last-child]:border-0">
-                        {localShippingRates.map((rate) => (
-                          <tr key={rate.id} className="border-b transition-colors hover:bg-muted/50">
-                            <td className="p-4 align-middle">
-                              <div>
-                                <div className="font-medium">{rate.cityName}</div>
-                                {rate.stateName && (
-                                  <div className="text-sm text-muted-foreground">
-                                    {rate.stateName}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <Badge variant="secondary">
-                                {deliveryScope?.primaryCurrency} {rate.shippingCost}
-                              </Badge>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-muted-foreground" />
-                                {rate.deliveryDays} days
-                              </div>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <Badge variant={rate.isActive ? "default" : "secondary"}>
-                                {rate.isActive ? "Active" : "Inactive"}
-                              </Badge>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditShipping(rate)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteShipping(rate.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              </CardHeader>
+              
+              {/* Filter Controls */}
+              <div className="px-6 pb-4 border-b border-white/20">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {/* Search Input */}
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        placeholder="Search by city or state..."
+                        value={shippingSearchTerm}
+                        onChange={(e) => setShippingSearchTerm(e.target.value)}
+                        className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <div className="flex-shrink-0">
+                    <Select value={shippingStatusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setShippingStatusFilter(value)}>
+                      <SelectTrigger className="w-40 bg-white/60 backdrop-blur-sm border-white/30">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="active">Active Only</SelectItem>
+                        <SelectItem value="inactive">Inactive Only</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Local Tax Tab */}
-        <TabsContent value="tax" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Local Tax Rates</CardTitle>
-                  <CardDescription>
-                    Manage tax rates for your business location. Choose between uniform country-wide rates or location-specific rates.
-                  </CardDescription>
+                
+                {/* Results Count */}
+                <div className="mt-3 text-sm text-slate-600">
+                  Showing {getFilteredShippingRates().length} of {Array.isArray(localShippingRates) ? localShippingRates.length : 0} shipping rates
                 </div>
-                {!localTaxRates.some(rate => rate.isUniformTax) && (
+              </div>
+              
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : getFilteredShippingRates().length > 0 ? (
+                  <div className="space-y-3">
+                    {getFilteredShippingRates().map((rate) => (
+                      <div key={rate.id} className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-sm hover:shadow-md transition-all duration-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <MapPin className="w-4 h-4 text-blue-600" />
+                              <div>
+                                <p className="font-medium text-slate-800">
+                                  {rate.cityName}
+                                  {rate.stateName && `, ${rate.stateName}`}
+                                </p>
+                                <p className="text-sm text-slate-600">
+                                  {rate.shippingCost} {deliveryScope?.primaryCurrency} • {rate.deliveryDays} days
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant={rate.isActive ? "default" : "secondary"}>
+                              {rate.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditShipping(rate)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRate(rate.id, 'shipping')}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No local shipping rates configured
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Local Tax Tab */}
+          <TabsContent value="tax" className="space-y-4">
+            <Card className="bg-white/80 backdrop-blur-xl border border-white/30 shadow-lg">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Local Tax Rates</CardTitle>
+                    <CardDescription>
+                      Manage tax rates for specific cities and states
+                    </CardDescription>
+                  </div>
                   <Button onClick={() => {
                     setEditingTaxRate(null);
                     resetTaxForm();
                     setIsTaxDialogOpen(true);
-                  }}>
+                  }} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Local Rate
+                    Add Tax Rate
                   </Button>
-                )}
-                {localTaxRates.some(rate => rate.isUniformTax) && (
-                  <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
-                    ✓ Uniform tax rate already configured. You can add location-specific overrides if needed.
+                </div>
+              </CardHeader>
+              
+              {/* Filter Controls */}
+              <div className="px-6 pb-4 border-b border-white/20">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {/* Search Input */}
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-4 00" />
+                      <Input
+                        placeholder="Search by city, state, or tax name..."
+                        value={taxSearchTerm}
+                        onChange={(e) => setTaxSearchTerm(e.target.value)}
+                        className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
+                      />
+                    </div>
                   </div>
-                )}
+                  
+                  {/* Status Filter */}
+                  <div className="flex-shrink-0">
+                    <Select value={taxStatusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setTaxStatusFilter(value)}>
+                      <SelectTrigger className="w-40 bg-white/60 backdrop-blur-sm border-white/30">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="active">Active Only</SelectItem>
+                        <SelectItem value="inactive">Inactive Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {/* Results Count */}
+                <div className="mt-3 text-sm text-slate-600">
+                  Showing {getFilteredTaxRates().length} of {Array.isArray(localTaxRates) ? localTaxRates.length : 0} tax rates
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">Loading...</div>
-              ) : localTaxRates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No local tax rates configured
-                </div>
-              ) : (
-                <div className="rounded-md border">
-                  <div className="relative w-full overflow-auto">
-                    <table className="w-full caption-bottom text-sm">
-                      <thead className="[&_tr]:border-b">
-                        <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Location
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Tax Rate
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Status
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="[&_tr:last-child]:border-0">
-                        {localTaxRates.map((rate) => (
-                          <tr key={rate.id} className="border-b transition-colors hover:bg-muted/50">
-                            <td className="p-4 align-middle">
+              
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : getFilteredTaxRates().length > 0 ? (
+                  <div className="space-y-3">
+                    {getFilteredTaxRates().map((rate) => (
+                      <div key={rate.id} className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-sm hover:shadow-md transition-all duration-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <DollarSign className="w-4 h-4 text-green-600" />
                               <div>
-                                {rate.isUniformTax ? (
-                                  <div className="font-medium text-green-600">Country-wide</div>
-                                ) : (
-                                  <>
-                                    <div className="font-medium">{rate.cityName || 'All Cities'}</div>
-                                    {rate.stateName && (
-                                      <div className="text-sm text-muted-foreground">
-                                        {rate.stateName}
-                                      </div>
-                                    )}
-                                  </>
-                                )}
+                                <p className="font-medium text-slate-800">
+                                  {rate.taxName}
+                                  {rate.cityName && ` - ${rate.cityName}`}
+                                  {rate.stateName && `, ${rate.stateName}`}
+                                </p>
+                                <p className="text-sm text-slate-600">
+                                  {rate.taxRate}% {rate.isUniformTax && '(Uniform)'}
+                                </p>
                               </div>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <Badge variant="secondary">
-                                {rate.taxRate}%
-                              </Badge>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <Badge variant={rate.isActive ? "default" : "secondary"}>
-                                {rate.isActive ? "Active" : "Inactive"}
-                              </Badge>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditTax(rate)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteTax(rate.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant={rate.isActive ? "default" : "secondary"}>
+                              {rate.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditTax(rate)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRate(rate.id, 'tax')}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No local tax rates configured
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-      {/* Scope Configuration Dialog */}
+
+      </div>
+
+      {/* Scope Dialog */}
       <Dialog open={isScopeDialogOpen} onOpenChange={setIsScopeDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Configure Delivery Scope</DialogTitle>
             <DialogDescription>
-              Set your business delivery capabilities and primary location
+              Set up your business delivery capabilities and primary location
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleScopeSubmit} className="space-y-4">
@@ -714,7 +860,7 @@ const DeliveryScope: React.FC = () => {
                 id="businessName"
                 value={scopeFormData.businessName}
                 onChange={(e) => setScopeFormData(prev => ({ ...prev, businessName: e.target.value }))}
-                placeholder="Enter your business name"
+                placeholder="Enter business name"
                 required
               />
             </div>
@@ -723,10 +869,10 @@ const DeliveryScope: React.FC = () => {
               <Label htmlFor="primaryCountry">Primary Country</Label>
               <Select value={scopeFormData.primaryCountryCode} onValueChange={handleCountrySelect}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select your primary country" />
+                  <SelectValue placeholder="Select primary country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {countries.map((country: Country) => (
+                  {countries.map((country) => (
                     <SelectItem key={country.code} value={country.code}>
                       {country.name}
                     </SelectItem>
@@ -739,12 +885,12 @@ const DeliveryScope: React.FC = () => {
               <Label htmlFor="primaryCurrency">Primary Currency</Label>
               <Select value={scopeFormData.primaryCurrency} onValueChange={(value) => setScopeFormData(prev => ({ ...prev, primaryCurrency: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select your primary currency" />
+                  <SelectValue placeholder="Select primary currency" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currencies.map((currency: Currency) => (
+                  {currencies.map((currency) => (
                     <SelectItem key={currency.code} value={currency.code}>
-                      {currency.name} ({currency.code})
+                      {currency.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -760,6 +906,18 @@ const DeliveryScope: React.FC = () => {
               <Label htmlFor="hasInternationalDelivery">Enable International Delivery</Label>
             </div>
 
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="applyTaxesAtCheckout"
+                checked={scopeFormData.applyTaxesAtCheckout}
+                onCheckedChange={(checked: boolean) => setScopeFormData(prev => ({ ...prev, applyTaxesAtCheckout: checked }))}
+              />
+              <Label htmlFor="applyTaxesAtCheckout">Apply Taxes at Checkout</Label>
+            </div>
+            <div className="text-sm text-muted-foreground ml-6">
+              When disabled, taxes are assumed to be included in product prices
+            </div>
+
             <div className="flex justify-end space-x-2">
               <Button
                 type="button"
@@ -769,20 +927,22 @@ const DeliveryScope: React.FC = () => {
                 Cancel
               </Button>
               <Button type="submit">
-                Save Configuration
+                {deliveryScope ? 'Update Scope' : 'Create Scope'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Shipping Rate Dialog */}
+      {/* Shipping Dialog */}
       <Dialog open={isShippingDialogOpen} onOpenChange={setIsShippingDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingShippingRate ? 'Edit Local Shipping Rate' : 'Add Local Shipping Rate'}</DialogTitle>
+            <DialogTitle>
+              {editingShippingRate ? 'Edit Shipping Rate' : 'Add Local Shipping Rate'}
+            </DialogTitle>
             <DialogDescription>
-              {editingShippingRate ? 'Modify the details of the local shipping rate.' : 'Set the details for a new local shipping rate.'}
+              Configure shipping cost and delivery time for a specific location
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleShippingSubmit} className="space-y-4">
@@ -827,11 +987,6 @@ const DeliveryScope: React.FC = () => {
                 placeholder="Enter shipping cost"
                 required
               />
-              {deliveryScope?.primaryCurrency && (
-                <p className="text-sm text-muted-foreground">
-                  Cost will be in {deliveryScope.primaryCurrency}
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -848,11 +1003,11 @@ const DeliveryScope: React.FC = () => {
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="isActive"
+                id="isActiveShipping"
                 checked={shippingFormData.isActive}
                 onCheckedChange={(checked: boolean) => setShippingFormData(prev => ({ ...prev, isActive: checked }))}
               />
-              <Label htmlFor="isActive">Is Active</Label>
+              <Label htmlFor="isActiveShipping">Is Active</Label>
             </div>
 
             <div className="flex justify-end space-x-2">
@@ -871,23 +1026,25 @@ const DeliveryScope: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Tax Rate Dialog */}
+      {/* Tax Dialog */}
       <Dialog open={isTaxDialogOpen} onOpenChange={setIsTaxDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingTaxRate ? 'Edit Local Tax Rate' : 'Add Local Tax Rate'}</DialogTitle>
+            <DialogTitle>
+              {editingTaxRate ? 'Edit Tax Rate' : 'Add Local Tax Rate'}
+            </DialogTitle>
             <DialogDescription>
-              {editingTaxRate ? 'Modify the details of the local tax rate.' : 'Set the details for a new local tax rate.'}
+              Configure tax rate for a specific location
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleTaxSubmit} className="space-y-4">
-            <div className="flex items-center space-x-2 mb-4">
+            <div className="flex items-center space-x-2">
               <Switch
                 id="isUniformTax"
                 checked={taxFormData.isUniformTax}
                 onCheckedChange={(checked: boolean) => setTaxFormData(prev => ({ ...prev, isUniformTax: checked }))}
               />
-              <Label htmlFor="isUniformTax">Tax is uniform across all locations</Label>
+              <Label htmlFor="isUniformTax">Uniform Tax (Country-wide)</Label>
             </div>
 
             {!taxFormData.isUniformTax && (
@@ -941,6 +1098,7 @@ const DeliveryScope: React.FC = () => {
               <Input
                 id="taxName"
                 value={taxFormData.taxName}
+                onChange={(e) => setTaxFormData(prev => ({ ...prev, taxName: e.target.value }))}
                 placeholder="Enter tax name (e.g., VAT, Sales Tax, GST)"
                 required
               />

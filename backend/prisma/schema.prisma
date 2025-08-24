@@ -866,6 +866,7 @@ model DeliveryScope {
   primaryCountryCode    String   @db.VarChar(10)  // Business's primary country
   primaryCountryName    String   @db.VarChar(100) // Business's primary country name
   primaryCurrency       String   @db.VarChar(10)  // Business's primary currency (e.g., USD, EUR, GBP)
+  applyTaxesAtCheckout  Boolean  @default(true)   // Whether to apply taxes during checkout (false if taxes are included in product prices)
   isActive              Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -898,6 +899,7 @@ model LocalTaxRate {
   stateName     String?  @db.VarChar(100) // State/province name
   taxRate       Decimal  @db.Decimal(5, 2) // Tax rate percentage
   taxName       String   @db.VarChar(100)  // Tax name (e.g., "Sales Tax", "VAT")
+  isUniformTax  Boolean  @default(false)   // True if this is a country-wide uniform tax rate
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
