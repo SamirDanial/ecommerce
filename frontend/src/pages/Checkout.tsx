@@ -154,14 +154,17 @@ const Checkout: React.FC = () => {
     isLoadingCurrencies,
     isLoadingLanguages,
     fetchCurrencies,
-    fetchLanguages
+    fetchLanguages,
+    deliveryScope,
+    fetchDeliveryScope
   } = useCartStore();
 
   // Load currencies and languages on component mount
   useEffect(() => {
     fetchCurrencies();
     fetchLanguages();
-  }, [fetchCurrencies, fetchLanguages]);
+    fetchDeliveryScope();
+  }, [fetchCurrencies, fetchLanguages, fetchDeliveryScope]);
 
   // Load saved addresses only once when component mounts and user is authenticated
   useEffect(() => {
@@ -560,6 +563,21 @@ const Checkout: React.FC = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {/* Delivery Restriction Notice */}
+                    {deliveryScope && !deliveryScope.hasInternationalDelivery && (
+                      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <AlertCircle className="h-3 w-3 text-amber-600" />
+                          </div>
+                          <div className="text-sm text-amber-800">
+                            <p className="font-medium mb-1">Local Delivery Only</p>
+                            <p>We currently only deliver to <strong>{deliveryScope?.primaryCountryName || 'our primary country'}</strong>. International shipping will be available soon!</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     {isLoadingAddresses ? (
                       <div className="text-center py-12">
                         <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
@@ -603,21 +621,42 @@ const Checkout: React.FC = () => {
                     <div className="mt-8 pt-6 border-t border-gray-200">
                       <div className="flex-1">
                         {selectedAddress ? (
-                          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-green-800 mb-1">Address Selected</h4>
-                                <p className="text-sm text-green-700 mb-1">
-                                  {selectedAddress.firstName} {selectedAddress.lastName}
-                                </p>
-                                <p className="text-sm text-green-700">
-                                  {selectedAddress.address}, {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postalCode}, {selectedAddress.country}
-                                </p>
+                          <div className="space-y-3">
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-green-800 mb-1">Address Selected</h4>
+                                  <p className="text-sm text-green-700 mb-1">
+                                    {selectedAddress.firstName} {selectedAddress.lastName}
+                                  </p>
+                                  <p className="text-sm text-green-700">
+                                    {selectedAddress.address}, {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postalCode}, {selectedAddress.country}
+                                  </p>
+                                </div>
                               </div>
                             </div>
+                            
+                            {/* International Delivery Warning */}
+                            {deliveryScope && 
+                             selectedAddress.country !== deliveryScope?.primaryCountryCode && 
+                             !deliveryScope?.hasInternationalDelivery && (
+                              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <AlertCircle className="h-4 w-4 text-red-600" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-red-800 mb-1">International Delivery Not Available</h4>
+                                    <p className="text-sm text-red-700">
+                                      Sorry, we don't have international delivery yet. We currently only deliver to <strong>{deliveryScope?.primaryCountryName || 'our primary country'}</strong>.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
@@ -1007,26 +1046,48 @@ const Checkout: React.FC = () => {
                 {/* Continue to Payment Button - Mobile First */}
                 {currentStep === 'address' && (
                   <div className="pt-6 border-t border-gray-200">
-                    <Button 
-                      onClick={() => setCurrentStep('payment')} 
-                      disabled={!selectedAddress || items.some(item => !item.selectedColor || !item.selectedSize)}
-                      className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
-                    >
-                      Continue to Payment
-                      <ArrowRight className="h-5 w-5 ml-2" />
-                    </Button>
-                    
-                    {!selectedAddress && (
-                      <p className="text-sm text-gray-500 text-center mt-3">
-                        Please select a shipping address to continue
-                      </p>
-                    )}
-                    
-                    {items.some(item => !item.selectedColor || !item.selectedSize) && (
-                      <p className="text-sm text-yellow-600 text-center mt-3">
-                        Please ensure all items have size and color selected
-                      </p>
-                    )}
+                    {(() => {
+                      const isInternational = selectedAddress?.country !== deliveryScope?.primaryCountryCode;
+                      const isInternationalAllowed = deliveryScope?.hasInternationalDelivery;
+                      const isInternationalBlocked = isInternational && !isInternationalAllowed;
+                      
+                      return (
+                        <>
+                          <Button 
+                            onClick={() => setCurrentStep('payment')} 
+                            disabled={!selectedAddress || items.some(item => !item.selectedColor || !item.selectedSize) || isInternationalBlocked}
+                            className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
+                          >
+                            Continue to Payment
+                            <ArrowRight className="h-5 w-5 ml-2" />
+                          </Button>
+                          
+                          {!selectedAddress && (
+                            <p className="text-sm text-gray-500 text-center mt-3">
+                              Please select a shipping address to continue
+                            </p>
+                          )}
+                          
+                          {items.some(item => !item.selectedColor || !item.selectedSize) && (
+                            <p className="text-sm text-yellow-600 text-center mt-3">
+                              Please ensure all items have size and color selected
+                            </p>
+                          )}
+                          
+                          {isInternationalBlocked && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <div className="flex items-center space-x-2 text-red-600">
+                                <AlertCircle className="h-4 w-4" />
+                                <span className="text-sm font-medium">
+                                  Sorry, we don't have international delivery yet. 
+                                  We currently only deliver to {deliveryScope?.primaryCountryName || 'our primary country'}.
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </CardContent>

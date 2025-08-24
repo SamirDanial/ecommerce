@@ -5,7 +5,42 @@ import { authenticateClerkToken, requireRole } from '../middleware/clerkAuth';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Apply Clerk authentication to all routes
+// ===== PUBLIC ENDPOINTS (No authentication required) =====
+
+// Get delivery scope configuration (public)
+router.get('/public/scope', async (req, res) => {
+  try {
+    // For now, we'll use a default business ID
+    // In a multi-tenant system, this would come from the authenticated user's business
+    const businessId = 'default-business';
+    
+    let deliveryScope = await prisma.deliveryScope.findUnique({
+      where: { businessId }
+    });
+
+    if (!deliveryScope) {
+      // Create default scope if none exists
+      deliveryScope = await prisma.deliveryScope.create({
+        data: {
+          businessId,
+          businessName: 'My Business',
+          hasInternationalDelivery: false,
+          primaryCountryCode: 'US',
+          primaryCountryName: 'United States',
+          primaryCurrency: 'USD',
+          isActive: true
+        }
+      });
+    }
+
+    res.json(deliveryScope);
+  } catch (error) {
+    console.error('Error fetching delivery scope:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery scope' });
+  }
+});
+
+// Apply Clerk authentication to all routes AFTER public endpoints
 router.use(authenticateClerkToken);
 
 // Middleware to check if user is admin
@@ -33,6 +68,7 @@ router.get('/scope', requireAdmin, async (req, res) => {
           hasInternationalDelivery: false,
           primaryCountryCode: 'US',
           primaryCountryName: 'United States',
+          primaryCurrency: 'USD',
           isActive: true
         }
       });

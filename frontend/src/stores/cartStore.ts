@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { validateDiscountCode, DiscountCode } from '../services/discountService';
 import { CurrencyService } from '../services/currencyService';
 import { LanguageService } from '../services/languageService';
+import { DeliveryScopeService, DeliveryScope, ShippingRate } from '../services/deliveryScopeService';
 
 // Fallback currencies (used when API is not available)
 export const fallbackCurrencies: DynamicCurrency[] = [
@@ -133,6 +134,11 @@ interface CartState {
   getShippingCost: () => number;
   getTaxAmount: () => number;
   
+  // Delivery Scope & International Delivery
+  deliveryScope: DeliveryScope | null;
+  isLoadingDeliveryScope: boolean;
+  fetchDeliveryScope: () => Promise<void>;
+  
   // Discounts
   appliedDiscount: DiscountCode | null;
   applyDiscountCode: (code: string, token?: string) => Promise<boolean>;
@@ -168,6 +174,10 @@ export const useCartStore = create<CartState>()(
       availableLanguages: fallbackLanguages,
       isLoadingCurrencies: false,
       isLoadingLanguages: false,
+      
+      // Delivery scope state
+      deliveryScope: null,
+      isLoadingDeliveryScope: false,
 
       // Cart item methods
       addToCart: (product, quantity = 1, color, size, imageUrl?: string, variantPrice?: number, variantComparePrice?: number) => {
@@ -293,9 +303,9 @@ export const useCartStore = create<CartState>()(
       },
 
       getSubtotal: () => {
-        const { items, selectedCurrency } = get();
+        const { items } = get();
         const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
-        return subtotal * selectedCurrency.rate;
+        return subtotal;
       },
 
       getTotal: () => {
@@ -309,14 +319,14 @@ export const useCartStore = create<CartState>()(
       },
 
       getSavings: () => {
-        const { items, selectedCurrency } = get();
+        const { items } = get();
         const savings = items.reduce((total, item) => {
           if (item.comparePrice && item.comparePrice > item.price) {
             return total + ((item.comparePrice - item.price) * item.quantity);
           }
           return total;
         }, 0);
-        return savings * selectedCurrency.rate;
+        return savings;
       },
 
       // Shipping methods
@@ -374,12 +384,12 @@ export const useCartStore = create<CartState>()(
       },
 
       getDiscountAmount: () => {
-        const { appliedDiscount, getSubtotal, selectedCurrency } = get();
+        const { appliedDiscount, getSubtotal } = get();
         if (!appliedDiscount) return 0;
         
         // Use the pre-calculated amount from the backend if available
         if (appliedDiscount.calculatedAmount !== undefined) {
-          return appliedDiscount.calculatedAmount * selectedCurrency.rate;
+          return appliedDiscount.calculatedAmount;
         }
         
         // Fallback to local calculation if needed
@@ -390,12 +400,12 @@ export const useCartStore = create<CartState>()(
         if (appliedDiscount.type === 'PERCENTAGE') {
           discountAmount = subtotal * (appliedDiscount.value / 100);
         } else {
-          discountAmount = appliedDiscount.value * selectedCurrency.rate;
+          discountAmount = appliedDiscount.value;
         }
         
         // Apply max discount limit if specified
         if (appliedDiscount.maxDiscount) {
-          discountAmount = Math.min(discountAmount, appliedDiscount.maxDiscount * selectedCurrency.rate);
+          discountAmount = Math.min(discountAmount, appliedDiscount.maxDiscount);
         }
         
         return discountAmount;
@@ -456,6 +466,21 @@ export const useCartStore = create<CartState>()(
       isProductInCart: (productId) => {
         const { items } = get();
         return items.some(item => item.id === productId);
+      },
+
+      // Delivery scope methods
+      fetchDeliveryScope: async () => {
+        try {
+          set({ isLoadingDeliveryScope: true });
+          const scope = await DeliveryScopeService.getDeliveryScope();
+          set({ 
+            deliveryScope: scope,
+            isLoadingDeliveryScope: false 
+          });
+        } catch (error) {
+          console.error('Failed to fetch delivery scope:', error);
+          set({ isLoadingDeliveryScope: false });
+        }
       },
     }),
     {
