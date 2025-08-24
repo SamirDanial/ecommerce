@@ -225,11 +225,16 @@ export class CurrencyService {
       const updatedVariants = await this.updateProductVariantPrices(conversionRate);
       console.log(`✅ Updated ${updatedVariants} product variants`);
 
-      // 5. Update isBase flags in exchange_rates table (REMOVED - not needed)
-      // await this.updateExchangeRateBaseFlags(newBaseCurrency);
-      // console.log(`✅ Updated exchange rate base flags`);
+      // 5. Update all tax rates (SKIPPED - tax rates are percentages, not monetary values)
+      // const updatedTaxRates = await this.updateTaxRates(conversionRate);
+      const updatedTaxRates = 0; // Tax rates remain unchanged
+      console.log(`✅ Skipped tax rates (they are percentages)`);
 
-      // 6. Update currency_config table (isDefault flags and rates)
+      // 6. Update all shipping rates
+      const updatedShippingRates = await this.updateShippingRates(conversionRate);
+      console.log(`✅ Updated ${updatedShippingRates} shipping rates`);
+
+      // 7. Update currency_config table (isDefault flags and rates)
       await this.updateCurrencyConfigRates(oldBaseCurrency, newBaseCurrency, conversionRate);
       console.log(`✅ Updated currency config rates`);
 
@@ -237,8 +242,8 @@ export class CurrencyService {
       
       return {
         success: true,
-        message: `Base currency changed from ${oldBaseCurrency} to ${newBaseCurrency}. Updated ${updatedProducts} products and ${updatedVariants} variants.`,
-        updatedProducts: updatedProducts + updatedVariants
+        message: `Base currency changed from ${oldBaseCurrency} to ${newBaseCurrency}. Updated ${updatedProducts} products, ${updatedVariants} variants, skipped tax rates (percentages), and ${updatedShippingRates} shipping rates.`,
+        updatedProducts: updatedProducts + updatedVariants + updatedShippingRates
       };
 
     } catch (error: any) {
@@ -340,6 +345,48 @@ export class CurrencyService {
         });
         updatedCount++;
       }
+    }
+
+    return updatedCount;
+  }
+
+  /**
+   * Update all shipping rates based on the conversion rate
+   */
+  private async updateShippingRates(conversionRate: number): Promise<number> {
+    let updatedCount = 0;
+
+    // Update ShippingRate table (main shipping rates)
+    try {
+      console.log('🔍 Searching for shipping rates in shipping_rates table...');
+      const shippingRates = await prisma.shippingRate.findMany({
+        select: { id: true, shippingCost: true }
+      });
+
+      console.log(`📊 Found ${shippingRates.length} shipping rates:`, shippingRates);
+
+      for (const shippingRate of shippingRates) {
+        const updateData: any = {};
+        
+        if (shippingRate.shippingCost) {
+          const oldCost = Number(shippingRate.shippingCost);
+          // Use the same logic as product prices: multiply by conversionRate
+          const newCost = oldCost * conversionRate;
+          updateData.shippingCost = newCost;
+          console.log(`✅ Will update shipping cost ${shippingRate.id}: ${oldCost} → ${newCost} (rate: ${conversionRate})`);
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await prisma.shippingRate.update({
+            where: { id: shippingRate.id },
+            data: updateData
+          });
+          updatedCount++;
+          console.log(`✅ Updated shipping rate ${shippingRate.id}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error updating shipping rates:', error);
     }
 
     return updatedCount;
