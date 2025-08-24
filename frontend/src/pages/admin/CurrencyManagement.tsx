@@ -350,7 +350,6 @@ const CurrencyManagement: React.FC = () => {
           <div className="space-y-4">
             {exchangeRates && exchangeRates.length > 0 ? (
               exchangeRates
-                .filter(rate => rate.fromCurrency === baseCurrency)
                 .map((rate) => {
                   // Ensure rate.rate is a valid number
                   const rateValue = typeof rate.rate === 'number' ? rate.rate : 

@@ -85,7 +85,7 @@ router.post('/change-base-currency', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error changing base currency:', error);
     res.status(500).json({ 
-      error: `Failed to change base currency: ${error.message}` 
+      error: `Failed to change base currency: ${error}` 
     });
   }
 });
@@ -177,7 +177,7 @@ router.post('/exchange-rates/bulk-update', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error bulk updating exchange rates:', error);
     res.status(500).json({ 
-      error: `Failed to bulk update exchange rates: ${error.message}` 
+      error: `Failed to bulk update exchange rates: ${error}` 
     });
   }
 });
@@ -235,7 +235,7 @@ router.post('/test-conversion', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error testing conversion:', error);
     res.status(500).json({ 
-      error: `Failed to test conversion: ${error.message}` 
+      error: `Failed to test conversion: ${error}` 
     });
   }
 });
