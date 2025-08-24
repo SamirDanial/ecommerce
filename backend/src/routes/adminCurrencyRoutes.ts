@@ -110,6 +110,55 @@ router.get('/exchange-rates', requireAdmin, async (req, res) => {
   }
 });
 
+// Create new exchange rate
+router.post('/exchange-rates', requireAdmin, async (req, res) => {
+  try {
+    const { fromCurrency, toCurrency, rate, source } = req.body;
+
+    if (!fromCurrency || !toCurrency || !rate) {
+      return res.status(400).json({ 
+        error: 'fromCurrency, toCurrency, and rate are required' 
+      });
+    }
+
+    if (rate <= 0) {
+      return res.status(400).json({ 
+        error: 'Exchange rate must be greater than 0' 
+      });
+    }
+
+    // Check if rate already exists
+    const existingRate = await prisma.exchangeRate.findFirst({
+      where: {
+        fromCurrency,
+        toCurrency,
+        isActive: true
+      }
+    });
+
+    if (existingRate) {
+      return res.status(400).json({ 
+        error: `Exchange rate from ${fromCurrency} to ${toCurrency} already exists` 
+      });
+    }
+
+    const newRate = await prisma.exchangeRate.create({
+      data: {
+        fromCurrency,
+        toCurrency,
+        rate: parseFloat(rate),
+        source: source || 'Manual',
+        isActive: true
+      }
+    });
+
+    res.status(201).json(newRate);
+  } catch (error) {
+    console.error('Error creating exchange rate:', error);
+    res.status(500).json({ error: 'Failed to create exchange rate' });
+  }
+});
+
 // Update exchange rate
 router.put('/exchange-rates/:id', requireAdmin, async (req, res) => {
   try {
@@ -184,21 +233,19 @@ router.post('/exchange-rates/bulk-update', requireAdmin, async (req, res) => {
 
 // ===== UTILITY ENDPOINTS =====
 
-// Get available currencies
+// Get available currencies from currency_config table
 router.get('/currencies', requireAdmin, async (req, res) => {
   try {
-    const currencies = [
-      { code: 'USD', name: 'US Dollar' },
-      { code: 'EUR', name: 'Euro' },
-      { code: 'GBP', name: 'British Pound' },
-      { code: 'PKR', name: 'Pakistani Rupee' },
-      { code: 'CAD', name: 'Canadian Dollar' },
-      { code: 'AUD', name: 'Australian Dollar' },
-      { code: 'JPY', name: 'Japanese Yen' },
-      { code: 'CHF', name: 'Swiss Franc' },
-      { code: 'CNY', name: 'Chinese Yuan' },
-      { code: 'INR', name: 'Indian Rupee' }
-    ];
+    const currencies = await prisma.currencyConfig.findMany({
+      where: { isActive: true },
+      select: {
+        code: true,
+        name: true,
+        symbol: true,
+        isDefault: true
+      },
+      orderBy: { code: 'asc' }
+    });
 
     res.json(currencies);
   } catch (error) {

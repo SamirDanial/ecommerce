@@ -14,7 +14,9 @@ import {
   CheckCircle, 
   DollarSign,
   TrendingUp,
-  Settings
+  Settings,
+  Search,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
@@ -23,6 +25,8 @@ import axios from 'axios';
 interface Currency {
   code: string;
   name: string;
+  symbol: string;
+  isDefault: boolean;
 }
 
 interface ExchangeRate {
@@ -51,11 +55,12 @@ const CurrencyManagement: React.FC = () => {
   const [newBaseCurrency, setNewBaseCurrency] = useState<string>('');
   const [conversionRate, setConversionRate] = useState<string>('');
   const [showChangeDialog, setShowChangeDialog] = useState(false);
-  const [showTestDialog, setShowTestDialog] = useState(false);
-  const [testAmount, setTestAmount] = useState<string>('');
-  const [testFromCurrency, setTestFromCurrency] = useState<string>('');
-  const [testToCurrency, setTestToCurrency] = useState<string>('');
-  const [testResult, setTestResult] = useState<any>(null);
+  const [showAddRateDialog, setShowAddRateDialog] = useState(false);
+  const [newRateToCurrency, setNewRateToCurrency] = useState<string>('');
+  const [newRateValue, setNewRateValue] = useState<string>('');
+  const [addingRate, setAddingRate] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState<string>('');
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
 
   // Exchange rate editing states
   const [showEditRateDialog, setShowEditRateDialog] = useState(false);
@@ -173,24 +178,37 @@ const CurrencyManagement: React.FC = () => {
     }
   };
 
-  const handleTestConversion = async () => {
-    if (!testAmount || !testFromCurrency || !testToCurrency) {
-      toast.error('Please fill in all test fields');
+  // Add new exchange rate function
+  const handleAddNewRate = async () => {
+    if (!newRateToCurrency || !newRateValue) {
+      toast.error('Please fill in all fields');
       return;
     }
 
     try {
+      setAddingRate(true);
       const api = await createAuthenticatedApi();
-      const response = await api.post('/admin/currency/test-conversion', {
-        amount: parseFloat(testAmount),
-        fromCurrency: testFromCurrency,
-        toCurrency: testToCurrency
+      
+      // Create new exchange rate from USD to selected currency
+      const response = await api.post('/admin/currency/exchange-rates', {
+        fromCurrency: 'USD',
+        toCurrency: newRateToCurrency,
+        rate: parseFloat(newRateValue),
+        source: 'Manual'
       });
 
-      setTestResult(response.data);
+      toast.success('New exchange rate added successfully!');
+      setShowAddRateDialog(false);
+      setNewRateToCurrency('');
+      setNewRateValue('');
+      
+      // Refresh the exchange rates list
+      fetchData();
     } catch (error: any) {
-      console.error('Error testing conversion:', error);
-      toast.error(error.response?.data?.error || 'Failed to test conversion');
+      console.error('Error adding new rate:', error);
+      toast.error(error.response?.data?.error || 'Failed to add new exchange rate');
+    } finally {
+      setAddingRate(false);
     }
   };
 
@@ -255,6 +273,25 @@ const CurrencyManagement: React.FC = () => {
     return currencies.find(c => c.code === code)?.name || code;
   };
 
+  // Filter currencies based on search
+  const filteredCurrencies = currencies.filter(currency => 
+    currency.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+    currency.name.toLowerCase().includes(currencySearch.toLowerCase())
+  );
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.currency-dropdown')) {
+        setShowCurrencyDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Unknown';
     try {
@@ -297,10 +334,16 @@ const CurrencyManagement: React.FC = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button onClick={() => setShowTestDialog(true)}>
-            <Calculator className="h-4 w-4 mr-2" />
-            Test Conversion
-          </Button>
+                      <Button onClick={() => {
+              setShowAddRateDialog(true);
+              setCurrencySearch('');
+              setNewRateToCurrency('');
+              setNewRateValue('');
+              setShowCurrencyDropdown(false);
+            }}>
+              <Calculator className="h-4 w-4 mr-2" />
+              Add New Rate
+            </Button>
         </div>
       </div>
 
@@ -376,7 +419,7 @@ const CurrencyManagement: React.FC = () => {
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
                           <div className="font-mono text-lg">
-                            {rateValue.toFixed(6)}
+                            {rateValue.toFixed(6).replace(/\.?0+$/, '')}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {rate.source} • {formatDate(rate.lastUpdated)}
@@ -416,7 +459,7 @@ const CurrencyManagement: React.FC = () => {
 
       {/* Change Base Currency Dialog */}
       <Dialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Change Base Currency</DialogTitle>
             <DialogDescription>
@@ -499,90 +542,160 @@ const CurrencyManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Test Conversion Dialog */}
-      <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
-        <DialogContent className="sm:max-w-md">
+      {/* Add New Exchange Rate Dialog */}
+      <Dialog open={showAddRateDialog} onOpenChange={setShowAddRateDialog}>
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Test Currency Conversion</DialogTitle>
+            <DialogTitle>Add New Exchange Rate</DialogTitle>
             <DialogDescription>
-              Test how prices will be converted between different currencies
+              Add a new exchange rate from USD to another currency
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="testAmount">Amount</Label>
-                <Input
-                  id="testAmount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="100"
-                  value={testAmount}
-                  onChange={(e) => setTestAmount(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="newRateToCurrency">To Currency</Label>
               
-              <div className="space-y-2">
-                <Label htmlFor="testFrom">From</Label>
-                <Select value={testFromCurrency} onValueChange={setTestFromCurrency}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem key={currency.code} value={currency.code}>
-                        {currency.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="testTo">To</Label>
-                <Select value={testToCurrency} onValueChange={setTestToCurrency}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem key={currency.code} value={currency.code}>
-                        {currency.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Searchable Dropdown */}
+              <div className="relative currency-dropdown">
+                <div
+                  className="flex items-center justify-between p-3 border rounded-md cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => {
+                    setShowCurrencyDropdown(prev => !prev);
+                    // Focus on search input when dropdown opens
+                    if (!showCurrencyDropdown) {
+                      setTimeout(() => {
+                        const searchInput = document.querySelector('.currency-dropdown input') as HTMLInputElement;
+                        if (searchInput) searchInput.focus();
+                      }, 100);
+                    }
+                  }}
+                >
+                  {newRateToCurrency ? (
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                        {newRateToCurrency}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {currencies.find(c => c.code === newRateToCurrency)?.symbol}
+                      </span>
+                      <span className="font-medium">
+                        {getCurrencyName(newRateToCurrency)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Select a currency</span>
+                  )}
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </div>
+                
+                {/* Dropdown Menu */}
+                {showCurrencyDropdown && (
+                  <div 
+                    className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Search Input */}
+                    <div className="p-2 border-b">
+                      <div className="relative">
+                        <Input
+                          placeholder="Search currencies..."
+                          value={currencySearch}
+                          onChange={(e) => setCurrencySearch(e.target.value)}
+                          className="pl-8"
+                          autoFocus={false}
+                        />
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                    
+                    {/* Currency Options */}
+                    <div className="py-1">
+                      {filteredCurrencies
+                        .filter(c => c.code !== 'USD')
+                        .map((currency) => (
+                          <div
+                            key={currency.code}
+                            className={`px-3 py-2 cursor-pointer hover:bg-muted transition-colors ${
+                              newRateToCurrency === currency.code ? 'bg-primary/10' : ''
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setNewRateToCurrency(currency.code);
+                              setShowCurrencyDropdown(false);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                                  {currency.code}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {currency.symbol}
+                                </span>
+                                <span className="font-medium">{currency.name}</span>
+                              </div>
+                              {currency.isDefault && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {filteredCurrencies.filter(c => c.code !== 'USD').length === 0 && (
+                        <div className="px-3 py-2 text-center text-muted-foreground text-sm">
+                          No currencies found matching "{currencySearch}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            <Button 
-              onClick={handleTestConversion}
-              disabled={!testAmount || !testFromCurrency || !testToCurrency}
-              className="w-full"
-            >
-              <Calculator className="h-4 w-4 mr-2" />
-              Test Conversion
-            </Button>
-
-            {testResult && (
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="text-2xl font-bold">
-                    {testResult.originalAmount} {testResult.fromCurrency} = {testResult.convertedAmount} {testResult.toCurrency}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Exchange Rate: 1 {testResult.fromCurrency} = {testResult.rate} {testResult.toCurrency}
-                  </div>
-                </div>
-              </div>
-            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="newRateValue">
+                Exchange Rate (1 USD = ? {newRateToCurrency})
+              </Label>
+              <Input
+                id="newRateValue"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g., 280 for USD→PKR"
+                value={newRateValue}
+                onChange={(e) => setNewRateValue(e.target.value)}
+                autoFocus={false}
+              />
+              <p className="text-sm text-muted-foreground">
+                Example: If 1 USD = 280 PKR, enter 280
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTestDialog(false)}>
-              Close
+            <Button variant="outline" onClick={() => setShowAddRateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddNewRate}
+              disabled={addingRate || !newRateToCurrency || !newRateValue}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {addingRate ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Adding Rate...
+                </>
+              ) : (
+                <>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Add Exchange Rate
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -590,7 +703,7 @@ const CurrencyManagement: React.FC = () => {
 
       {/* Edit Exchange Rate Dialog */}
       <Dialog open={showEditRateDialog} onOpenChange={setShowEditRateDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Edit Exchange Rate</DialogTitle>
             <DialogDescription>
@@ -609,6 +722,7 @@ const CurrencyManagement: React.FC = () => {
                 placeholder="Enter new rate"
                 value={editRateValue}
                 onChange={(e) => setEditRateValue(e.target.value)}
+                autoFocus={false}
               />
               <p className="text-sm text-muted-foreground">
                 Current rate: {editingRate?.rate} | New rate: {editRateValue}
