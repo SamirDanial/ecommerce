@@ -82,6 +82,8 @@ const DeliveryScope: React.FC = () => {
   const [taxSearchTerm, setTaxSearchTerm] = useState('');
   const [taxStatusFilter, setTaxStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
+
+
   // Form data
   const [scopeFormData, setScopeFormData] = useState({
     businessName: '',
@@ -135,21 +137,11 @@ const DeliveryScope: React.FC = () => {
         api.get('/admin/delivery-scope/currencies')
       ]);
 
-      console.log('Scope response:', scopeRes.data);
-      console.log('Shipping response:', shippingRes.data);
-      console.log('Tax response:', taxRes.data);
-      console.log('Countries response:', countriesRes.data);
-      console.log('Currencies response:', currenciesRes.data);
-      
       setDeliveryScope(scopeRes.data);
       setLocalShippingRates(shippingRes.data?.rates || []);
       setLocalTaxRates(taxRes.data?.rates || []);
       setCountries(countriesRes.data || []);
       setCurrencies(currenciesRes.data || []);
-      
-      // Debug: Log what we're setting in state
-      console.log('Setting shipping rates:', shippingRes.data?.rates || []);
-      console.log('Setting tax rates:', taxRes.data?.rates || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast.error('Failed to fetch data');
@@ -655,11 +647,13 @@ const DeliveryScope: React.FC = () => {
                   
                   {/* Status Filter */}
                   <div className="flex-shrink-0">
-                    <Select value={shippingStatusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setShippingStatusFilter(value)}>
+                    <Select value={shippingStatusFilter} onValueChange={(value) => {
+                      setShippingStatusFilter(value as 'all' | 'active' | 'inactive');
+                    }}>
                       <SelectTrigger className="w-40 bg-white/60 backdrop-blur-sm border-white/30">
                         <SelectValue placeholder="Filter by status" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-50">
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="active">Active Only</SelectItem>
                         <SelectItem value="inactive">Inactive Only</SelectItem>
@@ -756,7 +750,7 @@ const DeliveryScope: React.FC = () => {
                   {/* Search Input */}
                   <div className="flex-1">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-4 00" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
                         placeholder="Search by city, state, or tax name..."
                         value={taxSearchTerm}
@@ -768,16 +762,27 @@ const DeliveryScope: React.FC = () => {
                   
                   {/* Status Filter */}
                   <div className="flex-shrink-0">
-                    <Select value={taxStatusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setTaxStatusFilter(value)}>
+                    <Select value={taxStatusFilter} onValueChange={(value) => {
+                      setTaxStatusFilter(value as 'all' | 'active' | 'inactive');
+                    }}>
                       <SelectTrigger className="w-40 bg-white/60 backdrop-blur-sm border-white/30">
                         <SelectValue placeholder="Filter by status" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-50">
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="active">Active Only</SelectItem>
                         <SelectItem value="inactive">Inactive Only</SelectItem>
                       </SelectContent>
                     </Select>
+                    {/* Debug button - remove after testing */}
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setTaxStatusFilter('active')}
+                      className="ml-2"
+                    >
+                      Test Active
+                    </Button>
                   </div>
                 </div>
                 

@@ -16,7 +16,7 @@ const requireAdmin = requireRole(['ADMIN']);
 // Get all tax rates with pagination and filters
 router.get('/tax-rates', requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', country = '', isActive } = req.query;
+    const { page = 1, limit = 20, search = '', isActive } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     // Build where clause
@@ -31,11 +31,7 @@ router.get('/tax-rates', requireAdmin, async (req, res) => {
       ];
     }
 
-    if (country) {
-      where.countryCode = country;
-    }
-
-    if (isActive !== undefined) {
+    if (isActive !== undefined && isActive !== '') {
       where.isActive = isActive === 'true';
     }
 
@@ -186,6 +182,36 @@ router.delete('/tax-rates/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Toggle tax rate active status
+router.patch('/tax-rates/:id/toggle-active', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get current tax rate
+    const currentTaxRate = await prisma.taxRate.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!currentTaxRate) {
+      return res.status(404).json({ error: 'Tax rate not found' });
+    }
+
+    // Toggle the active status
+    const updatedTaxRate = await prisma.taxRate.update({
+      where: { id: parseInt(id) },
+      data: { isActive: !currentTaxRate.isActive }
+    });
+
+    res.json({ 
+      message: 'Tax rate status updated successfully',
+      isActive: updatedTaxRate.isActive 
+    });
+  } catch (error) {
+    console.error('Error toggling tax rate status:', error);
+    res.status(500).json({ error: 'Failed to update tax rate status' });
+  }
+});
+
 // Bulk update tax rates
 router.patch('/tax-rates/bulk', requireAdmin, async (req, res) => {
   try {
@@ -212,7 +238,7 @@ router.patch('/tax-rates/bulk', requireAdmin, async (req, res) => {
 // Get all shipping rates with pagination and filters
 router.get('/shipping-rates', requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', country = '', isActive } = req.query;
+    const { page = 1, limit = 20, search = '', isActive } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     // Build where clause
@@ -226,11 +252,7 @@ router.get('/shipping-rates', requireAdmin, async (req, res) => {
       ];
     }
 
-    if (country) {
-      where.countryCode = country;
-    }
-
-    if (isActive !== undefined) {
+    if (isActive !== undefined && isActive !== '') {
       where.isActive = isActive === 'true';
     }
 
@@ -389,6 +411,36 @@ router.delete('/shipping-rates/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Toggle shipping rate active status
+router.patch('/shipping-rates/:id/toggle-active', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get current shipping rate
+    const currentShippingRate = await prisma.shippingRate.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!currentShippingRate) {
+      return res.status(404).json({ error: 'Shipping rate not found' });
+    }
+
+    // Toggle the active status
+    const updatedShippingRate = await prisma.shippingRate.update({
+      where: { id: parseInt(id) },
+      data: { isActive: !currentShippingRate.isActive }
+    });
+
+    res.json({ 
+      message: 'Shipping rate status updated successfully',
+      isActive: updatedShippingRate.isActive 
+    });
+  } catch (error) {
+    console.error('Error toggling shipping rate status:', error);
+    res.status(500).json({ error: 'Failed to update shipping rate status' });
+  }
+});
+
 // Bulk update shipping rates
 router.patch('/shipping-rates/bulk', requireAdmin, async (req, res) => {
   try {
@@ -415,13 +467,33 @@ router.patch('/shipping-rates/bulk', requireAdmin, async (req, res) => {
 // Get all countries for dropdowns
 router.get('/countries', requireAdmin, async (req, res) => {
   try {
-    const countries = await prisma.taxRate.findMany({
-      select: { countryCode: true, countryName: true },
-      distinct: ['countryCode'],
-      orderBy: { countryName: 'asc' }
-    });
+    // Get countries from both tax rates and shipping rates
+    const [taxCountries, shippingCountries] = await Promise.all([
+      prisma.taxRate.findMany({
+        select: { countryCode: true, countryName: true },
+        distinct: ['countryCode'],
+        orderBy: { countryName: 'asc' }
+      }),
+      prisma.shippingRate.findMany({
+        select: { countryCode: true, countryName: true },
+        distinct: ['countryCode'],
+        orderBy: { countryName: 'asc' }
+      })
+    ]);
 
-    res.json(countries.map(c => ({ code: c.countryCode, name: c.countryName })));
+    // Combine and deduplicate countries
+    const allCountries = [...taxCountries, ...shippingCountries];
+    const uniqueCountries = allCountries.reduce((acc, country) => {
+      if (!acc.find(c => c.countryCode === country.countryCode)) {
+        acc.push(country);
+      }
+      return acc;
+    }, [] as any[]);
+
+    // Sort by country name
+    uniqueCountries.sort((a, b) => a.countryName.localeCompare(b.countryName));
+
+    res.json({ countries: uniqueCountries.map(c => ({ code: c.countryCode, name: c.countryName })) });
   } catch (error) {
     console.error('Error fetching countries:', error);
     res.status(500).json({ error: 'Failed to fetch countries' });
@@ -460,13 +532,37 @@ router.get('/stats', requireAdmin, async (req, res) => {
       prisma.shippingRate.count({ where: { isActive: true } })
     ]);
 
+    // Get business base currency information
+    const businessConfig = await prisma.businessConfig.findFirst({
+      where: { isActive: true }
+    });
+
+    let currencyInfo = null;
+    if (businessConfig) {
+      const currencyConfig = await prisma.currencyConfig.findFirst({
+        where: { 
+          code: businessConfig.baseCurrency,
+          isActive: true 
+        }
+      });
+
+      if (currencyConfig) {
+        currencyInfo = {
+          code: currencyConfig.code,
+          symbol: currencyConfig.symbol,
+          name: currencyConfig.name
+        };
+      }
+    }
+
     res.json({
       totalTaxRates: taxCount,
       totalShippingRates: shippingCount,
       activeTaxRates: activeTaxCount,
       activeShippingRates: activeShippingCount,
       inactiveTaxRates: taxCount - activeTaxCount,
-      inactiveShippingRates: shippingCount - activeShippingCount
+      inactiveShippingRates: shippingCount - activeShippingCount,
+      currency: currencyInfo
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
