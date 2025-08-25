@@ -96,12 +96,13 @@ interface Order {
       id: number;
       name: string;
       costPrice?: number;
-      images?: Array<{
-        url: string;
-        alt?: string;
-        isPrimary: boolean;
-        sortOrder: number;
-      }>;
+                          images?: Array<{
+                      url: string;
+                      alt?: string;
+                      color?: string;
+                      isPrimary: boolean;
+                      sortOrder: number;
+                    }>;
     };
     variant?: {
       costPrice?: number;
@@ -379,6 +380,33 @@ const OrderManagement: React.FC = () => {
     }
   };
 
+  // Refresh order details for the currently selected order
+  const refreshOrderDetails = async (orderId: number) => {
+    try {
+      console.log('🔍 Starting refreshOrderDetails for orderId:', orderId);
+      
+      const token = await getToken();
+      if (!token) return;
+      
+      const response = await fetch(`${getApiBaseUrl()}/admin/orders/${orderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔍 Received refreshed order data:', data.data);
+        setSelectedOrder(data.data);
+        console.log('🔍 selectedOrder state updated');
+      } else {
+        console.error('Failed to refresh order details');
+      }
+    } catch (error) {
+      console.error('Error refreshing order details:', error);
+    }
+  };
+
   // Update delivery information
   const updateDeliveryStatus = async (orderId: number, deliveryData: {
     deliveryStatus: string;
@@ -413,11 +441,24 @@ const OrderManagement: React.FC = () => {
 
       if (statusResponse.ok) {
         toast.success('Delivery information updated successfully');
+        
+        console.log('🔍 Delivery update successful, refreshing data...');
+        console.log('🔍 Current selectedOrder before refresh:', selectedOrder);
+        
+        // Refresh the order management list
         fetchOrders();
         fetchSalesMetrics();
+        
+        // Refresh the current order details to show updated data
+        await refreshOrderDetails(orderId);
+        
+        console.log('🔍 Order details refreshed, selectedOrder after refresh:', selectedOrder);
+        
+        // Close only the delivery dialog, keep parent dialog open
         setDeliveryUpdateOpen(false);
-        setSelectedOrder(null);
         resetDeliveryForm();
+        
+        console.log('🔍 Delivery dialog closed, parent dialog should remain open');
       } else {
         const errorData = await statusResponse.json();
         toast.error(`Failed to update delivery information: ${errorData.message || 'Unknown error'}`);
@@ -1187,7 +1228,14 @@ const OrderManagement: React.FC = () => {
       </div>
 
       {/* Enhanced Order Detail Modal */}
-      <Dialog open={orderDetailOpen} onOpenChange={setOrderDetailOpen}>
+      <Dialog 
+        open={orderDetailOpen} 
+        onOpenChange={(open) => {
+          console.log('🔍 Order details dialog onOpenChange:', open);
+          console.log('🔍 selectedOrder when dialog state changes:', selectedOrder);
+          setOrderDetailOpen(open);
+        }}
+      >
         <DialogContent className="max-w-4xl w-screen sm:w-[95vw] max-h-[90vh] overflow-y-auto p-3 sm:p-6 bg-white/95 backdrop-blur-xl border border-white/30">
           <DialogHeader className="mb-3 sm:mb-6">
             <DialogTitle className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3 text-center sm:text-left">
@@ -1202,7 +1250,7 @@ const OrderManagement: React.FC = () => {
               <span className="sm:hidden">Order details and financial summary</span>
             </p>
           </DialogHeader>
-          {selectedOrder && (
+          {selectedOrder && selectedOrder.items ? (
             <div className="space-y-4 sm:space-y-6">
               {/* Enhanced Order Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
@@ -1229,7 +1277,7 @@ const OrderManagement: React.FC = () => {
                     </div>
                     <div className="flex justify-between p-2 bg-slate-50/50 rounded-lg">
                       <span className="text-slate-600 font-medium">Last Updated:</span>
-                      <span className="text-slate-800 font-medium">{formatDate(selectedOrder.lastStatusUpdate)}</span>
+                      <span className="text-slate-800 font-medium">{selectedOrder.lastStatusUpdate ? formatDate(selectedOrder.lastStatusUpdate) : 'N/A'}</span>
                     </div>
                     
                     <div className="flex justify-between p-2 bg-slate-50/50 rounded-lg">
@@ -1288,23 +1336,27 @@ const OrderManagement: React.FC = () => {
               {/* Enhanced Order Items */}
               <Card className="bg-white/80 backdrop-blur-xl border border-white/30 shadow-lg">
                 <CardHeader className="p-3 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg text-slate-800">Order Items ({selectedOrder.items.length})</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-800">Order Items ({selectedOrder.items?.length || 0})</CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-6">
                   <div className="space-y-2 sm:space-y-3">
-                    {selectedOrder.items.map((item) => {
-                      console.log('Frontend Item:', item);
-                      console.log('Frontend Product Images:', item.product?.images);
-                      console.log('Frontend First Image URL:', item.product?.images?.[0]?.url);
+                    {selectedOrder.items?.map((item) => {
                       return (
                         <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm hover:shadow-md transition-all duration-200 gap-2 sm:gap-3">
-                          {/* Product Image - Lazy loaded */}
+                          {/* Product Image */}
                           <div className="flex-shrink-0">
                             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center bg-gray-100">
-                              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <Package className="w-6 h-6 text-gray-400" />
-                              </div>
-                              <p className="text-xs text-gray-500 text-center px-2">Click "View Details" to see images</p>
+                              {item.product?.images?.[0]?.url ? (
+                                <ImageWithPlaceholder
+                                  src={getFullImageUrl(item.product.images[0].url)}
+                                  alt={item.productName}
+                                  className="w-auto h-auto max-w-full max-h-[60px] sm:max-h-[80px] object-contain object-center"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                  <Package className="w-6 h-6 text-gray-400" />
+                                </div>
+                              )}
                             </div>
                           </div>
                           
@@ -1340,7 +1392,7 @@ const OrderManagement: React.FC = () => {
                     })}
                     
                     {/* Enhanced Order Summary with Net Profit */}
-                    {selectedOrder.items.some(item => item.costPrice) && (
+                    {selectedOrder.items?.some(item => item.costPrice) && (
                       <div className="mt-6 pt-6 border-t border-gray-200">
                         <h4 className="font-semibold text-gray-900 mb-4 sm:mb-6 text-base sm:text-lg">Financial Summary</h4>
                         
@@ -1354,9 +1406,9 @@ const OrderManagement: React.FC = () => {
                             <p className="text-gray-600">Product Costs:</p>
                             <p className="font-medium">
                               {formatCurrency(
-                                selectedOrder.items.reduce((sum, item) => 
+                                selectedOrder.items?.reduce((sum, item) => 
                                   sum + (Number(item.costPrice) || 0) * item.quantity, 0
-                                ), 
+                                ) || 0, 
                                 selectedOrder.currency
                               )}
                             </p>
@@ -1370,9 +1422,9 @@ const OrderManagement: React.FC = () => {
                               <p className="text-gray-600">Gross Profit:</p>
                               <p className="font-medium text-green-600">
                                 {formatCurrency(
-                                  selectedOrder.total - selectedOrder.items.reduce((sum, item) => 
+                                  selectedOrder.total - (selectedOrder.items?.reduce((sum, item) => 
                                     sum + (Number(item.costPrice) || 0) * item.quantity, 0
-                                  ), 
+                                  ) || 0), 
                                   selectedOrder.currency
                                 )}
                               </p>
@@ -1381,9 +1433,9 @@ const OrderManagement: React.FC = () => {
                               <p className="text-gray-600">Profit Margin:</p>
                               <p className="font-medium text-green-600">
                                 {(() => {
-                                  const totalCost = selectedOrder.items.reduce((sum, item) => 
+                                  const totalCost = selectedOrder.items?.reduce((sum, item) => 
                                     sum + (Number(item.costPrice) || 0) * item.quantity, 0
-                                  );
+                                  ) || 0;
                                   const profit = selectedOrder.total - totalCost;
                                   return totalCost > 0 ? `${((profit / selectedOrder.total) * 100).toFixed(1)}%` : 'N/A';
                                 })()}
@@ -1403,9 +1455,9 @@ const OrderManagement: React.FC = () => {
                               <p className="text-xl sm:text-2xl font-bold text-blue-800">
                                 {formatCurrency(
                                   (() => {
-                                    const totalCost = selectedOrder.items.reduce((sum, item) => 
+                                    const totalCost = selectedOrder.items?.reduce((sum, item) => 
                                       sum + (Number(item.costPrice) || 0) * item.quantity, 0
-                                    );
+                                    ) || 0;
                                     const grossProfit = selectedOrder.total - totalCost;
                                     
                                     // Calculate immediate deductions (tax + shipping)
@@ -1420,9 +1472,9 @@ const OrderManagement: React.FC = () => {
                               </p>
                               <p className="text-xs text-blue-600">
                                 {(() => {
-                                  const totalCost = selectedOrder.items.reduce((sum, item) => 
+                                  const totalCost = selectedOrder.items?.reduce((sum, item) => 
                                     sum + (Number(item.costPrice) || 0) * item.quantity, 0
-                                  );
+                                  ) || 0;
                                   const grossProfit = selectedOrder.total - totalCost;
                                   
                                   // Calculate immediate deductions (tax + shipping)
@@ -1453,16 +1505,16 @@ const OrderManagement: React.FC = () => {
                   <div className="space-y-2 sm:space-y-3">
                     <div className="flex justify-between p-2 bg-slate-50/50 rounded-lg">
                       <span className="text-slate-600 font-medium">Name:</span>
-                      <span className="text-slate-800 font-medium">{selectedOrder.user.name}</span>
+                      <span className="text-slate-800 font-medium">{selectedOrder.user?.name || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between p-2 bg-slate-50/50 rounded-lg">
                       <span className="text-slate-600 font-medium">Email:</span>
-                      <span className="text-slate-800 font-medium">{selectedOrder.user.email}</span>
+                      <span className="text-slate-800 font-medium">{selectedOrder.user?.email || 'N/A'}</span>
                     </div>
-                    {selectedOrder.user.phone && (
+                    {selectedOrder.user?.phone && (
                       <div className="flex justify-between p-2 bg-slate-50/50 rounded-lg">
                         <span className="text-slate-600 font-medium">Phone:</span>
-                        <span className="text-slate-800 font-medium">{selectedOrder.user.phone}</span>
+                        <span className="text-slate-800 font-medium">{selectedOrder.user?.phone}</span>
                       </div>
                     )}
                   </div>
@@ -1603,8 +1655,10 @@ const OrderManagement: React.FC = () => {
                   </CardContent>
                 </Card>
               )}
-
-
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-slate-600">Loading order details...</p>
             </div>
           )}
         </DialogContent>
@@ -1667,7 +1721,7 @@ const OrderManagement: React.FC = () => {
                 <Button
                   onClick={() => updateOrderStatus(
                     selectedOrder.id,
-                    selectedOrder.orderStatus
+                    selectedOrder.orderStatus || 'PENDING_APPROVAL'
                   )}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                 >
@@ -1739,7 +1793,20 @@ const OrderManagement: React.FC = () => {
       </Dialog>
 
       {/* Comprehensive Delivery Management Modal */}
-      <Dialog open={deliveryUpdateOpen} onOpenChange={setDeliveryUpdateOpen}>
+      <Dialog 
+        open={deliveryUpdateOpen} 
+        onOpenChange={(open) => {
+          console.log('🔍 Delivery dialog onOpenChange:', open);
+          console.log('🔍 Current selectedOrder:', selectedOrder);
+          
+          // Only close delivery dialog, don't affect parent dialog
+          if (!open) {
+            setDeliveryUpdateOpen(false);
+            resetDeliveryForm();
+            console.log('🔍 Delivery dialog closed, selectedOrder still exists:', !!selectedOrder);
+          }
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-xl border border-white/30">
           <DialogHeader>
             <DialogTitle className="text-slate-800 flex items-center gap-2">
@@ -1781,8 +1848,11 @@ const OrderManagement: React.FC = () => {
                   <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                   <SelectItem value="PROCESSING">Processing</SelectItem>
                   <SelectItem value="SHIPPED">Shipped</SelectItem>
+                  <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
+                  <SelectItem value="OUT_FOR_DELIVERY">Out for Delivery</SelectItem>
                   <SelectItem value="DELIVERED">Delivered</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  <SelectItem value="DELIVERY_FAILED">Delivery Failed</SelectItem>
+                  <SelectItem value="RETURNED">Returned</SelectItem>
                 </SelectContent>
               </Select>
             </div>

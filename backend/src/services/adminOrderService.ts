@@ -266,10 +266,49 @@ export const adminOrderService = {
           productSku: item.productSku || undefined,
           size: item.size || undefined,
           color: item.color || undefined,
+          // Filter images by item color for variant-specific display
+          product: item.product ? {
+            ...item.product,
+            costPrice: item.product.costPrice ? Number(item.product.costPrice) : null,
+            // Use the same logic as user profile page: match by item.color
+            images: item.product.images ? (() => {
+              console.log(`🔍 Transforming images for item color: "${item.color}"`);
+              console.log(`🔍 Available images:`, item.product.images.map(img => ({ url: img.url, color: img.color, isPrimary: img.isPrimary })));
+              
+              // If item has a color, find matching color image first
+              if (item.color) {
+                const colorImage = item.product.images.find(img => 
+                  img.color && img.color.toLowerCase() === item.color!.toLowerCase()
+                );
+                
+                if (colorImage) {
+                  console.log(`✅ Found color match: ${colorImage.url} (${colorImage.color})`);
+                  return [colorImage];
+                } else {
+                  console.log(`❌ No color match found for "${item.color}"`);
+                }
+              }
+              
+              // Fallback to primary image or first available image
+              const primaryImage = item.product.images.find(img => img.isPrimary);
+              if (primaryImage) {
+                console.log(`✅ Using primary image: ${primaryImage.url}`);
+                return [primaryImage];
+              }
+              
+              // Return first image if no primary found
+              if (item.product.images.length > 0) {
+                console.log(`✅ Using first available image: ${item.product.images[0].url}`);
+                return [item.product.images[0]];
+              }
+              
+              console.log(`❌ No images available`);
+              return [];
+            })() : []
+          } : undefined,
           price: Number(item.price),
           total: Number(item.total),
-          costPrice: item.costPrice ? Number(item.costPrice) : (item.product?.costPrice ? Number(item.product.costPrice) : undefined),
-          // Note: Product images and variant details are loaded lazily when viewing order details
+          costPrice: item.costPrice ? Number(item.costPrice) : (item.product?.costPrice ? Number(item.product.costPrice) : undefined)
         })),
         payments: order.payments.map(payment => ({
           ...payment,
@@ -302,7 +341,7 @@ export const adminOrderService = {
       const newStatusEntry = {
         status: data.newStatus,
         timestamp: new Date(),
-        notes: data.notes,
+        notes: data.notes || null, // Ensure notes is never undefined
         updatedBy: data.updatedBy
       };
 
