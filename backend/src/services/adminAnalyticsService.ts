@@ -103,8 +103,8 @@ export class AdminAnalyticsService {
       const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
       // Get order status distribution
-      const statusCounts = await prisma.order.groupBy({
-        by: ['status'],
+      const orderStatusCounts = await prisma.order.groupBy({
+        by: ['orderStatus'],
         where: {
           createdAt: {
             gte: from,
@@ -112,20 +112,20 @@ export class AdminAnalyticsService {
           }
         },
         _count: {
-          status: true
+          orderStatus: true
         }
       });
 
-      const orderStatusDistribution = statusCounts.map(status => ({
-        status: status.status,
-        count: status._count.status,
-        percentage: totalOrders > 0 ? (status._count.status / totalOrders) * 100 : 0
+      const orderStatusDistribution = orderStatusCounts.map(status => ({
+        status: status.orderStatus,
+        count: status._count.orderStatus,
+        percentage: totalOrders > 0 ? (status._count.orderStatus / totalOrders) * 100 : 0
       }));
 
       // If no orders, provide default distribution
       if (totalOrders === 0) {
         orderStatusDistribution.push({
-          status: 'PENDING',
+          status: 'PENDING_APPROVAL',
           count: 0,
           percentage: 0
         });

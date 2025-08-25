@@ -16,8 +16,8 @@ export interface Order {
   id: number;
   orderNumber: string;
   createdAt: string;
-  status: string;
-  currentStatus: string;
+  orderStatus: string;
+  deliveryStatus: string;
   statusHistory?: Array<{
     status: string;
     timestamp: string;

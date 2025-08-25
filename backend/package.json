@@ -9,11 +9,18 @@
     "build": "tsc",
     "seed": "ts-node prisma/seed.ts",
     "seed:countries": "ts-node prisma/seed-countries.ts",
+    "seed:currencies": "ts-node prisma/seed-currencies.ts",
+    "seed:languages": "ts-node prisma/seed-languages.ts",
+    "seed:shipping-rates": "ts-node prisma/seed-shipping-rates.ts",
+    "seed:exchange-rates": "ts-node prisma/seed-exchange-rates.ts",
     "seed:tshirt-categories": "ts-node prisma/seed-tshirt-categories.ts",
     "seed:tshirt-products": "ts-node prisma/seed-tshirt-products.ts",
     "seed:products": "ts-node prisma/seed-products.ts",
     "seed:products:images": "ts-node prisma/seed-products-with-images.ts",
     "update:product-images": "ts-node prisma/update-product-images.ts",
+    "test:countries": "node test-countries.js",
+    "test:currencies": "node test-currencies.js",
+    "test:languages": "node test-languages.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

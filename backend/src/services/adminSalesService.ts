@@ -56,7 +56,7 @@ export const adminSalesService = {
       const orders = await prisma.order.findMany({
         where: {
           ...where,
-          status: { not: 'CANCELLED' },
+          orderStatus: { not: 'CANCELLED' },
           paymentStatus: 'PAID'
         },
         include: {
@@ -126,7 +126,7 @@ export const adminSalesService = {
       const orders = await prisma.order.findMany({
         where: {
           ...where,
-          status: { not: 'CANCELLED' },
+          orderStatus: { not: 'CANCELLED' },
           paymentStatus: 'PAID'
         },
         include: {
@@ -207,7 +207,7 @@ export const adminSalesService = {
       const orders = await prisma.order.findMany({
         where: {
           ...where,
-          status: { not: 'CANCELLED' },
+          orderStatus: { not: 'CANCELLED' },
           paymentStatus: 'PAID'
         },
         include: {
@@ -292,7 +292,7 @@ export const adminSalesService = {
       const orders = await prisma.order.findMany({
         where: {
           ...where,
-          status: { not: 'CANCELLED' },
+          orderStatus: { not: 'CANCELLED' },
           paymentStatus: 'PAID'
         },
         include: {

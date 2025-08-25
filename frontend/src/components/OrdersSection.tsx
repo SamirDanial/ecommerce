@@ -61,13 +61,15 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
   // Get status badge with appropriate styling
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", text: string }> = {
-      'PENDING': { variant: 'outline', text: 'Pending' },
-      'CONFIRMED': { variant: 'secondary', text: 'Confirmed' },
-      'PROCESSING': { variant: 'secondary', text: 'Processing' },
-      'SHIPPED': { variant: 'default', text: 'Shipped' },
-      'DELIVERED': { variant: 'default', text: 'Delivered' },
+      'PENDING_APPROVAL': { variant: 'outline', text: 'Pending Approval' },
+      'APPROVED': { variant: 'secondary', text: 'Approved' },
+      'REJECTED': { variant: 'destructive', text: 'Rejected' },
       'CANCELLED': { variant: 'destructive', text: 'Cancelled' },
-      'REFUNDED': { variant: 'destructive', text: 'Refunded' }
+      'ON_HOLD': { variant: 'outline', text: 'On Hold' },
+      'READY_TO_PROCESS': { variant: 'secondary', text: 'Ready to Process' },
+      'COMPLETED': { variant: 'default', text: 'Completed' },
+      'PARTIALLY_REFUNDED': { variant: 'destructive', text: 'Partially Refunded' },
+      'FULLY_REFUNDED': { variant: 'destructive', text: 'Fully Refunded' }
     };
 
     const config = statusConfig[status] || { variant: 'outline', text: status };
@@ -162,7 +164,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        {getStatusBadge(order.status)}
+                        {getStatusBadge(order.orderStatus)}
                         <div className="text-right">
                           <div className="text-xl font-bold text-gray-900">
                             {formatPriceWithCurrency(toNumber(order.total), order.currency)}
@@ -220,7 +222,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
                     
                     {/* Status Badge - Mobile Only */}
                     <div className="sm:hidden">
-                      {getStatusBadge(order.status)}
+                      {getStatusBadge(order.orderStatus)}
                     </div>
                   </div>
                 </div>
@@ -328,7 +330,7 @@ const OrdersSection: React.FC<OrdersSectionProps> = ({
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Status</div>
-                  <div className="font-medium">{getStatusBadge(selectedOrder.status)}</div>
+                                      <div className="font-medium">{getStatusBadge(selectedOrder.orderStatus)}</div>
                 </div>
                 <div className="text-center p-3 sm:p-4 border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-500 mb-1">Payment</div>

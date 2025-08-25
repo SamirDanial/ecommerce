@@ -1,10 +1,11 @@
-import { PrismaClient, OrderStatus, PaymentStatus, Currency, PaymentMethodType } from '@prisma/client';
+import { PrismaClient, OrderStatus, DeliveryStatus, PaymentStatus, Currency, PaymentMethodType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 export interface OrderUpdateData {
   orderId: number;
-  newStatus: OrderStatus;
+  newStatus: OrderStatus | DeliveryStatus;
+  statusType: 'order' | 'delivery'; // Specify which status to update
   notes?: string;
   updatedBy: string;
   trackingNumber?: string;
@@ -13,7 +14,8 @@ export interface OrderUpdateData {
 }
 
 export interface OrderFilters {
-  status?: OrderStatus;
+  orderStatus?: OrderStatus;
+  deliveryStatus?: DeliveryStatus;
   paymentStatus?: PaymentStatus;
   dateFrom?: Date;
   dateTo?: Date;
@@ -26,8 +28,8 @@ export interface OrderFilters {
 export interface OrderWithDetails {
   id: number;
   orderNumber: string;
-  status: OrderStatus;
-  currentStatus: OrderStatus;
+  orderStatus: OrderStatus;      // Business decision status
+  deliveryStatus: DeliveryStatus; // Fulfillment tracking status
   subtotal: number;
   tax: number;
   shipping: number;
@@ -98,7 +100,8 @@ export const adminOrderService = {
     try {
       const where: any = {};
       
-      if (filters.status) where.status = filters.status;
+      if (filters.orderStatus) where.orderStatus = filters.orderStatus;
+      if (filters.deliveryStatus) where.deliveryStatus = filters.deliveryStatus;
       if (filters.paymentStatus) where.paymentStatus = filters.paymentStatus;
       if (filters.customerEmail) {
         where.user = { email: { contains: filters.customerEmail, mode: 'insensitive' } };
@@ -117,40 +120,20 @@ export const adminOrderService = {
       const [orders, totalCount] = await Promise.all([
         prisma.order.findMany({
           where,
-          include: {
+          select: {
+            id: true,
+            orderNumber: true,
+            orderStatus: true,
+            paymentStatus: true,
+            deliveryStatus: true,
+            total: true,
+            currency: true,
+            createdAt: true,
+            totalItems: true,
             user: {
               select: {
-                id: true,
                 name: true,
-                email: true,
-                phone: true
-              }
-            },
-            items: {
-              include: {
-                product: {
-                  select: {
-                    id: true,
-                    name: true,
-                    costPrice: true
-                  }
-                },
-                variant: {
-                  select: {
-                    costPrice: true
-                  }
-                }
-              }
-            },
-            payments: {
-              select: {
-                id: true,
-                amount: true,
-                currency: true,
-                status: true,
-                method: true,
-                transactionId: true,
-                createdAt: true
+                email: true
               }
             }
           },
@@ -161,65 +144,12 @@ export const adminOrderService = {
         prisma.order.count({ where })
       ]);
 
-      // Calculate sales metrics for each order
-      const ordersWithMetrics = orders.map(order => {
-        // Use stored totalItems from database, fallback to calculation if not available
-        const totalItems = order.totalItems || order.items.reduce((sum, item) => sum + item.quantity, 0);
-        const averageItemValue = totalItems > 0 ? Number(order.total) / totalItems : 0;
-        
-        // Calculate cost of goods and profit margin using stored cost at time of sale
-        let costOfGoods = 0;
-        order.items.forEach(item => {
-          // Use stored costPrice from time of sale, fallback to variant/product cost if not available
-          const itemCost = item.costPrice || item.variant?.costPrice || item.product?.costPrice || 0;
-          costOfGoods += Number(itemCost) * item.quantity;
-        });
-        
-        const profitMargin = costOfGoods > 0 ? ((Number(order.total) - costOfGoods) / Number(order.total)) * 100 : 0;
-
-              return {
+      // Transform orders for frontend consumption
+      const ordersWithMetrics = orders.map(order => ({
         ...order,
-        subtotal: Number(order.subtotal),
-        tax: Number(order.tax),
-        shipping: Number(order.shipping),
-        discount: Number(order.discount),
         total: Number(order.total),
-        totalItems,
-        averageItemValue,
-        costOfGoods,
-        profitMargin,
-        // Explicitly include shipping fields
-        shippingFirstName: order.shippingFirstName || undefined,
-        shippingLastName: order.shippingLastName || undefined,
-        shippingCompany: order.shippingCompany || undefined,
-        shippingAddress1: order.shippingAddress1 || undefined,
-        shippingAddress2: order.shippingAddress2 || undefined,
-        shippingCity: order.shippingCity || undefined,
-        shippingState: order.shippingState || undefined,
-        shippingPostalCode: order.shippingPostalCode || undefined,
-        shippingCountry: order.shippingCountry || undefined,
-        shippingPhone: order.shippingPhone || undefined,
-        items: order.items.map(item => ({
-          ...item,
-          productSku: item.productSku || undefined,
-          size: item.size || undefined,
-          color: item.color || undefined,
-          price: Number(item.price),
-          total: Number(item.total),
-          costPrice: item.costPrice ? Number(item.costPrice) : (item.product?.costPrice ? Number(item.product.costPrice) : undefined),
-          product: item.product ? {
-            ...item.product,
-            costPrice: item.product.costPrice ? Number(item.product.costPrice) : null
-          } : undefined
-        })),
-        payments: order.payments.map(payment => ({
-          ...payment,
-          amount: Number(payment.amount),
-          currency: payment.currency,
-          method: payment.method
-        }))
-      };
-      });
+        totalItems: order.totalItems || 0
+      }));
 
       return {
         orders: ordersWithMetrics,
@@ -255,12 +185,27 @@ export const adminOrderService = {
                 select: {
                   id: true,
                   name: true,
-                  costPrice: true
+                  costPrice: true,
+                  images: {
+                    select: {
+                      url: true,
+                      alt: true,
+                      color: true,
+                      isPrimary: true,
+                      sortOrder: true
+                    },
+                    orderBy: {
+                      sortOrder: 'asc'
+                    }
+                  }
                 }
               },
               variant: {
                 select: {
-                  costPrice: true
+                  costPrice: true,
+                  size: true,
+                  color: true,
+                  colorCode: true
                 }
               }
             }
@@ -324,10 +269,7 @@ export const adminOrderService = {
           price: Number(item.price),
           total: Number(item.total),
           costPrice: item.costPrice ? Number(item.costPrice) : (item.product?.costPrice ? Number(item.product.costPrice) : undefined),
-          product: item.product ? {
-            ...item.product,
-            costPrice: item.product.costPrice ? Number(item.product.costPrice) : null
-          } : undefined
+          // Note: Product images and variant details are loaded lazily when viewing order details
         })),
         payments: order.payments.map(payment => ({
           ...payment,
@@ -364,12 +306,18 @@ export const adminOrderService = {
         updatedBy: data.updatedBy
       };
 
-      // Prepare update data
+      // Prepare update data based on status type
       const updateData: any = {
-        currentStatus: data.newStatus,
         statusHistory: [...currentHistory, newStatusEntry],
         lastStatusUpdate: new Date()
       };
+
+      // Update the appropriate status field based on statusType
+      if (data.statusType === 'order') {
+        updateData.orderStatus = data.newStatus as OrderStatus;
+      } else if (data.statusType === 'delivery') {
+        updateData.deliveryStatus = data.newStatus as DeliveryStatus;
+      }
 
       // Update specific timestamps based on status
       if (data.newStatus === 'SHIPPED') {
@@ -457,6 +405,7 @@ export const adminOrderService = {
           this.updateOrderStatus({
             orderId,
             newStatus,
+            statusType: 'order',
             notes,
             updatedBy
           })
@@ -488,7 +437,8 @@ export const adminOrderService = {
         where,
         select: {
           total: true,
-          status: true,
+          orderStatus: true,
+          deliveryStatus: true,
           paymentStatus: true,
           createdAt: true
         }
@@ -498,8 +448,13 @@ export const adminOrderService = {
       const totalOrders = orders.length;
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
       
-      const statusCounts = orders.reduce((acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
+      const orderStatusCounts = orders.reduce((acc, order) => {
+        acc[order.orderStatus] = (acc[order.orderStatus] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const deliveryStatusCounts = orders.reduce((acc, order) => {
+        acc[order.deliveryStatus] = (acc[order.deliveryStatus] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 
@@ -512,7 +467,8 @@ export const adminOrderService = {
         totalRevenue,
         totalOrders,
         averageOrderValue,
-        statusCounts,
+        orderStatusCounts,
+        deliveryStatusCounts,
         paymentStatusCounts
       };
     } catch (error) {

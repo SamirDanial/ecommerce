@@ -71,8 +71,8 @@ export const createOrderFromPayment = async (orderData: CreateOrderData) => {
       data: {
         orderNumber: orderData.orderNumber,
         userId: orderData.userId,
-        status: 'CONFIRMED',
-        currentStatus: 'CONFIRMED',
+        orderStatus: 'APPROVED',
+        deliveryStatus: 'CONFIRMED',
         statusHistory: [{
           status: 'CONFIRMED',
           timestamp: new Date(),

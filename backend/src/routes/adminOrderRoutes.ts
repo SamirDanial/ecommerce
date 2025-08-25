@@ -67,23 +67,17 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       orders: result.orders.map((order: any) => ({
-        ...order,
-        customerName: order.user?.name || 'Unknown',
-        customerEmail: order.user?.email || 'Unknown',
-        itemsCount: order.totalItems || 0,
-        // Ensure numeric fields are numbers, not strings
+        id: order.id,
+        orderNumber: order.orderNumber,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        deliveryStatus: order.deliveryStatus,
         total: Number(order.total),
-        subtotal: Number(order.subtotal || 0),
-        tax: Number(order.tax || 0),
-        shipping: Number(order.shipping || 0),
-        discount: Number(order.discount || 0),
-        // Ensure item prices and costs are numbers
-        items: order.items.map((item: any) => ({
-          ...item,
-          price: Number(item.price),
-          total: Number(item.total),
-          costPrice: item.costPrice ? Number(item.costPrice) : undefined
-        }))
+        currency: order.currency,
+        createdAt: order.createdAt,
+        totalItems: order.totalItems || 0,
+        customerName: order.user?.name || 'Unknown',
+        customerEmail: order.user?.email || 'Unknown'
       })),
       pagination: result.pagination
     });
@@ -126,18 +120,26 @@ router.get('/:orderId', async (req, res) => {
 router.put('/:orderId/status', async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId);
-    const { newStatus, notes, trackingNumber, estimatedDelivery, shippingCompany } = req.body;
+    const { newStatus, statusType, notes, trackingNumber, estimatedDelivery, shippingCompany } = req.body;
 
-    if (!newStatus) {
+    if (!newStatus || !statusType) {
       return res.status(400).json({
         success: false,
-        message: 'New status is required'
+        message: 'New status and status type are required'
+      });
+    }
+
+    if (!['order', 'delivery'].includes(statusType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status type must be either "order" or "delivery"'
       });
     }
 
     const updatedOrder = await adminOrderService.updateOrderStatus({
       orderId,
       newStatus,
+      statusType,
       notes,
       updatedBy: req.user!.email || 'admin',
       trackingNumber,
