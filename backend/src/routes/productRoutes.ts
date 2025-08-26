@@ -672,7 +672,7 @@ router.get('/:id/colors', async (req, res) => {
       totalColors: colorsWithStock.length
     };
 
-    console.log(`✅ Fetched ${colorsWithStock.length} colors for product ${id}`);
+
     res.json(response);
   } catch (error) {
     console.error('Error fetching product colors:', error);
@@ -786,7 +786,7 @@ router.get('/:id/variants/:color', async (req, res) => {
       defaultVariant: variantsWithPricing[0] // First variant as default
     };
 
-    console.log(`✅ Fetched ${variants.length} variants for product ${id}, color: ${color}`);
+
     res.json(response);
   } catch (error) {
     console.error('Error fetching product variants by color:', error);

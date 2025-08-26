@@ -47,7 +47,7 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
         });
         
         if (shippingAddress) {
-          console.log(`✅ Found shipping address ID ${shippingAddressId}:`, shippingAddress);
+
         } else {
           console.warn(`⚠️ Shipping address ID ${shippingAddressId} not found`);
         }
@@ -148,7 +148,7 @@ router.post('/create-payment-intent', authenticateClerkToken, async (req, res) =
                 variantId: variant.id,
                 sku: variant.sku
               });
-              console.log(`🔍 Found variant ID ${variant.id} for product ${item.id}, size ${item.size}, color ${item.color}`);
+
             } else {
               console.warn(`⚠️ No variant found for product ${item.id}, size ${item.size}, color ${item.color}`);
               // Still add item but with placeholder variant ID
@@ -333,7 +333,7 @@ function calculateDiscount(orderDetails: any): number {
 }
 
 // Stripe webhook endpoint for handling payment intent events
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -344,19 +344,55 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       event = stripe.webhooks.constructEvent(req.body, sig as string, endpointSecret);
     } else {
       // For local testing without webhook secret
-      event = req.body;
+      event = JSON.parse(req.body.toString());
     }
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   try {
+    // Check if we've already processed this webhook event (idempotency)
+    const { prisma } = await import('../lib/prisma');
+    const existingEvent = await prisma.webhookEvent.findUnique({
+      where: { id: event.id }
+    });
+
+    if (existingEvent) {
+      console.log('🔄 Webhook event already processed:', event.id, 'skipping');
+      return res.json({ received: true, message: 'Event already processed' });
+    }
+
+    // Record the webhook event before processing
+    await prisma.webhookEvent.create({
+      data: {
+        id: event.id,
+        type: event.type,
+        data: event.data
+      }
+    });
+
+    console.log('📝 New webhook event recorded:', event.id, 'type:', event.type);
+
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object;
+        console.log('💳 Processing payment_intent.succeeded for:', paymentIntent.id);
+        console.log('💳 Payment intent metadata:', paymentIntent.metadata);
         
         try {
+          // Check if order already exists for this payment intent
+          const existingOrder = await getOrderByPaymentIntentId(paymentIntent.id);
+          if (existingOrder) {
+            console.log('⚠️ Order already exists for payment intent:', paymentIntent.id, 'skipping creation');
+            // Mark event as processed
+            await prisma.webhookEvent.update({
+              where: { id: event.id },
+              data: { processed: true, processedAt: new Date() }
+            });
+            return res.json({ received: true });
+          }
+          
           // Extract order details from metadata
           const metadata = paymentIntent.metadata;
           
@@ -645,6 +681,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             };
             
             const order = await createOrderFromPayment(orderData);
+            console.log('✅ Order created successfully:', order.id);
           } else {
             // Missing required data, skip processing
           }
@@ -657,6 +694,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
+
+    // Mark event as successfully processed
+    await prisma.webhookEvent.update({
+      where: { id: event.id },
+      data: { processed: true, processedAt: new Date() }
+    });
 
     res.json({ received: true });
   } catch (error) {

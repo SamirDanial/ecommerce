@@ -37,6 +37,9 @@ model User {
   profile                UserProfile?
   sessions               UserSession[]
   wishlist               WishlistItem[]
+  notifications          Notification[] @relation("UserNotifications")
+  notificationPreferences NotificationPreference[] @relation("UserNotificationPreferences")
+  notificationActions    NotificationAction[] @relation("UserNotificationActions")
 
   @@map("users")
 }
@@ -276,6 +279,7 @@ model Payment {
   method          PaymentMethodType @default(CREDIT_CARD)
   order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@unique([transactionId]) // Prevent duplicate payments for same transaction
   @@map("payments")
 }
 
@@ -641,6 +645,100 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
+// Notification System Models
+model Notification {
+  id          Int         @id @default(autoincrement())
+  type        NotificationType
+  title       String
+  message     String
+  data        Json?       // Additional data for the notification
+  priority    NotificationPriority @default(MEDIUM)
+  status      NotificationStatus @default(UNREAD)
+  category    NotificationCategory
+  targetType  NotificationTargetType
+  targetId    Int?        // ID of the target (order, product, user, etc.)
+  recipientId Int?        // ID of the admin user who should receive this
+  isGlobal    Boolean     @default(false) // If true, all admins receive this
+  
+  // Timestamps
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  readAt      DateTime?
+  expiresAt   DateTime?
+  
+  // Relations
+  recipient   User?       @relation("UserNotifications", fields: [recipientId], references: [id])
+  actions    NotificationAction[]
+  
+  @@unique([targetType, targetId, type]) // Prevent duplicate notifications for same target
+  @@index([recipientId, status])
+  @@index([type, category])
+  @@index([createdAt])
+  @@index([isGlobal, status])
+}
+
+model NotificationAction {
+  id             Int       @id @default(autoincrement())
+  notificationId Int
+  actionType     String    // e.g., "approve", "reject", "view", "dismiss"
+  actionData     Json?     // Additional data for the action
+  performedBy    Int?      // Admin user ID who performed the action
+  performedAt    DateTime  @default(now())
+  
+  // Relations
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  performer     User?        @relation("UserNotificationActions", fields: [performedBy], references: [id])
+  
+  @@index([notificationId])
+  @@index([performedBy])
+}
+
+model NotificationPreference {
+  id           Int       @id @default(autoincrement())
+  userId       Int       // Admin user ID
+  category     NotificationCategory
+  type         NotificationType?
+  enabled      Boolean   @default(true)
+  email       Boolean   @default(true)
+  push        Boolean   @default(true)
+  sms         Boolean   @default(false)
+  inApp       Boolean   @default(true)
+  
+  // Relations
+  user         User      @relation("UserNotificationPreferences", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, category, type])
+  @@index([userId])
+}
+
+model NotificationTemplate {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  type        NotificationType
+  category    NotificationCategory
+  title       String
+  message     String
+  variables   String[]  // Template variables like {{orderNumber}}, {{customerName}}
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([type, category])
+}
+
+model WebhookEvent {
+  id          String    @id // Stripe event ID
+  type        String    // Event type (e.g., payment_intent.succeeded)
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  data        Json?     // Store event data for debugging
+  
+  @@index([type, processed])
+  @@index([createdAt])
+}
+
+// Enums for Notification System
 enum Role {
   USER
   ADMIN
@@ -941,4 +1039,68 @@ enum ReturnStatus {
   PROCESSING
   COMPLETED
   REJECTED
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_STATUS_CHANGED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  SHIPPING_UPDATE
+  ORDER_CANCELLED
+  REFUND_REQUESTED
+  PRODUCT_REVIEW
+  PRODUCT_QUESTION
+  LOW_STOCK_ALERT
+  NEW_USER_REGISTRATION
+  CONTACT_FORM_SUBMISSION
+  SUPPORT_TICKET
+  SYSTEM_ALERT
+  SECURITY_ALERT
+  INVENTORY_UPDATE
+  PRICE_CHANGE
+  DISCOUNT_EXPIRING
+  CUSTOMER_FEEDBACK
+  EXPORT_COMPLETED
+  IMPORT_COMPLETED
+  BACKUP_COMPLETED
+  MAINTENANCE_SCHEDULED
+}
+
+enum NotificationCategory {
+  ORDERS
+  PRODUCTS
+  CUSTOMERS
+  INVENTORY
+  FINANCIAL
+  SYSTEM
+  SECURITY
+  MARKETING
+  SUPPORT
+  GENERAL
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+  DISMISSED
+}
+
+enum NotificationTargetType {
+  ORDER
+  PRODUCT
+  USER
+  CATEGORY
+  INVENTORY
+  SYSTEM
+  GENERAL
 }

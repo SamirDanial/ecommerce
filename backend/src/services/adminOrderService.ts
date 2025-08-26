@@ -272,8 +272,6 @@ export const adminOrderService = {
             costPrice: item.product.costPrice ? Number(item.product.costPrice) : null,
             // Use the same logic as user profile page: match by item.color
             images: item.product.images ? (() => {
-              console.log(`🔍 Transforming images for item color: "${item.color}"`);
-              console.log(`🔍 Available images:`, item.product.images.map(img => ({ url: img.url, color: img.color, isPrimary: img.isPrimary })));
               
               // If item has a color, find matching color image first
               if (item.color) {
@@ -282,23 +280,18 @@ export const adminOrderService = {
                 );
                 
                 if (colorImage) {
-                  console.log(`✅ Found color match: ${colorImage.url} (${colorImage.color})`);
                   return [colorImage];
-                } else {
-                  console.log(`❌ No color match found for "${item.color}"`);
                 }
               }
               
               // Fallback to primary image or first available image
               const primaryImage = item.product.images.find(img => img.isPrimary);
               if (primaryImage) {
-                console.log(`✅ Using primary image: ${primaryImage.url}`);
                 return [primaryImage];
               }
               
               // Return first image if no primary found
               if (item.product.images.length > 0) {
-                console.log(`✅ Using first available image: ${item.product.images[0].url}`);
                 return [item.product.images[0]];
               }
               

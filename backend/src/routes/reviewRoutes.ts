@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateClerkToken } from '../middleware/clerkAuth';
+import { notificationService } from '../services/notificationService';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -95,9 +96,46 @@ router.post('/reviews', authenticateClerkToken, async (req, res) => {
             name: true,
             avatar: true
           }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
         }
       }
     });
+
+    // Send notification to admins about new review
+    try {
+      const socketServer = (global as any).socketServer;
+      if (socketServer) {
+        await socketServer.sendAdminNotification({
+          type: 'PRODUCT_REVIEW',
+          title: 'New Product Review Submitted',
+          message: `A new review has been submitted for "${product.name}" by ${newReview.user.name}. Rating: ${rating}/5 stars.`,
+          category: 'PRODUCTS',
+          priority: 'MEDIUM',
+          targetType: 'PRODUCT',
+          targetId: parseInt(productId),
+          isGlobal: true,
+          data: {
+            reviewId: newReview.id,
+            productId: parseInt(productId),
+            productName: product.name,
+            userId: userId,
+            userName: newReview.user.name,
+            rating: rating,
+            title: title,
+            comment: comment
+          }
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error sending review notification:', notificationError);
+      // Don't fail the review submission if notification fails
+    }
 
     res.json({
       success: true,
@@ -155,9 +193,44 @@ router.post('/questions', authenticateClerkToken, async (req, res) => {
             name: true,
             avatar: true
           }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
         }
       }
     });
+
+    // Send notification to admins about new question
+    try {
+      const socketServer = (global as any).socketServer;
+      if (socketServer) {
+        await socketServer.sendAdminNotification({
+          type: 'PRODUCT_QUESTION',
+          title: 'New Product Question Submitted',
+          message: `A new question has been submitted for "${product.name}" by ${newQuestion.user.name}.`,
+          category: 'PRODUCTS',
+          priority: 'MEDIUM',
+          targetType: 'PRODUCT',
+          targetId: parseInt(productId),
+          isGlobal: true,
+          data: {
+            questionId: newQuestion.id,
+            productId: parseInt(productId),
+            productName: product.name,
+            userId: userId,
+            userName: newQuestion.user.name,
+            question: question
+          }
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error sending question notification:', notificationError);
+      // Don't fail the question submission if notification fails
+    }
 
     res.json({
       success: true,

@@ -12,6 +12,7 @@ import AdminRoute from './components/AdminRoute';
 import AdminLayout from './components/admin/AdminLayout';
 import GlobalWishlistLoader from './components/GlobalWishlistLoader';
 import { CurrencyProvider } from './contexts/CurrencyContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 import { AuthRedirectWrapper } from './components/AuthRedirectWrapper';
 import Home from './pages/Home';
@@ -19,11 +20,14 @@ import Admin from './pages/Admin';
 import AdminProducts from './pages/admin/Products';
 import AdminCategories from './pages/admin/Categories';
 import AdminOrders from './pages/admin/Orders';
+import ReviewManagement from './pages/admin/ReviewManagement';
+import QuestionManagement from './pages/admin/QuestionManagement';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminLocalization from './pages/admin/Localization';
 import AdminTaxShipping from './pages/admin/TaxShipping';
 import AdminDeliveryScope from './pages/admin/DeliveryScope';
 import CurrencyManagement from './pages/admin/CurrencyManagement';
+import Notifications from './pages/admin/Notifications';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Categories from './pages/Categories';
@@ -60,8 +64,9 @@ function App() {
         <SessionRecovery />
         <ThemeProvider>
           <CurrencyProvider>
-            <Router>
-              <AuthRedirectWrapper>
+            <NotificationProvider>
+              <Router>
+                <AuthRedirectWrapper>
                 <Routes>
                   {/* Admin Routes - No Header/Footer */}
                   <Route path="/admin/*" element={
@@ -73,11 +78,14 @@ function App() {
                     <Route path="products" element={<AdminProducts />} />
                     <Route path="categories" element={<AdminCategories />} />
                     <Route path="orders" element={<AdminOrders />} />
+                    <Route path="reviews" element={<ReviewManagement />} />
+                    <Route path="questions" element={<QuestionManagement />} />
                     <Route path="analytics" element={<AdminAnalytics />} />
                     <Route path="localization" element={<AdminLocalization />} />
                     <Route path="tax-shipping" element={<AdminTaxShipping />} />
                     <Route path="delivery-scope" element={<AdminDeliveryScope />} />
-                                          <Route path="currency" element={<CurrencyManagement />} />
+                    <Route path="currency" element={<CurrencyManagement />} />
+                    <Route path="notifications" element={<Notifications />} />
                   </Route>
                   
                   {/* Main Site Routes - With Header/Footer */}
@@ -120,6 +128,7 @@ function App() {
                 </Routes>
               </AuthRedirectWrapper>
             </Router>
+            </NotificationProvider>
           </CurrencyProvider>
         </ThemeProvider>
       </ClerkProvider>

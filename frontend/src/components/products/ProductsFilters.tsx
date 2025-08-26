@@ -42,7 +42,7 @@ interface ProductsFiltersProps {
   categories: Category[];
   sizes: string[];
   colors: string[];
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  searchInputRef: React.RefObject<HTMLInputElement>;
   activeFiltersCount: number;
   hasActiveFilters: boolean;
 }

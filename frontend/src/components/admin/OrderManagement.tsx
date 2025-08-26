@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -145,6 +146,7 @@ interface SalesMetrics {
 
 const OrderManagement: React.FC = () => {
   const { getToken } = useClerkAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Helper function to get variant-specific image
@@ -222,6 +224,53 @@ const OrderManagement: React.FC = () => {
       setStatusUpdateOpen(false);
     }
   }, [statusUpdateOpen, selectedOrder]);
+
+  // Handle URL parameter for auto-opening order details
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId && orders.length > 0) {
+      const orderIdNum = parseInt(orderId);
+      const order = orders.find(o => o.id === orderIdNum);
+      if (order) {
+        console.log('🔍 Auto-opening order details for order ID:', orderId);
+        
+        // Fetch complete order details before opening dialog (same logic as View Details button)
+        const fetchAndOpenOrderDetails = async () => {
+          try {
+            const token = await getToken();
+            if (!token) return;
+            
+            const response = await fetch(`${getApiBaseUrl()}/admin/orders/${orderIdNum}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              setSelectedOrder(data.data);
+              setOrderDetailOpen(true);
+            } else {
+              console.error('Failed to fetch order details:', response.status);
+              toast.error('Failed to fetch order details');
+            }
+          } catch (error) {
+            console.error('Error fetching order details:', error);
+            toast.error('Failed to fetch order details');
+          }
+        };
+        
+        fetchAndOpenOrderDetails();
+        
+        // Remove the orderId parameter from URL
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('orderId');
+          return newParams;
+        });
+      }
+    }
+  }, [orders, searchParams, setSearchParams, getToken]);
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {

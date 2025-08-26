@@ -283,13 +283,9 @@ router.get('/checkout/tax-rate', async (req, res) => {
     }
 
     // Note: TaxRate model doesn't have cityCode field, only countryCode and stateCode
-    console.log('🔍 Tax Rate Query Debug:', { country, state, city, where });
 
-    // Debug: Show all tax rates for this country
-    const allRatesForCountry = await prisma.taxRate.findMany({
-      where: { countryCode: country as string, isActive: true }
-    });
-    console.log('🔍 All tax rates for country:', allRatesForCountry);
+
+
 
     // Find the most specific tax rate for the location
     let taxRate = await prisma.taxRate.findFirst({
@@ -302,7 +298,6 @@ router.get('/checkout/tax-rate', async (req, res) => {
 
     // If no state-specific rate found and state was provided, try country-level only
     if (!taxRate && state) {
-      console.log('🔍 No state-specific rate found, trying country-level...');
       taxRate = await prisma.taxRate.findFirst({
         where: {
           countryCode: country as string,
@@ -368,7 +363,7 @@ router.get('/checkout/shipping-rate', async (req, res) => {
       where.stateCode = state as string;
     }
 
-    console.log('🔍 Shipping Rate Query Debug:', { country, state, where });
+
 
     // Find the most specific shipping rate for the location
     let shippingRate = await prisma.shippingRate.findFirst({
@@ -381,7 +376,6 @@ router.get('/checkout/shipping-rate', async (req, res) => {
 
     // If no state-specific rate found and state was provided, try country-level only
     if (!shippingRate && state) {
-      console.log('🔍 No state-specific shipping rate found, trying country-level...');
       shippingRate = await prisma.shippingRate.findFirst({
         where: {
           countryCode: country as string,

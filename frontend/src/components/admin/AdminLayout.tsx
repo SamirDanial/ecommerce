@@ -16,8 +16,12 @@ import {
   DollarSign,
   Truck,
   Languages,
-  Currency
+  Currency,
+  Bell,
+  Star,
+  HelpCircle
 } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useSidebarStore } from '../../stores/sidebarStore';
 import { Button } from '../ui/button';
@@ -84,6 +88,15 @@ const AdminLayout: React.FC = () => {
     
     const checkBusinessSetup = async () => {
       console.log('🔍 Starting business setup check...');
+      
+      // Add timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Business setup check timeout - proceeding with default state');
+        setIsBusinessSetupOpen(false);
+        setBusinessSetupComplete(true);
+        setIsCheckingSetup(false);
+      }, 10000); // 10 second timeout
+      
       try {
         console.log('🔑 Getting authenticated API...');
         const api = await createAuthenticatedApi();
@@ -112,6 +125,7 @@ const AdminLayout: React.FC = () => {
         console.log('⚠️ Assuming setup needed due to error');
         setIsBusinessSetupOpen(true);
       } finally {
+        clearTimeout(timeoutId);
         console.log('🏁 Business setup check completed');
         setIsCheckingSetup(false);
       }
@@ -180,12 +194,33 @@ const AdminLayout: React.FC = () => {
       badge: '12'
     },
     {
+      name: 'Reviews',
+      href: '/admin/reviews',
+      icon: Star,
+      current: location.pathname.startsWith('/admin/reviews'),
+      description: 'Manage product reviews'
+    },
+    {
+      name: 'Questions',
+      href: '/admin/questions',
+      icon: HelpCircle,
+      current: location.pathname.startsWith('/admin/questions'),
+      description: 'Answer customer questions'
+    },
+    {
       name: 'Analytics',
       href: '/admin/analytics',
       icon: BarChart3,
       current: location.pathname.startsWith('/admin/analytics'),
       description: 'Advanced charts & insights',
       badge: 'Charts'
+    },
+    {
+      name: 'Notifications',
+      href: '/admin/notifications',
+      icon: Bell,
+      current: location.pathname.startsWith('/admin/notifications'),
+      description: 'View all notifications'
     },
     {
       name: 'Localization',
@@ -558,6 +593,7 @@ const AdminLayout: React.FC = () => {
 
             {/* Right side actions */}
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500">
                 <span>Admin Panel</span>
                 <span>•</span>
