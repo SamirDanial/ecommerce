@@ -49,13 +49,15 @@ router.get('/', async (req, res) => {
     const filters = {
       status: status as any,
       paymentStatus: paymentStatus as any,
-      dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
-      dateTo: dateTo ? new Date(dateTo as string) : undefined,
+      dateFrom: dateFrom ? new Date(dateFrom as string + 'T00:00:00.000Z') : undefined,
+      dateTo: dateTo ? new Date(dateTo as string + 'T23:59:59.999Z') : undefined,
       customerEmail: customerEmail as string,
       orderNumber: orderNumber as string,
       minAmount: minAmount ? Number(minAmount) : undefined,
       maxAmount: maxAmount ? Number(maxAmount) : undefined
     };
+
+
 
     const result = await adminOrderService.getOrders(
       filters,

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   HelpCircle, 
   User, 
@@ -11,19 +12,24 @@ import {
   MessageSquare,
   Send,
   Search,
-  Filter
+  Filter,
+  MoreHorizontal,
+  Clock
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Textarea } from '../../components/ui/textarea';
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 interface Question {
   id: number;
@@ -63,29 +69,94 @@ interface QuestionStats {
 const QuestionManagement: React.FC = () => {
   const { getToken } = useClerkAuth();
   const { isConnected, notifications } = useNotifications();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [stats, setStats] = useState<QuestionStats>({ pending: 0, approved: 0, rejected: 0, answered: 0, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+
+  const [highlightedQuestionId, setHighlightedQuestionId] = useState<number | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isAnswerOpen, setIsAnswerOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
-  const [answer, setAnswer] = useState('');
   const [rejectReason, setRejectReason] = useState('');
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAnswerOpen, setIsAnswerOpen] = useState(false);
+  const [answer, setAnswer] = useState('');
+  
+
+  
   const [filters, setFilters] = useState({
     status: 'PENDING',
     search: '',
     page: 1,
     limit: 20
   });
+
+  // Handle search input with debouncing
+  const handleSearchChange = (value: string) => {
+    setFilters(prev => ({ ...prev, search: value, page: 1 }));
+  };
+
+  // Handle status filter change
+  const handleStatusChange = (value: string) => {
+    setFilters(prev => ({ ...prev, status: value, page: 1 }));
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (filters.search !== undefined) {
+        fetchQuestions(1, true);
+        fetchStats();
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [filters.search]);
+
+  // Effect for status changes (immediate)
+  useEffect(() => {
+    if (filters.status !== undefined) {
+      fetchQuestions(1, true);
+      fetchStats();
+    }
+  }, [filters.status]);
   const [totalPages, setTotalPages] = useState(1);
   const [lastNotificationId, setLastNotificationId] = useState<number | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+
+
+  // Handle URL parameters for highlighting specific questions
+  useEffect(() => {
+    const questionId = searchParams.get('questionId');
+    if (questionId) {
+      const id = parseInt(questionId);
+      if (!isNaN(id)) {
+        setHighlightedQuestionId(id);
+        // Clear the URL parameter after setting the highlight
+        setSearchParams({}, { replace: true });
+        
+        // Auto-clear highlight after 5 seconds
+        const timer = setTimeout(() => {
+          setHighlightedQuestionId(null);
+        }, 5000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams, setSearchParams]);
 
   // Listen for new question notifications and refresh data
   useEffect(() => {
     if (isConnected) {
       // Refresh questions and stats when socket connects
-      fetchQuestions();
+      fetchQuestions(1, true);
       fetchStats();
     }
   }, [isConnected]);
@@ -102,10 +173,39 @@ const QuestionManagement: React.FC = () => {
     if (latestQuestionNotification && latestQuestionNotification.id !== lastNotificationId) {
       console.log('🔄 New question notification detected, refreshing data...', latestQuestionNotification.id);
       setLastNotificationId(latestQuestionNotification.id);
-      fetchQuestions();
+      fetchQuestions(1, true);
       fetchStats();
     }
   }, [notifications, lastNotificationId]);
+
+  // Intersection Observer for infinite scrolling
+  const lastQuestionElementRef = useCallback((node: HTMLDivElement) => {
+    if (loading || isLoadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        const nextPage = Math.floor(questions.length / filters.limit) + 1;
+        fetchQuestions(nextPage);
+      }
+    });
+    
+    if (node) observerRef.current.observe(node);
+  }, [loading, isLoadingMore, hasMore, questions.length, filters.limit]);
+
+  // Load more questions function
+  const loadMoreQuestions = useCallback(() => {
+    if (!loading && !isLoadingMore && hasMore) {
+      const nextPage = Math.floor(questions.length / filters.limit) + 1;
+      fetchQuestions(nextPage);
+    }
+  }, [loading, isLoadingMore, hasMore, questions.length, filters.limit]);
+
+  // Load initial data
+  useEffect(() => {
+    fetchQuestions(1, true);
+    fetchStats();
+  }, []); // Only run once on mount
 
   const createAuthenticatedApi = async () => {
     const token = await getToken();
@@ -122,35 +222,50 @@ const QuestionManagement: React.FC = () => {
     });
   };
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (pageNum: number = 1, reset: boolean = false) => {
     try {
-      setLoading(true);
+      if (pageNum === 1) {
+        setLoading(true);
+        setError(null);
+      } else {
+        setIsLoadingMore(true);
+      }
+
       const api = await createAuthenticatedApi();
       
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
-      params.append('page', filters.page.toString());
+      params.append('page', pageNum.toString());
       params.append('limit', filters.limit.toString());
 
-      const response = await api.get(`/admin/questions/pending?${params}`);
+      const response = await api.get(`/admin/reviews/questions?${params}`);
       
       if (response.data.success) {
-        setQuestions(response.data.questions);
+        const newQuestions = response.data.questions;
+        
+        if (reset || pageNum === 1) {
+          setQuestions(newQuestions);
+        } else {
+          setQuestions(prev => [...prev, ...newQuestions]);
+        }
+        
         setTotalPages(response.data.totalPages);
+        setHasMore(pageNum < response.data.totalPages);
       }
     } catch (error) {
       console.error('Error fetching questions:', error);
       toast.error('Failed to fetch questions');
     } finally {
       setLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
   const fetchStats = async () => {
     try {
       const api = await createAuthenticatedApi();
-      const response = await api.get('/admin/questions/stats');
+      const response = await api.get('/admin/reviews/questions/stats');
       
       if (response.data.success) {
         setStats(response.data.stats);
@@ -160,19 +275,16 @@ const QuestionManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchQuestions();
-    fetchStats();
-  }, [filters]);
+  // Remove this useEffect since we have a better one below
 
   const handleApprove = async (questionId: number) => {
     try {
       const api = await createAuthenticatedApi();
-      const response = await api.put(`/admin/questions/${questionId}/approve`);
+      const response = await api.put(`/admin/reviews/questions/${questionId}/approve`);
       
       if (response.data.success) {
         toast.success('Question approved successfully');
-        fetchQuestions();
+        fetchQuestions(1, true);
         fetchStats();
       }
     } catch (error) {
@@ -184,15 +296,16 @@ const QuestionManagement: React.FC = () => {
   const handleReject = async (questionId: number) => {
     try {
       const api = await createAuthenticatedApi();
-      const response = await api.put(`/admin/questions/${questionId}/reject`, {
-        reason: rejectReason
+      const response = await api.put(`/admin/reviews/questions/${questionId}/reject`, {
+        reason: rejectReason || 'Rejected by admin'
       });
       
       if (response.data.success) {
         toast.success('Question rejected successfully');
         setIsRejectOpen(false);
         setRejectReason('');
-        fetchQuestions();
+        setSelectedQuestion(null);
+        fetchQuestions(1, true);
         fetchStats();
       }
     } catch (error) {
@@ -202,14 +315,9 @@ const QuestionManagement: React.FC = () => {
   };
 
   const handleAnswer = async (questionId: number) => {
-    if (!answer.trim()) {
-      toast.error('Please enter an answer');
-      return;
-    }
-
     try {
       const api = await createAuthenticatedApi();
-      const response = await api.put(`/admin/questions/${questionId}/answer`, {
+      const response = await api.put(`/admin/reviews/questions/${questionId}/answer`, {
         answer: answer.trim()
       });
       
@@ -217,7 +325,8 @@ const QuestionManagement: React.FC = () => {
         toast.success('Question answered successfully');
         setIsAnswerOpen(false);
         setAnswer('');
-        fetchQuestions();
+        setSelectedQuestion(null);
+        fetchQuestions(1, true);
         fetchStats();
       }
     } catch (error) {
@@ -226,18 +335,32 @@ const QuestionManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (questionId: number) => {
-    if (!window.confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
-      return;
-    }
-
+  const handleSetPending = async (questionId: number) => {
     try {
       const api = await createAuthenticatedApi();
-      const response = await api.delete(`/admin/questions/${questionId}`);
+      const response = await api.put(`/admin/reviews/questions/${questionId}/pending`);
+      
+      if (response.data.success) {
+        toast.success('Question status updated to pending');
+        fetchQuestions(1, true);
+        fetchStats();
+      }
+    } catch (error) {
+      console.error('Error updating question status:', error);
+      toast.error('Failed to update question status');
+    }
+  };
+
+  const handleDelete = async (questionId: number) => {
+    try {
+      const api = await createAuthenticatedApi();
+      const response = await api.delete(`/admin/reviews/questions/${questionId}`);
       
       if (response.data.success) {
         toast.success('Question deleted successfully');
-        fetchQuestions();
+        setIsDeleteOpen(false);
+        setSelectedQuestion(null);
+        fetchQuestions(1, true);
         fetchStats();
       }
     } catch (error) {
@@ -376,14 +499,14 @@ const QuestionManagement: React.FC = () => {
                 <Input
                   placeholder="Search questions..."
                   value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
             <Select
               value={filters.status}
-              onValueChange={(value) => setFilters({ ...filters, status: value, page: 1 })}
+              onValueChange={handleStatusChange}
             >
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by status" />
@@ -416,12 +539,41 @@ const QuestionManagement: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {questions.map((question) => (
-                <div key={question.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+              {questions.map((question, index) => (
+                <div 
+                  key={question.id} 
+                  ref={index === questions.length - 1 ? lastQuestionElementRef : null}
+                  className={`border rounded-lg p-4 hover:bg-gray-50 transition-colors ${
+                    highlightedQuestionId === question.id 
+                      ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-300' 
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Product Image */}
+                    <div className="flex-shrink-0">
+                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                        {question.product.images?.[0]?.url ? (
+                          <img
+                            src={getFullImageUrl(question.product.images[0].url)}
+                            alt={question.product.name}
+                            className="w-full h-full object-contain object-center bg-gray-50"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full flex items-center justify-center text-gray-400 ${question.product.images?.[0]?.url ? 'hidden' : ''}`}>
+                          <Package className="w-8 h-8" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Question Content */}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold text-gray-900">Q: {question.question}</span>
+                        <span className="font-semibold text-gray-900 truncate">Q: {question.question}</span>
                         {getStatusBadge(question.status)}
                       </div>
                       
@@ -439,7 +591,7 @@ const QuestionManagement: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <Package className="w-4 h-4" />
-                          <span>{question.product.name}</span>
+                          <span className="truncate">{question.product.name}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
@@ -455,60 +607,92 @@ const QuestionManagement: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedQuestion(question);
-                          setIsDetailOpen(true);
-                        }}
+                      <DropdownMenu 
+                        open={openDropdownId === question.id} 
+                        onOpenChange={(open) => setOpenDropdownId(open ? question.id : null)}
                       >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      
-                      {question.status === 'PENDING' && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(null);
                               setSelectedQuestion(question);
-                              setIsAnswerOpen(true);
+                              setIsDetailOpen(true);
                             }}
-                            className="text-blue-600 hover:text-blue-700"
                           >
-                            <Send className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleApprove(question.id)}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          
+                          {question.status !== 'ANSWERED' && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                setSelectedQuestion(question);
+                                setIsAnswerOpen(true);
+                              }}
+                              className="text-blue-600"
+                            >
+                              <Send className="w-4 h-4 mr-2" />
+                              Answer
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {question.status !== 'APPROVED' && (
+                            <DropdownMenuItem
+                              onClick={() => handleApprove(question.id)}
+                              className="text-green-600"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Approve
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {question.status !== 'REJECTED' && (
+                                                                                        <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  setSelectedQuestion(question);
+                                  setIsRejectOpen(true);
+                                }}
+                                className="text-red-600"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Reject
+                              </DropdownMenuItem>
+                          )}
+                          
+                          {question.status !== 'PENDING' && (
+                            <DropdownMenuItem
+                              onClick={() => handleSetPending(question.id)}
+                              className="text-yellow-600"
+                            >
+                              <Clock className="w-4 h-4 mr-2" />
+                              Set to Pending
+                            </DropdownMenuItem>
+                          )}
+                          
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(null);
                               setSelectedQuestion(question);
-                              setIsRejectOpen(true);
+                              setIsDeleteOpen(true);
                             }}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600"
                           >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(question.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
@@ -516,28 +700,19 @@ const QuestionManagement: React.FC = () => {
             </div>
           )}
           
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFilters({ ...filters, page: Math.max(1, filters.page - 1) })}
-                disabled={filters.page === 1}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {filters.page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFilters({ ...filters, page: Math.min(totalPages, filters.page + 1) })}
-                disabled={filters.page === totalPages}
-              >
-                Next
-              </Button>
+          {/* Infinite Scroll Loading */}
+          {isLoadingMore && (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600">Loading more questions...</span>
+              </div>
+            </div>
+          )}
+          
+          {!hasMore && questions.length > 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No more questions to load</p>
             </div>
           )}
         </CardContent>
@@ -587,55 +762,22 @@ const QuestionManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Answer Dialog */}
-      <Dialog open={isAnswerOpen} onOpenChange={setIsAnswerOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Answer Question</DialogTitle>
-          </DialogHeader>
-          {selectedQuestion && (
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm font-medium text-gray-600 mb-2">Question:</p>
-                <p className="text-gray-900">{selectedQuestion.question}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Answer
-                </label>
-                <Textarea
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Enter your answer to this question..."
-                  rows={6}
-                />
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsAnswerOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => selectedQuestion && handleAnswer(selectedQuestion.id)}
-                  disabled={!answer.trim()}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Submit Answer
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Reject Dialog */}
       <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Question</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-600" />
+              Reject Question
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {selectedQuestion && (
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-2">Question by <span className="font-medium">{selectedQuestion.user.name}</span></p>
+                <p className="text-sm text-gray-800">"{selectedQuestion.question}"</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Reason for rejection (optional)
@@ -648,7 +790,11 @@ const QuestionManagement: React.FC = () => {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsRejectOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsRejectOpen(false);
+                setRejectReason('');
+                setSelectedQuestion(null);
+              }}>
                 Cancel
               </Button>
               <Button
@@ -661,6 +807,100 @@ const QuestionManagement: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-600" />
+              Delete Question
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedQuestion && (
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-sm text-red-800 mb-2">
+                  <strong>Warning:</strong> This action cannot be undone.
+                </p>
+                <p className="text-sm text-gray-600 mb-2">Question by <span className="font-medium">{selectedQuestion.user.name}</span></p>
+                <p className="text-sm text-gray-800">"{selectedQuestion.question}"</p>
+              </div>
+            )}
+            <p className="text-sm text-gray-600">
+              Are you sure you want to permanently delete this question? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setIsDeleteOpen(false);
+                setSelectedQuestion(null);
+              }}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => selectedQuestion && handleDelete(selectedQuestion.id)}
+              >
+                Delete Question
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Answer Dialog */}
+      <Dialog open={isAnswerOpen} onOpenChange={setIsAnswerOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-blue-600" />
+              Answer Question
+            </DialogTitle>
+          </DialogHeader>
+          {selectedQuestion && (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Question by {selectedQuestion.user.name}:</strong>
+                </p>
+                <p className="text-sm text-gray-800">"{selectedQuestion.question}"</p>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="answer" className="text-sm font-medium text-gray-700">
+                  Your Answer
+                </label>
+                <Textarea
+                  id="answer"
+                  placeholder="Provide a helpful answer to this question..."
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => {
+                  setIsAnswerOpen(false);
+                  setAnswer('');
+                  setSelectedQuestion(null);
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => selectedQuestion && handleAnswer(selectedQuestion.id)}
+                  disabled={!answer.trim()}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Answer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };

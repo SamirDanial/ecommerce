@@ -31,6 +31,7 @@ import { getFullImageUrl } from '../../utils/imageUtils';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { getApiBaseUrl } from '../../config/api';
 import { toast } from 'sonner';
+import { DatePicker } from '../ui/date-picker';
 
 
 interface Order {
@@ -126,7 +127,6 @@ interface Order {
 interface OrderFilters {
   status?: string;
   paymentStatus?: string;
-  dateRange?: string;
   dateFrom?: string;
   dateTo?: string;
   customerEmail?: string;
@@ -176,6 +176,8 @@ const OrderManagement: React.FC = () => {
   // };
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<OrderFilters>({});
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   const [salesMetrics, setSalesMetrics] = useState<SalesMetrics | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
@@ -202,6 +204,27 @@ const OrderManagement: React.FC = () => {
 
   // Mobile filter state
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+  // Handle search input (no automatic filtering)
+  const handleSearchChange = (field: keyof OrderFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle filter changes (no automatic filtering)
+  const handleFilterChange = (field: keyof OrderFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value === 'all' ? undefined : value }));
+  };
+
+  // Handle date changes (no automatic filtering)
+  const handleDateFromChange = (date: Date | undefined) => {
+    setDateFrom(date);
+  };
+
+  const handleDateToChange = (date: Date | undefined) => {
+    setDateTo(date);
+  };
+
+  // No automatic filtering - all filters work only when Apply Filters is clicked
 
   // Debug: Log form data changes
   useEffect(() => {
@@ -273,7 +296,7 @@ const OrderManagement: React.FC = () => {
   }, [orders, searchParams, setSearchParams, getToken]);
 
   // Fetch orders
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (overrideFilters?: Partial<OrderFilters>) => {
     try {
       setLoading(true);
       const token = await getToken();
@@ -288,8 +311,11 @@ const OrderManagement: React.FC = () => {
       queryParams.append('page', currentPage.toString());
       queryParams.append('limit', '20');
       
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value);
+      // Use override filters if provided, otherwise use current filters
+      const filtersToUse = overrideFilters ? { ...filters, ...overrideFilters } : filters;
+      
+      Object.entries(filtersToUse).forEach(([key, value]) => {
+        if (value && key !== 'page') queryParams.append(key, value);
       });
 
       const apiUrl = `${getApiBaseUrl()}/admin/orders?${queryParams}`;
@@ -782,12 +808,15 @@ const OrderManagement: React.FC = () => {
           </CardHeader>
           {isFiltersOpen && (
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Filter Section */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-4">Filter Orders</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm font-medium text-slate-700">Order Status</label>
                   <Select
                     value={filters.status || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? undefined : value }))}
+                    onValueChange={(value) => handleFilterChange('status', value)}
                   >
                     <SelectTrigger className="bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500">
                       <SelectValue placeholder="All Statuses" />
@@ -811,7 +840,7 @@ const OrderManagement: React.FC = () => {
                   <label className="text-sm font-medium text-slate-700">Payment Status</label>
                   <Select
                     value={filters.paymentStatus || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, paymentStatus: value === 'all' ? undefined : value }))}
+                    onValueChange={(value) => handleFilterChange('paymentStatus', value)}
                   >
                     <SelectTrigger className="bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500">
                       <SelectValue placeholder="All Payment Statuses" />
@@ -827,64 +856,53 @@ const OrderManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Date Range</label>
-                  <Select
-                    value={filters.dateRange || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value === 'all' ? undefined : value }))}
-                  >
-                    <SelectTrigger className="bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500">
-                      <SelectValue placeholder="All Time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Time</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="week">This Week</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="quarter">This Quarter</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <label className="text-sm font-medium text-slate-700">Date From</label>
+                  <DatePicker
+                    value={dateFrom}
+                    onChange={handleDateFromChange}
+                    placeholder="Select start date"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Date To</label>
+                  <DatePicker
+                    value={dateTo}
+                    onChange={handleDateToChange}
+                    placeholder="Select end date"
+                  />
                 </div>
               </div>
+              </div>
 
-              {/* Search Fields - Second Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Customer Email</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input
-                      placeholder="Search by email"
-                      value={filters.customerEmail || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, customerEmail: e.target.value }))}
-                      className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
-                    />
+              {/* Search Fields - Clean Layout */}
+              <div className="mt-6 pt-4 border-t border-white/20">
+                <h4 className="text-sm font-semibold text-slate-700 mb-4">Search Orders</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Customer Email</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        placeholder="Search by customer email"
+                        value={filters.customerEmail || ''}
+                        onChange={(e) => handleSearchChange('customerEmail', e.target.value)}
+                        className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Order Number</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input
-                      placeholder="Search by order #"
-                      value={filters.orderNumber || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, orderNumber: e.target.value }))}
-                      className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Order Number</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input
-                      placeholder="Search by order #"
-                      value={filters.orderNumber || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, orderNumber: e.target.value }))}
-                      className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
-                    />
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Order Number</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        placeholder="Search by order number"
+                        value={filters.orderNumber || ''}
+                        onChange={(e) => handleSearchChange('orderNumber', e.target.value)}
+                        className="pl-10 bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -893,7 +911,10 @@ const OrderManagement: React.FC = () => {
                 <Button
                   onClick={() => {
                     setFilters({});
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
                     setCurrentPage(1);
+                    fetchOrders({});
                   }}
                   variant="outline"
                   className="bg-white/60 backdrop-blur-sm border-white/30 hover:bg-white/80 transition-all duration-300"
@@ -902,8 +923,23 @@ const OrderManagement: React.FC = () => {
                 </Button>
                 <Button
                   onClick={() => {
+                    const newDateFrom = dateFrom ? `${dateFrom.getFullYear()}-${String(dateFrom.getMonth() + 1).padStart(2, '0')}-${String(dateFrom.getDate()).padStart(2, '0')}` : undefined;
+                    const newDateTo = dateTo ? `${dateTo.getFullYear()}-${String(dateTo.getMonth() + 1).padStart(2, '0')}-${String(dateTo.getDate()).padStart(2, '0')}` : undefined;
+                    
+                    const allFilters = {
+                      ...filters,
+                      dateFrom: newDateFrom,
+                      dateTo: newDateTo
+                    };
+                    
+                    setFilters(prev => ({
+                      ...prev,
+                      dateFrom: newDateFrom,
+                      dateTo: newDateTo,
+                      page: 1
+                    }));
                     setCurrentPage(1);
-                    fetchOrders();
+                    fetchOrders(allFilters);
                   }}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                 >

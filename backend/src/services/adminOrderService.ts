@@ -14,7 +14,7 @@ export interface OrderUpdateData {
 }
 
 export interface OrderFilters {
-  orderStatus?: OrderStatus;
+  status?: OrderStatus;
   deliveryStatus?: DeliveryStatus;
   paymentStatus?: PaymentStatus;
   dateFrom?: Date;
@@ -100,7 +100,7 @@ export const adminOrderService = {
     try {
       const where: any = {};
       
-      if (filters.orderStatus) where.orderStatus = filters.orderStatus;
+      if (filters.status) where.orderStatus = filters.status;
       if (filters.deliveryStatus) where.deliveryStatus = filters.deliveryStatus;
       if (filters.paymentStatus) where.paymentStatus = filters.paymentStatus;
       if (filters.customerEmail) {
@@ -113,6 +113,8 @@ export const adminOrderService = {
         where.createdAt = {};
         if (filters.dateFrom) where.createdAt.gte = filters.dateFrom;
         if (filters.dateTo) where.createdAt.lte = filters.dateTo;
+        
+
       }
 
       const skip = (page - 1) * limit;
@@ -138,7 +140,7 @@ export const adminOrderService = {
             }
           },
           orderBy: { createdAt: 'desc' },
-          skip,
+          skip: skip,
           take: limit
         }),
         prisma.order.count({ where })

@@ -499,16 +499,57 @@ const NotificationsPage: React.FC = () => {
                               </Button>
                             )}
                             
-                            {notification.targetType === 'PRODUCT' && (
+                            {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
-                                  handleNotificationAction(notification.id, 'view');
+                                  try {
+                                    // Mark notification as read
+                                    await markAsRead(notification.id);
+                                    
+                                    // Navigate to reviews page with review ID for highlighting
+                                    const reviewId = notification.data?.reviewId;
+                                    if (reviewId) {
+                                      navigate(`/admin/reviews?reviewId=${reviewId}`);
+                                    } else {
+                                      navigate('/admin/reviews');
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to mark notification as read:', error);
+                                    toast.error('Failed to mark notification as read');
+                                  }
                                 }}
                               >
-                                View Product
+                                View Review
+                              </Button>
+                            )}
+                            
+                            {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    // Mark notification as read
+                                    await markAsRead(notification.id);
+                                    
+                                    // Navigate to questions page with question ID for highlighting
+                                    const questionId = notification.data?.questionId;
+                                    if (questionId) {
+                                      navigate(`/admin/questions?questionId=${questionId}`);
+                                    } else {
+                                      navigate('/admin/questions');
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to mark notification as read:', error);
+                                    toast.error('Failed to mark notification as read');
+                                  }
+                                }}
+                              >
+                                View Question
                               </Button>
                             )}
                           </div>

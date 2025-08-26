@@ -215,7 +215,7 @@ router.post('/questions', authenticateClerkToken, async (req, res) => {
           category: 'PRODUCTS',
           priority: 'MEDIUM',
           targetType: 'PRODUCT',
-          targetId: parseInt(productId),
+          targetId: newQuestion.id, // Use question ID instead of product ID to allow multiple notifications
           isGlobal: true,
           data: {
             questionId: newQuestion.id,

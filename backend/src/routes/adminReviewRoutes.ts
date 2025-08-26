@@ -5,6 +5,91 @@ import { notificationService } from '../services/notificationService';
 
 const router = express.Router();
 
+// Get all reviews with search and filter support
+router.get('/', authenticateClerkToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status, search, productId, userId } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    const where: any = {};
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (productId) {
+      where.productId = parseInt(productId as string);
+    }
+    
+    if (userId) {
+      where.userId = parseInt(userId as string);
+    }
+
+    // Add search functionality
+    if (search) {
+      where.OR = [
+        { comment: { contains: search as string, mode: 'insensitive' } },
+        { title: { contains: search as string, mode: 'insensitive' } },
+        { user: { name: { contains: search as string, mode: 'insensitive' } } },
+        { user: { email: { contains: search as string, mode: 'insensitive' } } },
+        { product: { name: { contains: search as string, mode: 'insensitive' } } }
+      ];
+    }
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true
+            }
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              images: {
+                where: { isPrimary: true },
+                select: { url: true, alt: true }
+              }
+            }
+          },
+          _count: {
+            select: {
+              interactions: true,
+              replies: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit as string)
+      }),
+      prisma.review.count({ where })
+    ]);
+
+    res.json({
+      success: true,
+      reviews,
+      total,
+      page: parseInt(page as string),
+      totalPages: Math.ceil(total / parseInt(limit as string))
+    });
+
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch reviews'
+    });
+  }
+});
+
 // Get all pending reviews
 router.get('/pending', authenticateClerkToken, async (req, res) => {
   try {
@@ -77,6 +162,90 @@ router.get('/pending', authenticateClerkToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending reviews'
+    });
+  }
+});
+
+// Get all questions with search and filter support
+router.get('/questions', authenticateClerkToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status, search, productId, userId } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    const where: any = {};
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (productId) {
+      where.productId = parseInt(productId as string);
+    }
+    
+    if (userId) {
+      where.userId = parseInt(userId as string);
+    }
+
+    // Add search functionality
+    if (search) {
+      where.OR = [
+        { question: { contains: search as string, mode: 'insensitive' } },
+        { answer: { contains: search as string, mode: 'insensitive' } },
+        { user: { name: { contains: search as string, mode: 'insensitive' } } },
+        { user: { email: { contains: search as string, mode: 'insensitive' } } },
+        { product: { name: { contains: search as string, mode: 'insensitive' } } }
+      ];
+    }
+
+    const [questions, total] = await Promise.all([
+      prisma.question.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true
+            }
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              images: {
+                where: { isPrimary: true },
+                select: { url: true, alt: true }
+              }
+            }
+          },
+          _count: {
+            select: {
+              replies: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit as string)
+      }),
+      prisma.question.count({ where })
+    ]);
+
+    res.json({
+      success: true,
+      questions,
+      total,
+      page: parseInt(page as string),
+      totalPages: Math.ceil(total / parseInt(limit as string))
+    });
+
+  } catch (error) {
+    console.error('Error fetching questions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch questions'
     });
   }
 });
@@ -248,6 +417,102 @@ router.put('/:reviewId/approve', authenticateClerkToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to approve review'
+    });
+  }
+});
+
+// Set review status to pending
+router.put('/:reviewId/pending', authenticateClerkToken, async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const adminUserId = req.user!.id;
+
+    const review = await prisma.review.findUnique({
+      where: { id: parseInt(reviewId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    const updatedReview = await prisma.review.update({
+      where: { id: parseInt(reviewId) },
+      data: {
+        status: 'PENDING',
+        updatedAt: new Date()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    // Add notification action
+    try {
+      // Find the notification for this review
+      const notification = await prisma.notification.findFirst({
+        where: {
+          targetType: 'PRODUCT',
+          targetId: review.productId,
+          type: 'PRODUCT_REVIEW',
+          data: {
+            path: ['reviewId'],
+            equals: parseInt(reviewId)
+          }
+        }
+      });
+
+      if (notification) {
+        await notificationService.addNotificationAction(notification.id, {
+          actionType: 'set_pending',
+          actionData: { reviewId: parseInt(reviewId), setPendingBy: adminUserId },
+          performedBy: adminUserId
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error adding notification action:', notificationError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Review status updated to pending successfully',
+      review: updatedReview
+    });
+
+  } catch (error) {
+    console.error('Error setting review to pending:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to set review to pending'
     });
   }
 });
@@ -441,6 +706,102 @@ router.put('/questions/:questionId/approve', authenticateClerkToken, async (req,
     res.status(500).json({
       success: false,
       message: 'Failed to approve question'
+    });
+  }
+});
+
+// Set question status to pending
+router.put('/questions/:questionId/pending', authenticateClerkToken, async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    const adminUserId = req.user!.id;
+
+    const question = await prisma.question.findUnique({
+      where: { id: parseInt(questionId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!question) {
+      return res.status(404).json({
+        success: false,
+        message: 'Question not found'
+      });
+    }
+
+    const updatedQuestion = await prisma.question.update({
+      where: { id: parseInt(questionId) },
+      data: {
+        status: 'PENDING',
+        updatedAt: new Date()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    // Add notification action
+    try {
+      // Find the notification for this question
+      const notification = await prisma.notification.findFirst({
+        where: {
+          targetType: 'PRODUCT',
+          targetId: question.productId,
+          type: 'PRODUCT_QUESTION',
+          data: {
+            path: ['questionId'],
+            equals: parseInt(questionId)
+          }
+        }
+      });
+
+      if (notification) {
+        await notificationService.addNotificationAction(notification.id, {
+          actionType: 'set_pending',
+          actionData: { questionId: parseInt(questionId), setPendingBy: adminUserId },
+          performedBy: adminUserId
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error adding notification action:', notificationError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Question status updated to pending successfully',
+      question: updatedQuestion
+    });
+
+  } catch (error) {
+    console.error('Error setting question to pending:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to set question to pending'
     });
   }
 });

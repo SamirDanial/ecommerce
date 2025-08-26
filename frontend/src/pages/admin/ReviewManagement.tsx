@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Star, 
   User, 
@@ -12,19 +13,23 @@ import {
   Search,
   MoreHorizontal,
   MessageSquare,
-  ThumbsUp
+  ThumbsUp,
+  Clock
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Textarea } from '../../components/ui/textarea';
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 interface Review {
   id: number;
@@ -65,27 +70,86 @@ interface ReviewStats {
 const ReviewManagement: React.FC = () => {
   const { getToken } = useClerkAuth();
   const { isConnected, notifications } = useNotifications();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+
+  const [highlightedReviewId, setHighlightedReviewId] = useState<number | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  
+
+  
   const [filters, setFilters] = useState({
     status: 'PENDING',
     search: '',
     page: 1,
     limit: 20
   });
+
+  // Handle search input with debouncing
+  const handleSearchChange = (value: string) => {
+    setFilters(prev => ({ ...prev, search: value, page: 1 }));
+  };
+
+  // Handle status filter change
+  const handleStatusChange = (value: string) => {
+    setFilters(prev => ({ ...prev, status: value, page: 1 }));
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (filters.search !== undefined) {
+        fetchReviews(1, true);
+        fetchStats();
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [filters.search]);
+
+  // Effect for status changes (immediate)
+  useEffect(() => {
+    if (filters.status !== undefined) {
+      fetchReviews(1, true);
+      fetchStats();
+    }
+  }, [filters.status]);
   const [totalPages, setTotalPages] = useState(1);
   const [lastNotificationId, setLastNotificationId] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+
+
+  // Handle URL parameters for highlighting specific reviews
+  useEffect(() => {
+    const reviewId = searchParams.get('reviewId');
+    if (reviewId) {
+      const id = parseInt(reviewId);
+      if (!isNaN(id)) {
+        setHighlightedReviewId(id);
+        // Clear the URL parameter after setting the highlight
+        setSearchParams({}, { replace: true });
+        
+        // Auto-clear highlight after 5 seconds
+        const timer = setTimeout(() => {
+          setHighlightedReviewId(null);
+        }, 5000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams, setSearchParams]);
 
   // Listen for new review notifications and refresh data
   useEffect(() => {
@@ -140,7 +204,7 @@ const ReviewManagement: React.FC = () => {
   useEffect(() => {
     fetchReviews(1, true);
     fetchStats();
-  }, [filters.status, filters.search]);
+  }, []); // Only run once on mount
 
   const createAuthenticatedApi = async () => {
     const token = await getToken();
@@ -174,7 +238,7 @@ const ReviewManagement: React.FC = () => {
       params.append('page', pageNum.toString());
       params.append('limit', filters.limit.toString());
 
-      const response = await api.get(`/admin/reviews/pending?${params}`);
+      const response = await api.get(`/admin/reviews?${params}`);
       
       if (response.data.success) {
         const newReviews = response.data.reviews;
@@ -210,10 +274,7 @@ const ReviewManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchReviews();
-    fetchStats();
-  }, [filters]);
+
 
   const handleApprove = async (reviewId: number) => {
     try {
@@ -235,19 +296,36 @@ const ReviewManagement: React.FC = () => {
     try {
       const api = await createAuthenticatedApi();
       const response = await api.put(`/admin/reviews/${reviewId}/reject`, {
-        reason: rejectReason
+        reason: rejectReason || 'Rejected by admin'
       });
       
       if (response.data.success) {
         toast.success('Review rejected successfully');
         setIsRejectOpen(false);
         setRejectReason('');
+        setSelectedReview(null);
         fetchReviews();
         fetchStats();
       }
     } catch (error) {
       console.error('Error rejecting review:', error);
       toast.error('Failed to reject review');
+    }
+  };
+
+  const handleSetPending = async (reviewId: number) => {
+    try {
+      const api = await createAuthenticatedApi();
+      const response = await api.put(`/admin/reviews/${reviewId}/pending`);
+      
+      if (response.data.success) {
+        toast.success('Review status updated to pending');
+        fetchReviews();
+        fetchStats();
+      }
+    } catch (error) {
+      console.error('Error updating review status:', error);
+      toast.error('Failed to update review status');
     }
   };
 
@@ -259,6 +337,7 @@ const ReviewManagement: React.FC = () => {
       if (response.data.success) {
         toast.success('Review deleted successfully');
         setIsDeleteOpen(false);
+        setSelectedReview(null);
         fetchReviews();
         fetchStats();
       }
@@ -393,14 +472,14 @@ const ReviewManagement: React.FC = () => {
                 <Input
                   placeholder="Search reviews..."
                   value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
             <Select
               value={filters.status}
-              onValueChange={(value) => setFilters({ ...filters, status: value })}
+              onValueChange={handleStatusChange}
             >
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by status" />
@@ -436,15 +515,40 @@ const ReviewManagement: React.FC = () => {
                 <div 
                   key={review.id} 
                   ref={index === reviews.length - 1 ? lastReviewElementRef : null}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className={`border rounded-lg p-4 hover:bg-gray-50 transition-colors ${
+                    highlightedReviewId === review.id 
+                      ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-300' 
+                      : ''
+                  }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="flex items-start gap-4">
+                    {/* Product Image */}
+                    <div className="flex-shrink-0">
+                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                        {review.product.images?.[0]?.url ? (
+                          <img
+                            src={getFullImageUrl(review.product.images[0].url)}
+                            alt={review.product.name}
+                            className="w-full h-full object-contain object-center bg-gray-50"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full flex items-center justify-center text-gray-400 ${review.product.images?.[0]?.url ? 'hidden' : ''}`}>
+                          <Package className="w-8 h-8" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Review Content */}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="flex items-center gap-1">
                           {renderStars(review.rating)}
                         </div>
-                        <span className="font-semibold text-gray-900">{review.title}</span>
+                        <span className="font-semibold text-gray-900 truncate">{review.title}</span>
                         {getStatusBadge(review.status)}
                       </div>
                       
@@ -457,7 +561,7 @@ const ReviewManagement: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <Package className="w-4 h-4" />
-                          <span>{review.product.name}</span>
+                          <span className="truncate">{review.product.name}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
@@ -479,52 +583,77 @@ const ReviewManagement: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedReview(review);
-                          setIsDetailOpen(true);
-                        }}
+                      <DropdownMenu 
+                        open={openDropdownId === review.id} 
+                        onOpenChange={(open) => setOpenDropdownId(open ? review.id : null)}
                       >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      
-                      {review.status === 'PENDING' && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleApprove(review.id)}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <CheckCircle className="w-4 h-4" />
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(null);
                               setSelectedReview(review);
-                              setIsRejectOpen(true);
+                              setIsDetailOpen(true);
                             }}
-                            className="text-red-600 hover:text-red-700"
                           >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedReview(review);
-                          setIsDeleteOpen(true);
-                        }}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          
+                          {review.status !== 'APPROVED' && (
+                            <DropdownMenuItem
+                              onClick={() => handleApprove(review.id)}
+                              className="text-green-600"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Approve
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {review.status !== 'REJECTED' && (
+                                                                                        <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  setSelectedReview(review);
+                                  setIsRejectOpen(true);
+                                }}
+                                className="text-red-600"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Reject
+                              </DropdownMenuItem>
+                          )}
+                          
+                          {review.status !== 'PENDING' && (
+                            <DropdownMenuItem
+                              onClick={() => handleSetPending(review.id)}
+                              className="text-yellow-600"
+                            >
+                              <Clock className="w-4 h-4 mr-2" />
+                              Set to Pending
+                            </DropdownMenuItem>
+                          )}
+                          
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(null);
+                              setSelectedReview(review);
+                              setIsDeleteOpen(true);
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
@@ -625,6 +754,7 @@ const ReviewManagement: React.FC = () => {
               <Button variant="outline" onClick={() => {
                 setIsRejectOpen(false);
                 setRejectReason('');
+                setSelectedReview(null);
               }}>
                 Cancel
               </Button>
@@ -662,7 +792,10 @@ const ReviewManagement: React.FC = () => {
               Are you sure you want to permanently delete this review? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsDeleteOpen(false);
+                setSelectedReview(null);
+              }}>
                 Cancel
               </Button>
               <Button
@@ -675,6 +808,7 @@ const ReviewManagement: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };
