@@ -968,7 +968,9 @@ router.post('/:reviewId/replies', authenticateClerkToken, async (req, res) => {
 
     // Send admin notification for review reply
     try {
-      await socketServer.sendAdminNotification({
+      const socketServer = (global as any).socketServer;
+      if (socketServer) {
+        await socketServer.sendAdminNotification({
         type: 'REVIEW_REPLY',
         title: 'New Review Reply Submitted',
         message: `A new reply has been submitted for a review on "${review.product.name}" by ${newReply.user.name}.`,
@@ -989,6 +991,7 @@ router.post('/:reviewId/replies', authenticateClerkToken, async (req, res) => {
           reviewAuthorName: review.user.name
         }
       });
+      }
     } catch (notificationError) {
       console.error('Error sending review reply notification:', notificationError);
       // Don't fail the request if notification fails

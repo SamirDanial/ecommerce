@@ -57,7 +57,7 @@ const OrderAnalytics: React.FC = () => {
     from: subMonths(new Date(), 1),
     to: new Date()
   });
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'all'>('bar');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'all'>('all');
 
   // Calculate date range based on selected period
   const getDateRange = useCallback((period: TimePeriod) => {

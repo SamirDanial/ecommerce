@@ -92,6 +92,39 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ===== COMPREHENSIVE ANALYTICS ENDPOINT =====
+
+// Get comprehensive analytics data
+router.get('/analytics', async (req, res) => {
+  try {
+    const { period = 'monthly', dateFrom, dateTo } = req.query;
+
+    if (!['daily', 'weekly', 'monthly', 'quarterly', 'semi-annually', 'yearly', 'custom'].includes(period as string)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid period parameter'
+      });
+    }
+
+    const analytics = await AdminAnalyticsService.getAnalytics(
+      period as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'yearly' | 'custom',
+      dateFrom ? new Date(dateFrom as string) : undefined,
+      dateTo ? new Date(dateTo as string) : undefined
+    );
+
+    res.json({
+      success: true,
+      data: analytics
+    });
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch analytics data'
+    });
+  }
+});
+
 // Get single order by ID
 router.get('/:orderId', async (req, res) => {
   try {
@@ -395,39 +428,6 @@ router.get('/sales/comparison', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch sales comparison'
-    });
-  }
-});
-
-// ===== COMPREHENSIVE ANALYTICS ENDPOINT =====
-
-// Get comprehensive analytics data
-router.get('/analytics', async (req, res) => {
-  try {
-    const { period = 'monthly', dateFrom, dateTo } = req.query;
-
-    if (!['daily', 'weekly', 'monthly', 'quarterly', 'semi-annually', 'yearly', 'custom'].includes(period as string)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid period parameter'
-      });
-    }
-
-    const analytics = await AdminAnalyticsService.getAnalytics(
-      period as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'yearly' | 'custom',
-      dateFrom ? new Date(dateFrom as string) : undefined,
-      dateTo ? new Date(dateTo as string) : undefined
-    );
-
-    res.json({
-      success: true,
-      data: analytics
-    });
-  } catch (error) {
-    console.error('Error fetching analytics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch analytics data'
     });
   }
 });
