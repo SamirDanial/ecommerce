@@ -183,8 +183,7 @@ const OrderManagement: React.FC = () => {
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
   const [deliveryUpdateOpen, setDeliveryUpdateOpen] = useState(false);
-  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
-  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -193,8 +192,7 @@ const OrderManagement: React.FC = () => {
     trackingNumber: '', // Keep for display only
     estimatedDelivery: ''
   });
-  const [bulkUpdateNotes, setBulkUpdateNotes] = useState('');
-  const [bulkUpdateStatus, setBulkUpdateStatus] = useState('APPROVED');
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -572,37 +570,7 @@ const OrderManagement: React.FC = () => {
     }
   };
 
-  // Bulk update orders
-  const bulkUpdateOrders = async (newStatus: string, notes?: string) => {
-    try {
-      const token = await getToken();
-      if (!token) return;
 
-      const response = await fetch(`${getApiBaseUrl()}/admin/orders/bulk-status`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ orderIds: selectedOrders, newStatus, notes })
-      });
-
-      if (response.ok) {
-        toast.success(`Successfully updated ${selectedOrders.length} orders`);
-        setSelectedOrders([]);
-        setBulkUpdateOpen(false);
-        setBulkUpdateNotes('');
-        setBulkUpdateStatus('CONFIRMED');
-        fetchOrders();
-        fetchSalesMetrics();
-      } else {
-        toast.error('Failed to bulk update orders');
-      }
-    } catch (error) {
-      console.error('Error bulk updating orders:', error);
-      toast.error('Failed to bulk update orders');
-    }
-  };
 
   // Load data on component mount
   useEffect(() => {
@@ -719,14 +687,6 @@ const OrderManagement: React.FC = () => {
                   <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                {selectedOrders.length > 0 && (
-                  <Button
-                    onClick={() => setBulkUpdateOpen(true)}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    Bulk Update ({selectedOrders.length})
-                  </Button>
-                )}
               </div>
             </div>
           </div>
@@ -971,20 +931,6 @@ const OrderManagement: React.FC = () => {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-white/20 bg-slate-50/50">
-                          <th className="text-left py-4 px-4">
-                            <input
-                              type="checkbox"
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedOrders(orders.map(o => o.id));
-                                } else {
-                                  setSelectedOrders([]);
-                                }
-                              }}
-                              checked={selectedOrders.length === orders.length && orders.length > 0}
-                              className="rounded border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
-                            />
-                          </th>
                           <th className="text-left py-4 px-4 font-semibold text-slate-700 text-sm uppercase tracking-wide">Order</th>
                           <th className="text-left py-4 px-4 font-semibold text-slate-700 text-sm uppercase tracking-wide">Customer</th>
                           <th className="text-left py-4 px-4 font-semibold text-slate-700 text-sm uppercase tracking-wide">Status</th>
@@ -997,23 +943,9 @@ const OrderManagement: React.FC = () => {
                       </thead>
                       <tbody>
                         {orders.map((order, index) => (
-                          <tr key={order.id} className={`border-b border-white/10 hover:bg-white/20 transition-all duration-200 ${
+                          <tr key={order.id} className={`border-b border-white/10 hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg transition-all duration-300 cursor-pointer ${
                             index % 2 === 0 ? 'bg-white/40' : 'bg-slate-50/40'
                           }`}>
-                            <td className="py-3 px-4">
-                              <input
-                                type="checkbox"
-                                checked={selectedOrders.includes(order.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedOrders(prev => [...prev, order.id]);
-                                  } else {
-                                    setSelectedOrders(prev => prev.filter(id => id !== order.id));
-                                  }
-                                }}
-                                className="rounded border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </td>
                             <td className="py-3 px-4">
                               <div>
                                 <div className="flex items-center gap-2">
@@ -1129,27 +1061,13 @@ const OrderManagement: React.FC = () => {
                    {orders.map((order, index) => (
                      <div 
                        key={order.id} 
-                       className={`${
-                         index % 2 === 0 
-                           ? 'bg-white/80 backdrop-blur-xl' 
-                           : 'bg-slate-50/80 backdrop-blur-xl'
-                       } rounded-xl p-4 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300`}
+                       className={`relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 border border-white/40 transition-all duration-300 overflow-hidden cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
+                         index % 2 === 0 ? 'bg-gradient-to-r from-white/80 to-white/60' : 'bg-gradient-to-r from-slate-50/80 to-slate-100/60'
+                       }`}
                      >
-                                             {/* Header with checkbox and order info */}
+                                             {/* Header with order info */}
                        <div className="flex items-start justify-between mb-4 p-3 bg-slate-50/50 rounded-lg border border-white/20">
                          <div className="flex items-center gap-3">
-                           <input
-                             type="checkbox"
-                             checked={selectedOrders.includes(order.id)}
-                             onChange={(e) => {
-                               if (e.target.checked) {
-                                 setSelectedOrders(prev => [...prev, order.id]);
-                               } else {
-                                 setSelectedOrders(prev => prev.filter(id => id !== order.id));
-                               }
-                             }}
-                             className="rounded border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 mt-1"
-                           />
                            <div>
                              <div className="flex items-center gap-2">
                                <p className="text-sm text-slate-600 font-medium">Order #{order.orderNumber}</p>
@@ -1818,64 +1736,7 @@ const OrderManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-            {/* Enhanced Bulk Update Modal */}
-      <Dialog open={bulkUpdateOpen} onOpenChange={setBulkUpdateOpen}>
-        <DialogContent className="bg-white/95 backdrop-blur-xl border border-white/30">
-          <DialogHeader>
-            <DialogTitle className="text-slate-800 flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg">
-                <Package className="h-5 w-5 text-white" />
-              </div>
-              Bulk Update Orders ({selectedOrders.length})
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700">New Status</label>
-              <Select
-                value={bulkUpdateStatus}
-                onValueChange={setBulkUpdateStatus}
-              >
-                <SelectTrigger className="bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500">
-                  <SelectValue placeholder="Select new status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="APPROVED">Approved</SelectItem>
-                  <SelectItem value="READY_TO_PROCESS">Ready to Process</SelectItem>
-                  <SelectItem value="ON_HOLD">On Hold</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div>
-              <label className="text-sm font-medium text-slate-700">Notes (Optional)</label>
-              <Input 
-                placeholder="Add notes about this bulk update"
-                value={bulkUpdateNotes}
-                onChange={(e) => setBulkUpdateNotes(e.target.value)}
-                className="bg-white/60 backdrop-blur-sm border-white/30 focus:border-blue-500"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setBulkUpdateOpen(false)}
-                className="bg-white/60 backdrop-blur-sm border-white/30 hover:bg-white/80 transition-all duration-300"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => bulkUpdateOrders(bulkUpdateStatus, bulkUpdateNotes)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                Update All Orders
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Comprehensive Delivery Management Modal */}
       <Dialog 
