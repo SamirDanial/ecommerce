@@ -18,6 +18,7 @@ import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Separator } from '../../components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -58,9 +59,10 @@ const NotificationsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [selectedNotifications, setSelectedNotifications] = useState<number[]>([]);
-  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'archived' | 'dismissed'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -87,8 +89,10 @@ const NotificationsPage: React.FC = () => {
         page: pageNum.toString(),
         limit: '15',
         ...(filter !== 'all' && { status: filter.toUpperCase() }),
+        ...(filter === 'all' && { excludeStatus: 'ARCHIVED,DISMISSED' }), // Exclude archived and dismissed by default
         ...(categoryFilter !== 'all' && { category: categoryFilter }),
-        ...(priorityFilter !== 'all' && { priority: priorityFilter.toUpperCase() })
+        ...(priorityFilter !== 'all' && { priority: priorityFilter.toUpperCase() }),
+        ...(typeFilter !== 'all' && { type: typeFilter })
       });
 
       const response = await fetch(`${API_BASE}/notifications?${params}`, {
@@ -121,7 +125,7 @@ const NotificationsPage: React.FC = () => {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [filter, categoryFilter, priorityFilter, API_BASE, getToken]);
+  }, [filter, categoryFilter, priorityFilter, typeFilter, API_BASE, getToken]);
 
   // Load more notifications when scrolling
   const loadMore = useCallback(() => {
@@ -160,7 +164,7 @@ const NotificationsPage: React.FC = () => {
   useEffect(() => {
     fetchNotifications(1, true);
     setSelectedNotifications([]);
-  }, [filter, categoryFilter, priorityFilter]);
+  }, [filter, categoryFilter, priorityFilter, typeFilter]);
 
   // Handle notification selection
   const toggleNotificationSelection = (notificationId: number) => {
@@ -219,19 +223,37 @@ const NotificationsPage: React.FC = () => {
     }
   };
 
-  // Handle notification click - navigate to order management with order ID
+  // Handle notification click - navigate to appropriate management page
   const handleNotificationClick = async (notification: Notification) => {
     try {
       // Mark notification as read
       await markAsRead(notification.id);
       
-      // If it's an order notification, navigate to order management
+      // Navigate based on notification type and target
       if (notification.targetType === 'ORDER' && notification.targetId) {
+        // Navigate to order management with order ID for highlighting
         navigate(`/admin/orders?orderId=${notification.targetId}`);
+      } else if (notification.targetType === 'PRODUCT') {
+        if (notification.type === 'PRODUCT_REVIEW' && notification.data?.reviewId) {
+          // Navigate to review management with review ID for highlighting
+          navigate(`/admin/reviews?reviewId=${notification.data.reviewId}`);
+        } else if (notification.type === 'PRODUCT_QUESTION' && notification.data?.questionId) {
+          // Navigate to question management with question ID for highlighting
+          navigate(`/admin/questions?questionId=${notification.data.questionId}`);
+        } else if (notification.type === 'REVIEW_REPLY' && notification.data?.reviewId) {
+          // Navigate to review management with review ID for highlighting the reply
+          navigate(`/admin/reviews?reviewId=${notification.data.reviewId}&replyId=${notification.data.replyId}`);
+        } else {
+          // Fallback to general product management
+          navigate('/admin/products');
+        }
+      } else {
+        // Default fallback to notifications page
+        navigate('/admin/notifications');
       }
     } catch (error) {
       console.error('Failed to handle notification click:', error);
-      toast.error('Failed to open order details');
+      toast.error('Failed to open notification details');
     }
   };
 
@@ -243,6 +265,14 @@ const NotificationsPage: React.FC = () => {
   const availablePriorities = Array.from(
     new Set(notifications.map(n => n.priority))
   ).sort();
+
+  // Main notification types for filtering
+  const availableTypes = [
+    'PRODUCT_REVIEW',
+    'PRODUCT_QUESTION',
+    'REVIEW_REPLY',
+    'ORDER_PLACED'
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -289,52 +319,76 @@ const NotificationsPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
                   </label>
-                  <select
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value as any)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All</option>
-                    <option value="unread">Unread</option>
-                    <option value="read">Read</option>
-                  </select>
+                  <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All (Excluding Archived & Dismissed)</SelectItem>
+                      <SelectItem value="unread">Unread</SelectItem>
+                      <SelectItem value="read">Read</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                      <SelectItem value="dismissed">Dismissed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category
                   </label>
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Categories</option>
-                    {availableCategories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {availableCategories.map(category => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Priority
                   </label>
-                  <select
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Priorities</option>
-                    {availablePriorities.map(priority => (
-                      <option key={priority} value={priority}>{priority}</option>
-                    ))}
-                  </select>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      {availablePriorities.map(priority => (
+                        <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Type
+                  </label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {availableTypes.map(type => (
+                        <SelectItem key={type} value={type}>
+                          {type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -410,83 +464,83 @@ const NotificationsPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
-                      notification.status === 'UNREAD' ? 'bg-blue-50' : ''
-                    }`}
-                    onClick={() => handleNotificationClick(notification)}
-                  >
-                    <div className="flex items-start space-x-4">
-                      {/* Selection Checkbox */}
-                      <input
-                        type="checkbox"
-                        checked={selectedNotifications.includes(notification.id)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleNotificationSelection(notification.id);
-                        }}
-                        className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
+              <ScrollArea className="h-[600px] w-full">
+                <div className="divide-y divide-gray-200">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
+                        notification.status === 'UNREAD' ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex items-start space-x-4">
+                        {/* Selection Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={selectedNotifications.includes(notification.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleNotificationSelection(notification.id);
+                          }}
+                          className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
 
-                      {/* Notification Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                              {notification.title}
-                            </h3>
-                            <p className="text-gray-600 mb-3">
-                              {notification.message}
-                            </p>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 ml-4">
-                            <Badge
-                              variant="outline"
-                              className={`${getPriorityColor(notification.priority)}`}
-                            >
-                              {notification.priority}
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className={`${getCategoryColor(notification.category)}`}
-                            >
-                              {notification.category}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>
-                              {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                            </span>
-                            {notification.isGlobal && (
-                              <Badge variant="secondary" className="text-xs">
-                                Global
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            {notification.status === 'UNREAD' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  markAsRead(notification.id);
-                                }}
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Mark Read
-                              </Button>
-                            )}
+                        {/* Notification Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                {notification.title}
+                              </h3>
+                              <p className="text-gray-600 mb-3">
+                                {notification.message}
+                              </p>
+                            </div>
                             
-                            {notification.targetType === 'ORDER' && (
+                            <div className="flex items-center space-x-2 ml-4">
+                              <Badge
+                                variant="outline"
+                                className={`${getPriorityColor(notification.priority)}`}
+                              >
+                                {notification.priority}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`${getCategoryColor(notification.category)}`}
+                              >
+                                {notification.category}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                              <span>
+                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                              </span>
+                              {notification.isGlobal && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Global
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              {notification.status === 'UNREAD' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsRead(notification.id);
+                                  }}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Mark Read
+                                </Button>
+                              )}
+                              
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -495,86 +549,36 @@ const NotificationsPage: React.FC = () => {
                                   handleNotificationClick(notification);
                                 }}
                               >
-                                View Order
+                                {notification.targetType === 'ORDER' && 'View Order'}
+                                {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && 'View Review'}
+                                {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && 'View Question'}
+                                {notification.targetType === 'PRODUCT' && notification.type === 'REVIEW_REPLY' && 'View Reply'}
+                                {!['ORDER', 'PRODUCT'].includes(notification.targetType || '') && 'View Details'}
                               </Button>
-                            )}
-                            
-                            {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    // Mark notification as read
-                                    await markAsRead(notification.id);
-                                    
-                                    // Navigate to reviews page with review ID for highlighting
-                                    const reviewId = notification.data?.reviewId;
-                                    if (reviewId) {
-                                      navigate(`/admin/reviews?reviewId=${reviewId}`);
-                                    } else {
-                                      navigate('/admin/reviews');
-                                    }
-                                  } catch (error) {
-                                    console.error('Failed to mark notification as read:', error);
-                                    toast.error('Failed to mark notification as read');
-                                  }
-                                }}
-                              >
-                                View Review
-                              </Button>
-                            )}
-                            
-                            {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    // Mark notification as read
-                                    await markAsRead(notification.id);
-                                    
-                                    // Navigate to questions page with question ID for highlighting
-                                    const questionId = notification.data?.questionId;
-                                    if (questionId) {
-                                      navigate(`/admin/questions?questionId=${questionId}`);
-                                    } else {
-                                      navigate('/admin/questions');
-                                    }
-                                  } catch (error) {
-                                    console.error('Failed to mark notification as read:', error);
-                                    toast.error('Failed to mark notification as read');
-                                  }
-                                }}
-                              >
-                                View Question
-                              </Button>
-                            )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                  ))}
+                  
+                  {/* Load More Trigger */}
+                  <div ref={loadMoreRef} className="h-10">
+                    {isLoadingMore && (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                        <span className="ml-2 text-gray-600">Loading more notifications...</span>
+                      </div>
+                    )}
                   </div>
-                ))}
-                
-                {/* Load More Trigger */}
-                <div ref={loadMoreRef} className="h-10">
-                  {isLoadingMore && (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                      <span className="ml-2 text-gray-600">Loading more notifications...</span>
+                  
+                  {!hasMore && notifications.length > 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No more notifications to load</p>
                     </div>
                   )}
                 </div>
-                
-                {!hasMore && notifications.length > 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>No more notifications to load</p>
-                  </div>
-                )}
-              </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>

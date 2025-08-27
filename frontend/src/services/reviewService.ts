@@ -73,7 +73,7 @@ export interface PendingItems {
 export const reviewService = {
   // Submit a review
   async submitReview(data: ReviewSubmission, token: string): Promise<{ success: boolean; message: string; review: Review }> {
-    const response = await api.post('/reviews/reviews', data, {
+    const response = await api.post('/reviews', data, {
       headers: createAuthHeaders(token)
     });
     return response.data;
@@ -149,7 +149,7 @@ export const reviewService = {
     message: string;
     reply: any;
   }> {
-    const response = await api.post(`/reviews/reviews/${reviewId}/replies`, {
+    const response = await api.post(`/reviews/${reviewId}/replies`, {
       reply
     }, {
       headers: createAuthHeaders(token)
@@ -187,7 +187,7 @@ export const reviewService = {
     success: boolean;
     replies: any[];
   }> {
-    const response = await api.get(`/reviews/reviews/${reviewId}/replies`);
+    const response = await api.get(`/reviews/${reviewId}/replies`);
     return response.data;
   },
 

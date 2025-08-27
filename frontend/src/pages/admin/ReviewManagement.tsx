@@ -31,6 +31,18 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { getFullImageUrl } from '../../utils/imageUtils';
 
+interface ReviewReply {
+  id: number;
+  reply: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: number;
+    name: string;
+    avatar?: string;
+  };
+}
+
 interface Review {
   id: number;
   rating: number;
@@ -54,6 +66,7 @@ interface Review {
       alt?: string;
     }>;
   };
+  replies?: ReviewReply[];
   _count: {
     interactions: number;
     replies: number;
@@ -83,6 +96,8 @@ const ReviewManagement: React.FC = () => {
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<Set<number>>(new Set());
+  const [loadingReplies, setLoadingReplies] = useState<Set<number>>(new Set());
   
 
   
@@ -160,17 +175,17 @@ const ReviewManagement: React.FC = () => {
     }
   }, [isConnected]);
 
-  // Watch for new review notifications and refresh data
+  // Watch for new review and reply notifications and refresh data
   useEffect(() => {
     if (notifications.length === 0) return;
 
-    // Find the latest review notification
+    // Find the latest review or reply notification
     const latestReviewNotification = notifications
-      .filter(notification => notification.type === 'PRODUCT_REVIEW')
+      .filter(notification => notification.type === 'PRODUCT_REVIEW' || notification.type === 'REVIEW_REPLY')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
     if (latestReviewNotification && latestReviewNotification.id !== lastNotificationId) {
-      console.log('🔄 New review notification detected, refreshing data...', latestReviewNotification.id);
+      console.log('🔄 New review/reply notification detected, refreshing data...', latestReviewNotification.id);
       setLastNotificationId(latestReviewNotification.id);
       fetchReviews(1, true);
       fetchStats();
@@ -274,7 +289,52 @@ const ReviewManagement: React.FC = () => {
     }
   };
 
+  const fetchReplies = async (reviewId: number) => {
+    try {
+      setLoadingReplies(prev => new Set(prev).add(reviewId));
+      
+      const api = await createAuthenticatedApi();
+      const response = await api.get(`/reviews/${reviewId}/replies`);
+      
+      if (response.data.success) {
+        setReviews(prev => prev.map(review => 
+          review.id === reviewId 
+            ? { ...review, replies: response.data.replies }
+            : review
+        ));
+      }
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+      toast.error('Failed to fetch replies');
+    } finally {
+      setLoadingReplies(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
+    }
+  };
 
+  const toggleReplies = (reviewId: number) => {
+    const isExpanded = expandedReplies.has(reviewId);
+    
+    if (isExpanded) {
+      // Collapse replies
+      setExpandedReplies(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
+    } else {
+      // Expand replies - fetch if not already loaded
+      setExpandedReplies(prev => new Set(prev).add(reviewId));
+      
+      const review = reviews.find(r => r.id === reviewId);
+      if (review && !review.replies) {
+        fetchReplies(reviewId);
+      }
+    }
+  };
 
   const handleApprove = async (reviewId: number) => {
     try {
@@ -656,6 +716,72 @@ const ReviewManagement: React.FC = () => {
                       </DropdownMenu>
                     </div>
                   </div>
+                  
+                  {/* Replies Section */}
+                  {review._count.replies > 0 && (
+                    <div className="mt-4 border-t pt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {review._count.replies} {review._count.replies === 1 ? 'Reply' : 'Replies'}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleReplies(review.id)}
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          {expandedReplies.has(review.id) ? 'Hide' : 'Show'} Replies
+                        </Button>
+                      </div>
+                      
+                      {expandedReplies.has(review.id) && (
+                        <div className="space-y-3">
+                          {loadingReplies.has(review.id) ? (
+                            <div className="flex items-center justify-center py-4">
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                              <span className="ml-2 text-sm text-gray-600">Loading replies...</span>
+                            </div>
+                          ) : review.replies && review.replies.length > 0 ? (
+                            review.replies.map((reply) => (
+                              <div key={reply.id} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-200">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0">
+                                    {reply.user.avatar ? (
+                                      <img
+                                        src={reply.user.avatar}
+                                        alt={reply.user.name}
+                                        className="w-8 h-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                        <User className="w-4 h-4 text-gray-600" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-medium text-gray-900">{reply.user.name}</span>
+                                      <span className="text-xs text-gray-500">
+                                        {formatDate(reply.createdAt)}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-700">{reply.reply}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4 text-gray-500 text-sm">
+                              No replies found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

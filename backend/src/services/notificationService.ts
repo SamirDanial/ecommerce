@@ -21,6 +21,7 @@ export interface NotificationFilters {
   category?: NotificationCategory;
   type?: NotificationType;
   status?: NotificationStatus;
+  excludeStatus?: NotificationStatus;
   priority?: NotificationPriority;
   isGlobal?: boolean;
   dateFrom?: string | Date;
@@ -142,6 +143,15 @@ export const notificationService = {
       if (filters.category) where.category = filters.category;
       if (filters.type) where.type = filters.type;
       if (filters.status) where.status = filters.status;
+      if (filters.excludeStatus) {
+        // Handle comma-separated statuses to exclude
+        const excludeStatuses = filters.excludeStatus.split(',').map(s => s.trim());
+        if (excludeStatuses.length === 1) {
+          where.status = { not: excludeStatuses[0] };
+        } else {
+          where.status = { notIn: excludeStatuses };
+        }
+      }
       if (filters.priority) where.priority = filters.priority;
       if (filters.dateFrom || filters.dateTo) {
         where.createdAt = {};

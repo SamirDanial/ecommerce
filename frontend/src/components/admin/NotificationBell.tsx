@@ -1,15 +1,22 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Bell, X, Check, Filter, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { Bell, X, Check, Filter, RefreshCw, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-
-import { ScrollArea } from '../ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '../ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationBell: React.FC = () => {
   const navigate = useNavigate();
+  const { getToken } = useClerkAuth();
   const {
     notifications,
     unreadCount,
@@ -28,37 +35,119 @@ const NotificationBell: React.FC = () => {
   console.log('🔔 NotificationBell - unreadCount:', unreadCount);
 
   const [isOpen, setIsOpen] = useState(false);
-
-  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'archived' | 'dismissed'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Infinite scroll state
+  const [dropdownNotifications, setDropdownNotifications] = useState<any[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [isInitialLoad, setIsInitialLoad] = useState(false);
 
-  // Close dropdown when clicking outside
+  // API base URL
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+  // Fetch notifications for dropdown with pagination
+  const fetchDropdownNotifications = useCallback(async (pageNum: number = 1, reset: boolean = false) => {
+    try {
+      if (pageNum === 1) {
+        setIsInitialLoad(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const token = await getToken();
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '5', // Show 5 notifications at a time
+        ...(filter !== 'all' && { status: filter.toUpperCase() }),
+        ...(filter === 'all' && { excludeStatus: 'ARCHIVED,DISMISSED' }), // Exclude archived and dismissed by default
+        ...(categoryFilter !== 'all' && { category: categoryFilter }),
+        ...(typeFilter !== 'all' && { type: typeFilter })
+      });
+
+      const response = await fetch(`${API_BASE}/notifications?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch notifications: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const newNotifications = data.data.notifications || [];
+
+      if (reset || pageNum === 1) {
+        setDropdownNotifications(newNotifications);
+      } else {
+        setDropdownNotifications(prev => [...prev, ...newNotifications]);
+      }
+
+      const hasMoreNotifications = newNotifications.length === 5;
+      setHasMore(hasMoreNotifications);
+      setPage(pageNum);
+    } catch (error) {
+      console.error('Error fetching dropdown notifications:', error);
+    } finally {
+      setIsInitialLoad(false);
+      setIsLoadingMore(false);
+    }
+  }, [filter, categoryFilter, typeFilter, API_BASE, getToken]);
+
+  // Load more notifications when scrolling
+  const loadMore = useCallback(() => {
+    if (!isLoadingMore && hasMore) {
+      fetchDropdownNotifications(page + 1, false);
+    }
+  }, [fetchDropdownNotifications, page, isLoadingMore, hasMore]);
+
+  // Set up scroll event listener for infinite scroll
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+    const scrollContainer = dropdownRef.current?.querySelector('.max-h-96');
+    
+    if (!scrollContainer || !isOpen) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // 50px threshold
+      
+      if (isNearBottom && hasMore && !isLoadingMore) {
+        loadMore();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    scrollContainer.addEventListener('scroll', handleScroll);
 
-  // Filter notifications with useMemo to prevent unnecessary recalculations
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter(notification => {
-      if (filter === 'unread' && notification.status !== 'UNREAD') return false;
-      if (filter === 'read' && notification.status !== 'READ') return false;
-      if (categoryFilter !== 'all' && notification.category !== categoryFilter) return false;
-      return true;
-    });
-  }, [notifications, filter, categoryFilter]);
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [isOpen, hasMore, isLoadingMore, loadMore]);
 
-  // Calculate filtered unread count
+  // Load notifications when dropdown opens or filters change
+  useEffect(() => {
+    if (isOpen) {
+      fetchDropdownNotifications(1, true);
+    }
+  }, [isOpen, filter, categoryFilter, typeFilter, fetchDropdownNotifications]);
+
+
+
+  // Calculate filtered unread count from dropdown notifications
   const filteredUnreadCount = useMemo(() => {
-    return filteredNotifications.filter(n => n.status === 'UNREAD').length;
-  }, [filteredNotifications]);
+    return dropdownNotifications.filter(n => n.status === 'UNREAD').length;
+  }, [dropdownNotifications]);
 
 
 
@@ -85,16 +174,36 @@ const NotificationBell: React.FC = () => {
     }
   };
 
-  // Handle notification click - navigate to order management with order ID
+  // Handle notification click - navigate to appropriate management page
   const handleNotificationClick = async (notification: any) => {
     try {
       // Mark notification as read
       await markAsRead(notification.id);
       
-      // If it's an order notification, navigate to order management
+      // Close the notification dropdown
+      setIsOpen(false);
+      
+      // Navigate based on notification type and target
       if (notification.targetType === 'ORDER' && notification.targetId) {
+        // Navigate to order management with order ID for highlighting
         navigate(`/admin/orders?orderId=${notification.targetId}`);
-        setIsOpen(false); // Close the notification dropdown
+      } else if (notification.targetType === 'PRODUCT') {
+        if (notification.type === 'PRODUCT_REVIEW' && notification.data?.reviewId) {
+          // Navigate to review management with review ID for highlighting
+          navigate(`/admin/reviews?reviewId=${notification.data.reviewId}`);
+        } else if (notification.type === 'PRODUCT_QUESTION' && notification.data?.questionId) {
+          // Navigate to question management with question ID for highlighting
+          navigate(`/admin/questions?questionId=${notification.data.questionId}`);
+        } else if (notification.type === 'REVIEW_REPLY' && notification.data?.reviewId) {
+          // Navigate to review management with review ID for highlighting the reply
+          navigate(`/admin/reviews?reviewId=${notification.data.reviewId}&replyId=${notification.data.replyId}`);
+        } else {
+          // Fallback to general product management
+          navigate('/admin/products');
+        }
+      } else {
+        // Default fallback to notifications page
+        navigate('/admin/notifications');
       }
     } catch (error) {
       console.error('Failed to handle notification click:', error);
@@ -104,92 +213,117 @@ const NotificationBell: React.FC = () => {
   // Get available categories for filter with useMemo
   const availableCategories = useMemo(() => {
     return Array.from(
-      new Set(notifications.map(n => n.category))
+      new Set(dropdownNotifications.map(n => n.category))
     ).sort();
-  }, [notifications]);
+  }, [dropdownNotifications]);
+
+  // Main notification types for filtering
+  const availableTypes = [
+    'PRODUCT_REVIEW',
+    'PRODUCT_QUESTION',
+    'REVIEW_REPLY',
+    'ORDER_PLACED'
+  ];
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Notification Bell Button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="relative p-2"
-        onClick={() => setIsOpen(!isOpen)}
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative p-2"
+        >
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent 
+        className="w-[500px] p-0" 
+        align="end"
+        ref={dropdownRef}
       >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <Badge 
-            variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </Badge>
-        )}
-      </Button>
-
-      {/* Notification Dropdown */}
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-[500px] bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Notifications
-                {filteredUnreadCount > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {filteredUnreadCount} unread
-                  </Badge>
-                )}
-              </h3>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={refreshNotifications}
-                  disabled={isLoading}
-                >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center space-x-2 mb-3">
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
-                className="text-sm border border-gray-300 rounded px-2 py-1"
+        {/* Header */}
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold">
+              Notifications
+              {filteredUnreadCount > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {filteredUnreadCount} unread
+                </Badge>
+              )}
+            </h3>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchDropdownNotifications(1, true)}
+                disabled={isInitialLoad}
               >
-                <option value="all">All</option>
-                <option value="unread">Unread</option>
-                <option value="read">Read</option>
-              </select>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="text-sm border border-gray-300 rounded px-2 py-1"
-              >
-                <option value="all">All Categories</option>
-                {availableCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+                <RefreshCw className={`h-4 w-4 ${isInitialLoad ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
-
-
           </div>
 
+          {/* Filters */}
+          <div className="flex items-center space-x-2 flex-wrap gap-2">
+            <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+              <SelectTrigger className="w-[120px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All (Excluding Archived & Dismissed)</SelectItem>
+                <SelectItem value="unread">Unread</SelectItem>
+                <SelectItem value="read">Read</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+                <SelectItem value="dismissed">Dismissed</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[120px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {availableCategories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[120px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {availableTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
           {/* Notifications List */}
-          <ScrollArea className="max-h-96">
-            {filteredNotifications.length === 0 ? (
+          <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
+            {isInitialLoad ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Loading notifications...</span>
+              </div>
+            ) : dropdownNotifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <Bell className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>No notifications</p>
@@ -199,7 +333,7 @@ const NotificationBell: React.FC = () => {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {filteredNotifications.map((notification) => (
+                {dropdownNotifications.map((notification) => (
                   <div
                     key={notification.id}
                     className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
@@ -256,100 +390,85 @@ const NotificationBell: React.FC = () => {
                             </Button>
                           )}
                           
-                          {notification.targetType === 'ORDER' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleNotificationClick(notification);
-                              }}
-                              className="h-7 px-3 text-xs"
-                            >
-                              View Order
-                            </Button>
-                          )}
-                          
-                          {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/admin/reviews');
-                                setIsOpen(false);
-                              }}
-                              className="h-7 px-3 text-xs"
-                            >
-                              View Review
-                            </Button>
-                          )}
-                          
-                          {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/admin/questions');
-                                setIsOpen(false);
-                              }}
-                              className="h-7 px-3 text-xs"
-                            >
-                              View Question
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(notification);
+                            }}
+                            className="h-7 px-3 text-xs"
+                          >
+                            {notification.targetType === 'ORDER' && 'View Order'}
+                            {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && 'View Review'}
+                            {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && 'View Question'}
+                            {notification.targetType === 'PRODUCT' && notification.type === 'REVIEW_REPLY' && 'View Reply'}
+                            {!['ORDER', 'PRODUCT'].includes(notification.targetType) && 'View Details'}
+                          </Button>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-          </ScrollArea>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                {isConnected ? (
-                  <span className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    Connected
-                  </span>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                      Disconnected
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={retryConnection}
-                      className="h-6 px-2 text-xs"
-                    >
-                      Retry
-                    </Button>
+                
+                {/* Loading More Indicator */}
+                {isLoadingMore && (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="ml-2 text-gray-600 text-sm">Loading more...</span>
+                  </div>
+                )}
+                
+                {!hasMore && dropdownNotifications.length > 0 && (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    <p>No more notifications to load</p>
                   </div>
                 )}
               </div>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  navigate('/admin/notifications');
-                  setIsOpen(false);
-                }}
-              >
-                View All
-              </Button>
+            )}
+          </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t bg-muted/50">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {isConnected ? (
+                <span className="flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                  Connected
+                </span>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                    Disconnected
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={retryConnection}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
             </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                navigate('/admin/notifications');
+                setIsOpen(false);
+              }}
+            >
+              View All
+            </Button>
           </div>
         </div>
-      )}
-    </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

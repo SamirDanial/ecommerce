@@ -88,6 +88,15 @@ const notificationTemplates = [
     isActive: true
   },
   {
+    name: 'review_reply',
+    type: 'REVIEW_REPLY',
+    category: 'PRODUCTS',
+    title: 'New Reply to Review for {{productName}}',
+    message: '{{replyAuthor}} replied to a review for {{productName}}: "{{replyText}}"',
+    variables: ['productName', 'replyAuthor', 'replyText'],
+    isActive: true
+  },
+  {
     name: 'low_stock_alert',
     type: 'LOW_STOCK_ALERT',
     category: 'INVENTORY',

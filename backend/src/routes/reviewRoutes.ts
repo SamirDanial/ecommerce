@@ -909,18 +909,34 @@ router.delete('/questions/:questionId', authenticateClerkToken, async (req, res)
 });
 
 // Create a reply to a review
-router.post('/reviews/:reviewId/replies', authenticateClerkToken, async (req, res) => {
+router.post('/:reviewId/replies', authenticateClerkToken, async (req, res) => {
   const { reviewId } = req.params;
   const { reply } = req.body;
   const userId = req.user!.id;
   
   try {
 
-    // Check if review exists
+    // Check if review exists and get product info
     const review = await prisma.review.findFirst({
       where: {
         id: parseInt(reviewId),
         isActive: true
+      },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
       }
     });
 
@@ -930,8 +946,6 @@ router.post('/reviews/:reviewId/replies', authenticateClerkToken, async (req, re
         message: 'Review not found' 
       });
     }
-
-
 
     // Create the reply
     const newReply = await prisma.reviewReply.create({
@@ -951,6 +965,34 @@ router.post('/reviews/:reviewId/replies', authenticateClerkToken, async (req, re
         }
       }
     });
+
+    // Send admin notification for review reply
+    try {
+      await socketServer.sendAdminNotification({
+        type: 'REVIEW_REPLY',
+        title: 'New Review Reply Submitted',
+        message: `A new reply has been submitted for a review on "${review.product.name}" by ${newReply.user.name}.`,
+        category: 'PRODUCTS',
+        priority: 'MEDIUM',
+        targetType: 'PRODUCT',
+        targetId: newReply.id,
+        isGlobal: true,
+        data: {
+          replyId: newReply.id,
+          reviewId: parseInt(reviewId),
+          productId: review.product.id,
+          productName: review.product.name,
+          userId: userId,
+          userName: newReply.user.name,
+          reply: reply,
+          reviewAuthorId: review.user.id,
+          reviewAuthorName: review.user.name
+        }
+      });
+    } catch (notificationError) {
+      console.error('Error sending review reply notification:', notificationError);
+      // Don't fail the request if notification fails
+    }
 
     res.json({
       success: true,
@@ -1111,7 +1153,7 @@ router.get('/user/me', authenticateClerkToken, async (req, res) => {
 });
 
 // Get replies for a review
-router.get('/reviews/:reviewId/replies', async (req, res) => {
+router.get('/:reviewId/replies', async (req, res) => {
   try {
     const { reviewId } = req.params;
 
