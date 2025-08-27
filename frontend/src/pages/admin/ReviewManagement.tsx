@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Star, 
   User, 
@@ -14,7 +14,8 @@ import {
   MoreHorizontal,
   MessageSquare,
   ThumbsUp,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -84,6 +85,7 @@ const ReviewManagement: React.FC = () => {
   const { getToken } = useClerkAuth();
   const { isConnected, notifications } = useNotifications();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -442,145 +444,181 @@ const ReviewManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Review Management</h1>
-          <p className="text-gray-600 mt-1">Manage product reviews and customer feedback</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
-            isConnected 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-green-500' : 'bg-red-500'
-            }`}></div>
-            <span>{isConnected ? 'Live Updates' : 'Offline'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Star className="w-6 h-6 text-yellow-600" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-1 sm:p-3 md:p-6">
+      <div className="w-full space-y-3 sm:space-y-6 md:space-y-8">
+        {/* Enhanced Header with Better Glassmorphism */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-indigo-600/20 rounded-xl sm:rounded-2xl md:rounded-3xl blur-3xl group-hover:blur-2xl transition-all duration-700"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl rounded-xl sm:rounded-2xl md:rounded-3xl p-2 sm:p-4 md:p-8 border border-white/30 shadow-2xl hover:shadow-3xl transition-all duration-500">
+            <div className="flex items-center justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <div className="p-3 bg-gradient-to-br from-purple-500 via-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+                      <Star className="w-7 h-7 text-white" />
+                    </div>
+                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
+                      isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+                    }`}></div>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                      Review Management
+                    </h1>
+                    <p className="text-slate-600 text-sm sm:text-base font-medium">Manage product reviews and customer feedback</p>
+                  </div>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Reviews</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Approved</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.approved}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <XCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Rejected</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.rejected}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <MessageSquare className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Reviews</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search reviews..."
-                  value={filters.search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select
-              value={filters.status}
-              onValueChange={handleStatusChange}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reviews List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Reviews</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : reviews.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No reviews found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {reviews.map((review, index) => (
-                <div 
-                  key={review.id} 
-                  ref={index === reviews.length - 1 ? lastReviewElementRef : null}
-                  className={`border rounded-lg p-4 hover:bg-gray-50 transition-colors ${
-                    highlightedReviewId === review.id 
-                      ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-300' 
-                      : ''
-                  }`}
+              <div className="flex items-center space-x-3">
+                <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm font-medium backdrop-blur-sm border ${
+                  isConnected 
+                    ? 'bg-green-100/80 text-green-800 border-green-200/50' 
+                    : 'bg-red-100/80 text-red-800 border-red-200/50'
+                }`}>
+                  <div className={`w-2 h-2 rounded-full ${
+                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  <span>{isConnected ? 'Live Updates' : 'Offline'}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className="bg-white/50 backdrop-blur-sm border-white/30 hover:bg-white/70"
                 >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Admin
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+            <div className="relative bg-white/80 backdrop-blur-xl rounded-xl p-4 sm:p-6 border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg shadow-lg">
+                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-xs sm:text-sm font-medium text-slate-600">Pending</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.pending}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+            <div className="relative bg-white/80 backdrop-blur-xl rounded-xl p-4 sm:p-6 border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg shadow-lg">
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-xs sm:text-sm font-medium text-slate-600">Approved</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.approved}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-pink-500/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+            <div className="relative bg-white/80 backdrop-blur-xl rounded-xl p-4 sm:p-6 border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-red-400 to-pink-500 rounded-lg shadow-lg">
+                  <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-xs sm:text-sm font-medium text-slate-600">Rejected</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.rejected}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-500/20 to-gray-500/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+            <div className="relative bg-white/80 backdrop-blur-xl rounded-xl p-4 sm:p-6 border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-slate-400 to-gray-500 rounded-lg shadow-lg">
+                  <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-xs sm:text-sm font-medium text-slate-600">Total</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.total}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 via-blue-500/10 to-indigo-500/10 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-xl p-4 sm:p-6 border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search reviews..."
+                    value={filters.search}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-10 bg-white/50 backdrop-blur-sm border-white/30 focus:bg-white/70"
+                  />
+                </div>
+              </div>
+              <Select
+                value={filters.status}
+                onValueChange={handleStatusChange}
+              >
+                <SelectTrigger className="w-full sm:w-48 bg-white/50 backdrop-blur-sm border-white/30 focus:bg-white/70">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Reviews List */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 via-blue-500/10 to-indigo-500/10 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-xl border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-white/30">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Reviews</h2>
+            </div>
+            <div className="p-4 sm:p-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-8">
+                  <Star className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-500">No reviews found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review, index) => (
+                    <div 
+                      key={review.id} 
+                      ref={index === reviews.length - 1 ? lastReviewElementRef : null}
+                      className={`relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 border border-white/40 transition-all duration-300 overflow-hidden cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
+                        highlightedReviewId === review.id 
+                          ? 'ring-2 ring-blue-500 bg-blue-50/90 border-blue-300' 
+                          : ''
+                      }`}
+                    >
                   <div className="flex items-start gap-4">
                     {/* Product Image */}
                     <div className="flex-shrink-0">
@@ -783,27 +821,28 @@ const ReviewManagement: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ))}
+                  ))}
+                  
+                  {/* Infinite Scroll Loading */}
+                  {isLoadingMore && (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span className="text-gray-600">Loading more reviews...</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!hasMore && reviews.length > 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-slate-500">No more reviews to load</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-          
-          {/* Infinite Scroll Loading */}
-          {isLoadingMore && (
-            <div className="flex items-center justify-center py-8">
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-gray-600">Loading more reviews...</span>
-              </div>
-            </div>
-          )}
-          
-          {!hasMore && reviews.length > 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No more reviews to load</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
 
       {/* Review Detail Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -934,7 +973,7 @@ const ReviewManagement: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-
+      </div>
     </div>
   );
 };
