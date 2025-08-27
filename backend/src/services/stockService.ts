@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { notificationService } from './notificationService';
 
 const prisma = new PrismaClient();
 
@@ -107,6 +108,9 @@ const deductStockFromVariant = async (
   });
 
   console.log(`Stock deducted for variant ${variantId}: ${originalStock} → ${newStock} (deducted: ${quantity})`);
+  
+  // Check for low stock after deduction
+  await checkAndNotifyLowStock(variantId, newStock);
 };
 
 /**
@@ -155,6 +159,9 @@ const deductStockFromVariantByAttributes = async (
   });
 
   console.log(`Stock deducted for variant ${variant.id}: ${originalStock} → ${newStock} (deducted: ${quantity})`);
+  
+  // Check for low stock after deduction
+  await checkAndNotifyLowStock(variant.id, newStock);
 };
 
 
@@ -212,4 +219,97 @@ export const hasSufficientStock = async (
   if (!variant) return false;
   if (variant.allowBackorder) return true;
   return variant.stock >= quantity;
+};
+
+/**
+ * Check if stock is low and create notification if needed
+ */
+const checkAndNotifyLowStock = async (variantId: number, currentStock: number): Promise<void> => {
+  try {
+    // Get variant details including low stock threshold
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      select: {
+        id: true,
+        stock: true,
+        lowStockThreshold: true,
+        size: true,
+        color: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    if (!variant) {
+      console.error(`Variant ${variantId} not found for low stock check`);
+      return;
+    }
+
+    // Check if current stock is at or below the low stock threshold
+    if (currentStock <= variant.lowStockThreshold) {
+      console.log(`🚨 Low stock alert for variant ${variantId}: ${currentStock} <= ${variant.lowStockThreshold}`);
+      
+      // Create low stock notification
+      await notificationService.createNotification({
+        type: 'LOW_STOCK_ALERT',
+        title: 'Low Stock Alert',
+        message: `Product "${variant.product.name}" (${variant.size}, ${variant.color}) is running low on stock. Current stock: ${currentStock}, Threshold: ${variant.lowStockThreshold}`,
+        category: 'INVENTORY',
+        priority: currentStock === 0 ? 'URGENT' : 'HIGH',
+        targetType: 'PRODUCT',
+        targetId: variant.product.id,
+        isGlobal: true,
+        data: {
+          variantId: variant.id,
+          productId: variant.product.id,
+          productName: variant.product.name,
+          productSlug: variant.product.slug,
+          size: variant.size,
+          color: variant.color,
+          currentStock,
+          lowStockThreshold: variant.lowStockThreshold,
+          isOutOfStock: currentStock === 0
+        }
+      });
+
+      // Send real-time notification to admins via socket
+      try {
+        const globalSocketServer = (global as any).socketServer;
+        if (globalSocketServer) {
+          await globalSocketServer.sendAdminNotification({
+            type: 'LOW_STOCK_ALERT',
+            title: 'Low Stock Alert',
+            message: `Product "${variant.product.name}" (${variant.size}, ${variant.color}) is running low on stock. Current stock: ${currentStock}`,
+            category: 'INVENTORY',
+            priority: currentStock === 0 ? 'URGENT' : 'HIGH',
+            targetType: 'PRODUCT',
+            targetId: variant.product.id,
+            isGlobal: true,
+            data: {
+              variantId: variant.id,
+              productId: variant.product.id,
+              productName: variant.product.name,
+              productSlug: variant.product.slug,
+              size: variant.size,
+              color: variant.color,
+              currentStock,
+              lowStockThreshold: variant.lowStockThreshold,
+              isOutOfStock: currentStock === 0
+            }
+          });
+          console.log('📡 Low stock real-time notification sent to admins');
+        }
+      } catch (socketError) {
+        console.error('❌ Error sending low stock real-time notification:', socketError);
+      }
+    }
+  } catch (error) {
+    console.error('Error checking low stock:', error);
+    // Don't throw error to avoid breaking the order process
+  }
 };

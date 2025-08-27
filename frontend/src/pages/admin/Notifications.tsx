@@ -211,6 +211,9 @@ const NotificationsPage: React.FC = () => {
       
       if (type === 'ORDER_PLACED' && data?.orderId) {
         navigate(`/admin/orders?orderId=${data.orderId}`);
+      } else if (type === 'LOW_STOCK_ALERT' && data?.productId && data?.variantId) {
+        // Navigate to product management with stock dialog and variant highlighting
+        navigate(`/admin/products?productId=${data.productId}&variantId=${data.variantId}&openStockDialog=true`);
       } else if (type === 'PRODUCT_REVIEW' && data?.reviewId) {
         navigate(`/admin/reviews?reviewId=${data.reviewId}`);
       } else if (type === 'PRODUCT_QUESTION' && data?.questionId) {
@@ -542,10 +545,10 @@ const NotificationsPage: React.FC = () => {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                      className={`relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 border border-white/40 transition-all duration-300 overflow-hidden cursor-pointer border-l-4 hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
+                      className={`relative backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 border transition-all duration-300 overflow-hidden cursor-pointer border-l-4 hover:shadow-lg ${
                         notification.status === 'UNREAD' 
-                          ? 'bg-blue-50/30 border-l-blue-500' 
-                          : 'border-l-transparent hover:border-l-slate-300'
+                          ? 'bg-gradient-to-r from-blue-50/90 to-blue-100/80 border-blue-200/60 border-l-blue-500 hover:from-blue-100/90 hover:to-blue-150/80 hover:border-blue-300/60' 
+                          : 'bg-gradient-to-r from-white/80 to-white/60 border-white/40 border-l-transparent hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:border-l-slate-300'
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -568,10 +571,19 @@ const NotificationsPage: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                              {notification.title}
-                            </h3>
-                              <p className="text-slate-600 mb-3">
+                            <div className="flex items-start gap-2 mb-1">
+                              {notification.status === 'UNREAD' && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                              )}
+                              <h3 className={`text-lg font-semibold mb-1 ${
+                                notification.status === 'UNREAD' ? 'text-slate-900' : 'text-slate-700'
+                              }`}>
+                                {notification.title}
+                              </h3>
+                            </div>
+                              <p className={`mb-3 ${
+                                notification.status === 'UNREAD' ? 'text-slate-800 font-medium' : 'text-slate-600'
+                              }`}>
                               {notification.message}
                             </p>
                           </div>
@@ -615,6 +627,7 @@ const NotificationsPage: React.FC = () => {
                                 className="bg-white/50 backdrop-blur-sm border-white/30 hover:bg-white/70"
                               >
                                 {notification.targetType === 'ORDER' && 'View Order'}
+                                {notification.targetType === 'PRODUCT' && notification.type === 'LOW_STOCK_ALERT' && 'View Stock'}
                                 {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && 'View Review'}
                                 {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && 'View Question'}
                                 {notification.targetType === 'PRODUCT' && notification.type === 'REVIEW_REPLY' && 'View Reply'}

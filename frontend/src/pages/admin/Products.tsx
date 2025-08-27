@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Grid3X3, 
@@ -34,6 +35,7 @@ import { getFullImageUrl } from '../../utils/imageUtils';
 
 const Products: React.FC = () => {
   const { getToken } = useClerkAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     products,
     categories,
@@ -93,6 +95,30 @@ const Products: React.FC = () => {
     fetchDefaultCurrency();
   }, []);
 
+  // Handle URL parameters for low stock notifications
+  useEffect(() => {
+    const productId = searchParams.get('productId');
+    const variantId = searchParams.get('variantId');
+    const openStockDialog = searchParams.get('openStockDialog');
+
+    if (productId && openStockDialog === 'true') {
+      // Find the product and open stock dialog
+      const product = products.find(p => p.id === parseInt(productId));
+      if (product) {
+        setSelectedProduct(product);
+        setIsStockManagerOpen(true);
+        
+        // Set highlighted variant if provided
+        if (variantId) {
+          setHighlightedVariantId(parseInt(variantId));
+        }
+        
+        // Clear URL parameters after handling
+        setSearchParams({});
+      }
+    }
+  }, [products, searchParams, setSearchParams]);
+
   // Listen for custom event to reopen import dialog
   useEffect(() => {
     const handleReopenImportDialog = () => {
@@ -107,6 +133,7 @@ const Products: React.FC = () => {
   }, []);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
+  const [highlightedVariantId, setHighlightedVariantId] = useState<number | null>(null);
   const [isLoadingProductEdit, setIsLoadingProductEdit] = useState(false);
 
   // Dialog handlers
@@ -479,6 +506,7 @@ const Products: React.FC = () => {
               console.log('StockManagementDialog onClose called');
               setIsStockManagerOpen(false);
               setSelectedProduct(null);
+              setHighlightedVariantId(null);
             }}
             onSubmit={async (data) => {
               try {
@@ -495,6 +523,7 @@ const Products: React.FC = () => {
                   // Close the dialog
                   setIsStockManagerOpen(false);
                   setSelectedProduct(null);
+                  setHighlightedVariantId(null);
                   
                   // Refresh the products list to ensure all data is up to date
                   await fetchProducts();
@@ -505,6 +534,7 @@ const Products: React.FC = () => {
               }
             }}
             product={selectedProduct}
+            highlightedVariantId={highlightedVariantId}
           />
         </>
       )}

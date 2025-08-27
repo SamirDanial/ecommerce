@@ -28,13 +28,15 @@ interface StockManagementDialogProps {
     }>;
   }) => Promise<void>;
   product: Product | null;
+  highlightedVariantId?: number | null;
 }
 
 export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  product
+  product,
+  highlightedVariantId
 }) => {
   const [formData, setFormData] = useState({
     productId: 0,
@@ -287,8 +289,17 @@ export const StockManagementDialog: React.FC<StockManagementDialogProps> = ({
                   allowBackorder: variantData.allowBackorder
                 } as ProductVariant);
                 
+                const isHighlighted = highlightedVariantId === variantData.id;
+                
                 return (
-                  <div key={variantData.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                  <div 
+                    key={variantData.id} 
+                    className={`border rounded-lg p-3 sm:p-4 transition-all duration-300 ${
+                      isHighlighted 
+                        ? 'border-orange-400 bg-orange-50 shadow-lg ring-2 ring-orange-200' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
                     {/* Mobile Layout */}
                     <div className="sm:hidden space-y-3">
                       {/* Top Row: Variant Info + Status */}

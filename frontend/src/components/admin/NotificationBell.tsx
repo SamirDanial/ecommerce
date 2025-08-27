@@ -183,7 +183,10 @@ const NotificationBell: React.FC = () => {
         // Navigate to order management with order ID for highlighting
         navigate(`/admin/orders?orderId=${notification.targetId}`);
       } else if (notification.targetType === 'PRODUCT') {
-        if (notification.type === 'PRODUCT_REVIEW' && notification.data?.reviewId) {
+        if (notification.type === 'LOW_STOCK_ALERT' && notification.data?.productId && notification.data?.variantId) {
+          // Navigate to product management with stock dialog and variant highlighting
+          navigate(`/admin/products?productId=${notification.data.productId}&variantId=${notification.data.variantId}&openStockDialog=true`);
+        } else if (notification.type === 'PRODUCT_REVIEW' && notification.data?.reviewId) {
           // Navigate to review management with review ID for highlighting
           navigate(`/admin/reviews?reviewId=${notification.data.reviewId}`);
         } else if (notification.type === 'PRODUCT_QUESTION' && notification.data?.questionId) {
@@ -275,17 +278,26 @@ const NotificationBell: React.FC = () => {
                 {dropdownNotifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg p-4 border border-white/40 transition-all duration-300 overflow-hidden cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
-                      notification.status === 'UNREAD' ? 'bg-blue-50/30' : ''
+                    className={`relative backdrop-blur-xl rounded-lg p-4 border transition-all duration-300 overflow-hidden cursor-pointer hover:shadow-lg ${
+                      notification.status === 'UNREAD' 
+                        ? 'bg-gradient-to-r from-blue-50/90 to-blue-100/80 border-blue-200/60 hover:from-blue-100/90 hover:to-blue-150/80 hover:border-blue-300/60' 
+                        : 'bg-gradient-to-r from-white/80 to-white/60 border-white/40 hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60'
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="space-y-3">
                       {/* Header with title and badges */}
                       <div className="flex items-start justify-between">
-                        <h4 className="text-sm font-medium text-gray-900 flex-1 pr-2">
-                          {notification.title}
-                        </h4>
+                        <div className="flex items-start gap-2 flex-1 pr-2">
+                          {notification.status === 'UNREAD' && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                          )}
+                          <h4 className={`text-sm font-medium flex-1 ${
+                            notification.status === 'UNREAD' ? 'text-gray-900 font-semibold' : 'text-gray-700'
+                          }`}>
+                            {notification.title}
+                          </h4>
+                        </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
                           <Badge
                             variant="outline"
@@ -303,7 +315,9 @@ const NotificationBell: React.FC = () => {
                       </div>
                       
                       {/* Message - full width, no truncation */}
-                      <p className="text-sm text-gray-600 leading-relaxed">
+                      <p className={`text-sm leading-relaxed ${
+                        notification.status === 'UNREAD' ? 'text-gray-800 font-medium' : 'text-gray-600'
+                      }`}>
                         {notification.message}
                       </p>
                       
@@ -339,6 +353,7 @@ const NotificationBell: React.FC = () => {
                             className="h-7 px-3 text-xs"
                           >
                             {notification.targetType === 'ORDER' && 'View Order'}
+                            {notification.targetType === 'PRODUCT' && notification.type === 'LOW_STOCK_ALERT' && 'View Stock'}
                             {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_REVIEW' && 'View Review'}
                             {notification.targetType === 'PRODUCT' && notification.type === 'PRODUCT_QUESTION' && 'View Question'}
                             {notification.targetType === 'PRODUCT' && notification.type === 'REVIEW_REPLY' && 'View Reply'}
