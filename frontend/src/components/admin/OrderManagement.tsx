@@ -183,6 +183,7 @@ const OrderManagement: React.FC = () => {
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
   const [deliveryUpdateOpen, setDeliveryUpdateOpen] = useState(false);
+  const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -246,52 +247,25 @@ const OrderManagement: React.FC = () => {
     }
   }, [statusUpdateOpen, selectedOrder]);
 
-  // Handle URL parameter for auto-opening order details
+  // Handle URL parameter for highlighting specific orders
   useEffect(() => {
     const orderId = searchParams.get('orderId');
-    if (orderId && orders.length > 0) {
-      const orderIdNum = parseInt(orderId);
-      const order = orders.find(o => o.id === orderIdNum);
-      if (order) {
-        console.log('🔍 Auto-opening order details for order ID:', orderId);
+    if (orderId) {
+      const id = parseInt(orderId);
+      if (!isNaN(id)) {
+        setHighlightedOrderId(id);
+        // Clear the URL parameter after setting the highlight
+        setSearchParams({}, { replace: true });
         
-        // Fetch complete order details before opening dialog (same logic as View Details button)
-        const fetchAndOpenOrderDetails = async () => {
-          try {
-            const token = await getToken();
-            if (!token) return;
-            
-            const response = await fetch(`${getApiBaseUrl()}/admin/orders/${orderIdNum}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              setSelectedOrder(data.data);
-              setOrderDetailOpen(true);
-            } else {
-              console.error('Failed to fetch order details:', response.status);
-              toast.error('Failed to fetch order details');
-            }
-          } catch (error) {
-            console.error('Error fetching order details:', error);
-            toast.error('Failed to fetch order details');
-          }
-        };
+        // Auto-clear highlight after 5 seconds
+        const timer = setTimeout(() => {
+          setHighlightedOrderId(null);
+        }, 5000);
         
-        fetchAndOpenOrderDetails();
-        
-        // Remove the orderId parameter from URL
-        setSearchParams(prev => {
-          const newParams = new URLSearchParams(prev);
-          newParams.delete('orderId');
-          return newParams;
-        });
+        return () => clearTimeout(timer);
       }
     }
-  }, [orders, searchParams, setSearchParams, getToken]);
+  }, [searchParams, setSearchParams]);
 
   // Fetch orders
   const fetchOrders = useCallback(async (overrideFilters?: Partial<OrderFilters>) => {
@@ -942,10 +916,17 @@ const OrderManagement: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {orders.map((order, index) => (
-                          <tr key={order.id} className={`border-b border-white/10 hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg transition-all duration-300 cursor-pointer ${
-                            index % 2 === 0 ? 'bg-white/40' : 'bg-slate-50/40'
-                          }`}>
+                        {orders.map((order, index) => {
+                          const isHighlighted = highlightedOrderId === order.id;
+                          
+                          return (
+                            <tr key={order.id} className={`border-b transition-all duration-300 cursor-pointer ${
+                              isHighlighted 
+                                ? 'border-orange-400 bg-orange-50/80 shadow-lg ring-2 ring-orange-200' 
+                                : `border-white/10 hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
+                                    index % 2 === 0 ? 'bg-white/40' : 'bg-slate-50/40'
+                                  }`
+                            }`}>
                             <td className="py-3 px-4">
                               <div>
                                 <div className="flex items-center gap-2">
@@ -1050,7 +1031,8 @@ const OrderManagement: React.FC = () => {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1058,13 +1040,20 @@ const OrderManagement: React.FC = () => {
 
                                  {/* Mobile Card View */}
                  <div className="lg:hidden space-y-4">
-                   {orders.map((order, index) => (
-                     <div 
-                       key={order.id} 
-                       className={`relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 border border-white/40 transition-all duration-300 overflow-hidden cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
-                         index % 2 === 0 ? 'bg-gradient-to-r from-white/80 to-white/60' : 'bg-gradient-to-r from-slate-50/80 to-slate-100/60'
-                       }`}
-                     >
+                   {orders.map((order, index) => {
+                     const isHighlighted = highlightedOrderId === order.id;
+                     
+                     return (
+                       <div 
+                         key={order.id} 
+                         className={`relative backdrop-blur-xl rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 border transition-all duration-300 overflow-hidden cursor-pointer hover:shadow-lg ${
+                           isHighlighted 
+                             ? 'border-orange-400 bg-orange-50/80 shadow-lg ring-2 ring-orange-200' 
+                             : `border-white/40 hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 ${
+                                 index % 2 === 0 ? 'bg-gradient-to-r from-white/80 to-white/60' : 'bg-gradient-to-r from-slate-50/80 to-slate-100/60'
+                               }`
+                         }`}
+                       >
                                              {/* Header with order info */}
                        <div className="flex items-start justify-between mb-4 p-3 bg-slate-50/50 rounded-lg border border-white/20">
                          <div className="flex items-center gap-3">
@@ -1193,7 +1182,8 @@ const OrderManagement: React.FC = () => {
 
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}

@@ -211,6 +211,9 @@ const NotificationsPage: React.FC = () => {
       
       if (type === 'ORDER_PLACED' && data?.orderId) {
         navigate(`/admin/orders?orderId=${data.orderId}`);
+      } else if (targetType === 'ORDER' && notification.targetId) {
+        // Navigate to order management with order ID for highlighting
+        navigate(`/admin/orders?orderId=${notification.targetId}`);
       } else if (type === 'LOW_STOCK_ALERT' && data?.productId && data?.variantId) {
         // Navigate to product management with stock dialog and variant highlighting
         navigate(`/admin/products?productId=${data.productId}&variantId=${data.variantId}&openStockDialog=true`);
