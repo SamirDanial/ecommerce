@@ -393,6 +393,38 @@ export const notificationService = {
     }
   },
 
+  // Get admin notification statistics (includes all statuses)
+  async getAdminNotificationStats() {
+    try {
+      const [total, unread, read, archived, dismissed] = await Promise.all([
+        prisma.notification.count(),
+        prisma.notification.count({
+          where: { status: 'UNREAD' }
+        }),
+        prisma.notification.count({
+          where: { status: 'READ' }
+        }),
+        prisma.notification.count({
+          where: { status: 'ARCHIVED' }
+        }),
+        prisma.notification.count({
+          where: { status: 'DISMISSED' }
+        })
+      ]);
+
+      return {
+        total,
+        unread,
+        read,
+        archived,
+        dismissed
+      };
+    } catch (error) {
+      console.error('Error getting admin notification stats:', error);
+      throw error;
+    }
+  },
+
   // Clean up expired notifications
   async cleanupExpiredNotifications() {
     try {

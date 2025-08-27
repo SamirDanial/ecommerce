@@ -148,6 +148,33 @@ router.get('/stats', authenticateClerkToken, async (req, res) => {
   }
 });
 
+// Get admin notification statistics (includes all statuses)
+router.get('/admin/stats', authenticateClerkToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const stats = await notificationService.getAdminNotificationStats();
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error: any) {
+    console.error('Error fetching admin notification stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch admin notification statistics',
+      error: error.message
+    });
+  }
+});
+
 // Get unread count
 router.get('/unread-count', authenticateClerkToken, async (req, res) => {
   try {

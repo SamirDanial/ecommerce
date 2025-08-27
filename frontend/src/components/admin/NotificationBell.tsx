@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '../ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationBell: React.FC = () => {
@@ -35,9 +35,7 @@ const NotificationBell: React.FC = () => {
   console.log('🔔 NotificationBell - unreadCount:', unreadCount);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'archived' | 'dismissed'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Infinite scroll state
@@ -67,10 +65,7 @@ const NotificationBell: React.FC = () => {
       const params = new URLSearchParams({
         page: pageNum.toString(),
         limit: '5', // Show 5 notifications at a time
-        ...(filter !== 'all' && { status: filter.toUpperCase() }),
-        ...(filter === 'all' && { excludeStatus: 'ARCHIVED,DISMISSED' }), // Exclude archived and dismissed by default
-        ...(categoryFilter !== 'all' && { category: categoryFilter }),
-        ...(typeFilter !== 'all' && { type: typeFilter })
+        excludeStatus: 'ARCHIVED,DISMISSED' // Always exclude archived and dismissed
       });
 
       const response = await fetch(`${API_BASE}/notifications?${params}`, {
@@ -102,7 +97,7 @@ const NotificationBell: React.FC = () => {
       setIsInitialLoad(false);
       setIsLoadingMore(false);
     }
-  }, [filter, categoryFilter, typeFilter, API_BASE, getToken]);
+  }, [API_BASE, getToken]);
 
   // Load more notifications when scrolling
   const loadMore = useCallback(() => {
@@ -140,12 +135,12 @@ const NotificationBell: React.FC = () => {
     if (isOpen) {
       fetchDropdownNotifications(1, true);
     }
-  }, [isOpen, filter, categoryFilter, typeFilter, fetchDropdownNotifications]);
+  }, [isOpen, fetchDropdownNotifications]);
 
 
 
   // Calculate filtered unread count from dropdown notifications
-  const filteredUnreadCount = useMemo(() => {
+  const unreadCountInDropdown = useMemo(() => {
     return dropdownNotifications.filter(n => n.status === 'UNREAD').length;
   }, [dropdownNotifications]);
 
@@ -210,20 +205,7 @@ const NotificationBell: React.FC = () => {
     }
   };
 
-  // Get available categories for filter with useMemo
-  const availableCategories = useMemo(() => {
-    return Array.from(
-      new Set(dropdownNotifications.map(n => n.category))
-    ).sort();
-  }, [dropdownNotifications]);
 
-  // Main notification types for filtering
-  const availableTypes = [
-    'PRODUCT_REVIEW',
-    'PRODUCT_QUESTION',
-    'REVIEW_REPLY',
-    'ORDER_PLACED'
-  ];
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -255,9 +237,9 @@ const NotificationBell: React.FC = () => {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold">
               Notifications
-              {filteredUnreadCount > 0 && (
+              {unreadCountInDropdown > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {filteredUnreadCount} unread
+                  {unreadCountInDropdown} unread
                 </Badge>
               )}
             </h3>
@@ -273,47 +255,7 @@ const NotificationBell: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center space-x-2 flex-wrap gap-2">
-            <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
-              <SelectTrigger className="w-[120px] h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All (Excluding Archived & Dismissed)</SelectItem>
-                <SelectItem value="unread">Unread</SelectItem>
-                <SelectItem value="read">Read</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-                <SelectItem value="dismissed">Dismissed</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[120px] h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {availableCategories.map(category => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[120px] h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {availableTypes.map(type => (
-                  <SelectItem key={type} value={type}>
-                    {type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
           {/* Notifications List */}
@@ -327,17 +269,14 @@ const NotificationBell: React.FC = () => {
               <div className="p-8 text-center text-gray-500">
                 <Bell className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>No notifications</p>
-                {filter !== 'all' && (
-                  <p className="text-sm">Try adjusting your filters</p>
-                )}
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="space-y-2">
                 {dropdownNotifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                      notification.status === 'UNREAD' ? 'bg-blue-50' : ''
+                    className={`relative bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl rounded-lg p-4 border border-white/40 transition-all duration-300 overflow-hidden cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/90 hover:to-slate-100/80 hover:border-slate-300/60 hover:shadow-lg ${
+                      notification.status === 'UNREAD' ? 'bg-blue-50/30' : ''
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
