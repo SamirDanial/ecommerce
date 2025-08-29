@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   Plus,
   ShoppingCart,
@@ -28,8 +29,8 @@ const QuickAction: React.FC<QuickActionProps> = ({
   bgColor,
 }) => {
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       className="block p-6 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 hover:scale-105 group"
     >
       <div className="flex items-center space-x-4">
@@ -60,7 +61,7 @@ const QuickAction: React.FC<QuickActionProps> = ({
           </svg>
         </div>
       </div>
-    </a>
+    </Link>
   );
 };
 
