@@ -39,6 +39,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import chatRoutes from "./routes/chatRoutes";
 import adminChatRoutes from "./routes/adminChatRoutes";
 import adminCustomerRoutes from "./routes/adminCustomerRoutes";
+import adminDashboardRoutes from "./routes/adminDashboardRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -260,6 +261,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/admin/chat", adminChatRoutes);
 app.use("/api/admin/customers", adminCustomerRoutes);
+app.use("/api/admin/dashboard", adminDashboardRoutes);
 
 // Error handling middleware
 app.use(
