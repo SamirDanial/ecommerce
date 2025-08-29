@@ -17,6 +17,7 @@
     "seed:tshirt-products": "ts-node prisma/seed-tshirt-products.ts",
     "seed:products": "ts-node prisma/seed-products.ts",
     "seed:products:images": "ts-node prisma/seed-products-with-images.ts",
+    "seed:faq": "ts-node prisma/seed-faq.ts",
     "update:product-images": "ts-node prisma/update-product-images.ts",
     "test:countries": "node test-countries.js",
     "test:currencies": "node test-currencies.js",
@@ -35,6 +36,7 @@
   "dependencies": {
     "@prisma/client": "^6.13.0",
     "@types/multer": "^2.0.0",
+    "@types/uuid": "^10.0.0",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -48,6 +50,7 @@
     "socket.io": "^4.8.1",
     "sonner": "^2.0.7",
     "stripe": "^18.4.0",
+    "uuid": "^11.1.0",
     "zod": "^4.0.17"
   },
   "devDependencies": {

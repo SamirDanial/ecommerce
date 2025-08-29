@@ -40,6 +40,9 @@ model User {
   notifications          Notification[] @relation("UserNotifications")
   notificationPreferences NotificationPreference[] @relation("UserNotificationPreferences")
   notificationActions    NotificationAction[] @relation("UserNotificationActions")
+  chatSessions           ChatSession[]
+  customerInquiries      CustomerInquiry[]
+  assignedInquiries      CustomerInquiry[] @relation("AssignedInquiries")
 
   @@map("users")
 }
@@ -738,6 +741,98 @@ model WebhookEvent {
   @@index([createdAt])
 }
 
+// Chat System Models
+model ChatSession {
+  id           Int       @id @default(autoincrement())
+  sessionId    String    @unique @db.VarChar(100) // Unique session identifier
+  userId       Int?      // Optional - user might not be logged in
+  userEmail    String?   @db.VarChar(255) // Email for non-logged in users
+  userName     String?   @db.VarChar(100) // Name for non-logged in users
+  status       ChatSessionStatus @default(ACTIVE)
+  lastActivity DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relations
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages     ChatMessage[]
+  inquiries    CustomerInquiry[]
+  
+  @@index([sessionId])
+  @@index([userId])
+  @@index([status])
+  @@index([lastActivity])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id           Int           @id @default(autoincrement())
+  sessionId    Int
+  type         ChatMessageType @default(USER)
+  content      String        @db.VarChar(2000)
+  metadata     Json?         // Additional data like FAQ ID, inquiry ID, etc.
+  isRead       Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  
+  // Relations
+  session      ChatSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@index([sessionId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+model FAQEntry {
+  id          Int       @id @default(autoincrement())
+  question    String    @db.VarChar(500)
+  answer      String    @db.Text
+  category    String    @db.VarChar(100) // e.g., "shipping", "returns", "products"
+  tags        String[]  @default([])
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  viewCount   Int       @default(0)
+  helpfulCount Int      @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("faq_entries")
+}
+
+model CustomerInquiry {
+  id          Int               @id @default(autoincrement())
+  sessionId   Int?
+  userId      Int?
+  userEmail   String            @db.VarChar(255)
+  userName    String            @db.VarChar(100)
+  subject     String            @db.VarChar(200)
+  message     String            @db.Text
+  category    InquiryCategory   @default(GENERAL)
+  priority    InquiryPriority   @default(MEDIUM)
+  status      InquiryStatus     @default(PENDING)
+  assignedTo  Int?              // Admin user ID
+  response    String?           @db.Text
+  respondedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  // Relations
+  session     ChatSession?      @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  user        User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignedAdmin User?           @relation("AssignedInquiries", fields: [assignedTo], references: [id])
+  
+  @@index([sessionId])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([assignedTo])
+  @@map("customer_inquiries")
+}
+
 // Enums for Notification System
 enum Role {
   USER
@@ -1104,4 +1199,40 @@ enum NotificationTargetType {
   INVENTORY
   SYSTEM
   GENERAL
+}
+
+enum ChatSessionStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum ChatMessageType {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum InquiryCategory {
+  GENERAL
+  TECHNICAL
+  PAYMENT
+  RETURNS
+  SHIPPING
+  PRODUCT_INFORMATION
+  OTHER
+}
+
+enum InquiryPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum InquiryStatus {
+  PENDING
+  RESOLVED
+  REOPENED
+  CLOSED
 }

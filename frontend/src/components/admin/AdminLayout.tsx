@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Globe, 
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Globe,
   LogOut,
   Menu,
   X,
@@ -19,31 +19,28 @@ import {
   Currency,
   Bell,
   Star,
-  HelpCircle
-} from 'lucide-react';
-import NotificationBell from './NotificationBell';
-import { useClerkAuth } from '../../hooks/useClerkAuth';
-import { useSidebarStore } from '../../stores/sidebarStore';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Toaster } from 'sonner';
-import BusinessSetupDialog from './BusinessSetupDialog';
-import { toast } from 'sonner';
-import axios from 'axios';
-
+  HelpCircle,
+  MessageCircle,
+  Users,
+} from "lucide-react";
+import NotificationBell from "./NotificationBell";
+import { useClerkAuth } from "../../hooks/useClerkAuth";
+import { useSidebarStore } from "../../stores/sidebarStore";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Toaster } from "sonner";
+import BusinessSetupDialog from "./BusinessSetupDialog";
+import { toast } from "sonner";
+import axios from "axios";
 
 const AdminLayout: React.FC = () => {
-  console.log('🏗️ AdminLayout component mounted');
-  
+  console.log("🏗️ AdminLayout component mounted");
+
   const { signOut, getToken } = useClerkAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const { 
-    isCollapsed, 
-    toggleCollapsed, 
-    expand
-  } = useSidebarStore();
+
+  const { isCollapsed, toggleCollapsed, expand } = useSidebarStore();
 
   // Mobile sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -58,15 +55,15 @@ const AdminLayout: React.FC = () => {
   const createAuthenticatedApi = async () => {
     const token = await getToken();
     if (!token) {
-      throw new Error('No authentication token available');
+      throw new Error("No authentication token available");
     }
-    
+
     return axios.create({
-      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+      baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
     });
   };
 
@@ -75,66 +72,70 @@ const AdminLayout: React.FC = () => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024); // lg breakpoint
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Check business setup status
   useEffect(() => {
-    console.log('🚀 useEffect triggered - starting business setup check');
-    
+    console.log("🚀 useEffect triggered - starting business setup check");
+
     const checkBusinessSetup = async () => {
-      console.log('🔍 Starting business setup check...');
-      
+      console.log("🔍 Starting business setup check...");
+
       // Add timeout to prevent hanging
       const timeoutId = setTimeout(() => {
-        console.log('⏰ Business setup check timeout - proceeding with default state');
+        console.log(
+          "⏰ Business setup check timeout - proceeding with default state"
+        );
         setIsBusinessSetupOpen(false);
         setBusinessSetupComplete(true);
         setIsCheckingSetup(false);
       }, 10000); // 10 second timeout
-      
+
       try {
-        console.log('🔑 Getting authenticated API...');
+        console.log("🔑 Getting authenticated API...");
         const api = await createAuthenticatedApi();
-        console.log('📡 Making API call to /admin/currency/business-setup-status...');
-        
-        const response = await api.get('/admin/currency/business-setup-status');
-        console.log('✅ API response received:', response.data);
-        
+        console.log(
+          "📡 Making API call to /admin/currency/business-setup-status..."
+        );
+
+        const response = await api.get("/admin/currency/business-setup-status");
+        console.log("✅ API response received:", response.data);
+
         const { exists } = response.data;
-        console.log('📊 Business config exists:', exists);
-        
+        console.log("📊 Business config exists:", exists);
+
         if (!exists) {
-          console.log('❌ No business config found, showing dialog');
+          console.log("❌ No business config found, showing dialog");
           setIsBusinessSetupOpen(true);
           setBusinessSetupComplete(false);
         } else {
-          console.log('✅ Business config found, hiding dialog');
+          console.log("✅ Business config found, hiding dialog");
           setIsBusinessSetupOpen(false);
           setBusinessSetupComplete(true);
         }
       } catch (error: any) {
-        console.error('💥 Error checking business setup:', error);
-        console.error('💥 Error details:', error.response?.data);
-        console.error('💥 Error status:', error.response?.status);
+        console.error("💥 Error checking business setup:", error);
+        console.error("💥 Error details:", error.response?.data);
+        console.error("💥 Error status:", error.response?.status);
         // If there's an error, assume setup is needed
-        console.log('⚠️ Assuming setup needed due to error');
+        console.log("⚠️ Assuming setup needed due to error");
         setIsBusinessSetupOpen(true);
       } finally {
         clearTimeout(timeoutId);
-        console.log('🏁 Business setup check completed');
+        console.log("🏁 Business setup check completed");
         setIsCheckingSetup(false);
       }
     };
 
-    console.log('📞 Calling checkBusinessSetup function...');
+    console.log("📞 Calling checkBusinessSetup function...");
     checkBusinessSetup();
-    
-    console.log('🏁 useEffect setup complete');
+
+    console.log("🏁 useEffect setup complete");
   }, []);
 
   // Close mobile sidebar when route changes
@@ -148,123 +149,145 @@ const AdminLayout: React.FC = () => {
   const mobileSidebarRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (mobileSidebarRef.current && !mobileSidebarRef.current.contains(event.target as Node)) {
+      if (
+        mobileSidebarRef.current &&
+        !mobileSidebarRef.current.contains(event.target as Node)
+      ) {
         setIsMobileSidebarOpen(false);
       }
     };
 
     if (isMobileSidebarOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMobileSidebarOpen]);
 
-  const navigation = useMemo(() => [
-    {
-      name: 'Dashboard',
-      href: '/admin',
-      icon: LayoutDashboard,
-      current: location.pathname === '/admin',
-      description: 'Overview and analytics'
-    },
-    {
-      name: 'Products',
-      href: '/admin/products',
-      icon: Package,
-      current: location.pathname.startsWith('/admin/products'),
-      description: 'Manage inventory',
-      badge: 'New'
-    },
-    {
-      name: 'Categories',
-      href: '/admin/categories',
-      icon: FolderOpen,
-      current: location.pathname.startsWith('/admin/categories'),
-      description: 'Category management'
-    },
-    {
-      name: 'Orders',
-      href: '/admin/orders',
-      icon: ShoppingCart,
-      current: location.pathname.startsWith('/admin/orders'),
-      description: 'Order management',
-      badge: '12'
-    },
-    {
-      name: 'Reviews',
-      href: '/admin/reviews',
-      icon: Star,
-      current: location.pathname.startsWith('/admin/reviews'),
-      description: 'Manage product reviews'
-    },
-    {
-      name: 'Questions',
-      href: '/admin/questions',
-      icon: HelpCircle,
-      current: location.pathname.startsWith('/admin/questions'),
-      description: 'Answer customer questions'
-    },
-    {
-      name: 'Analytics',
-      href: '/admin/analytics',
-      icon: BarChart3,
-      current: location.pathname.startsWith('/admin/analytics'),
-      description: 'Advanced charts & insights',
-      badge: 'Charts'
-    },
-    {
-      name: 'Notifications',
-      href: '/admin/notifications',
-      icon: Bell,
-      current: location.pathname.startsWith('/admin/notifications'),
-      description: 'View all notifications'
-    },
-    {
-      name: 'Localization',
-      href: '/admin/localization',
-      icon: Languages,
-      current: location.pathname.startsWith('/admin/localization'),
-      description: 'Languages & currencies'
-    },
-    {
-      name: 'Tax & Shipping',
-      href: '/admin/tax-shipping',
-      icon: DollarSign,
-      current: location.pathname.startsWith('/admin/tax-shipping'),
-      description: 'Tax rates & shipping costs'
-    },
-    {
-      name: 'Delivery Scope',
-      href: '/admin/delivery-scope',
-      icon: Globe,
-      current: location.pathname.startsWith('/admin/delivery-scope'),
-      description: 'Business delivery configuration'
-    },
-    {
-      name: 'Currency Management',
-      href: '/admin/currency',
-      icon: Currency,
-      current: location.pathname.startsWith('/admin/currency'),
-      description: 'Base currency & exchange rates'
-    }
-  ], [location.pathname]); // Add location.pathname back as dependency
+  const navigation = useMemo(
+    () => [
+      {
+        name: "Dashboard",
+        href: "/admin",
+        icon: LayoutDashboard,
+        current: location.pathname === "/admin",
+        description: "Overview and analytics",
+      },
+      {
+        name: "Products",
+        href: "/admin/products",
+        icon: Package,
+        current: location.pathname.startsWith("/admin/products"),
+        description: "Manage inventory",
+        badge: "New",
+      },
+      {
+        name: "Categories",
+        href: "/admin/categories",
+        icon: FolderOpen,
+        current: location.pathname.startsWith("/admin/categories"),
+        description: "Category management",
+      },
+      {
+        name: "Customers",
+        href: "/admin/customers",
+        icon: Users,
+        current: location.pathname.startsWith("/admin/customers"),
+        description: "Customer management & insights",
+      },
+      {
+        name: "Orders",
+        href: "/admin/orders",
+        icon: ShoppingCart,
+        current: location.pathname.startsWith("/admin/orders"),
+        description: "Order management",
+        badge: "12",
+      },
+      {
+        name: "Reviews",
+        href: "/admin/reviews",
+        icon: Star,
+        current: location.pathname.startsWith("/admin/reviews"),
+        description: "Manage product reviews",
+      },
+      {
+        name: "Chat Management",
+        href: "/admin/chat",
+        icon: MessageCircle,
+        current: location.pathname.startsWith("/admin/chat"),
+        description: "Manage chat sessions & inquiries",
+      },
+      {
+        name: "Questions",
+        href: "/admin/questions",
+        icon: HelpCircle,
+        current: location.pathname.startsWith("/admin/questions"),
+        description: "Answer customer questions",
+      },
+      {
+        name: "Analytics",
+        href: "/admin/analytics",
+        icon: BarChart3,
+        current: location.pathname.startsWith("/admin/analytics"),
+        description: "Advanced charts & insights",
+        badge: "Charts",
+      },
+      {
+        name: "Notifications",
+        href: "/admin/notifications",
+        icon: Bell,
+        current: location.pathname.startsWith("/admin/notifications"),
+        description: "View all notifications",
+      },
+      {
+        name: "Localization",
+        href: "/admin/localization",
+        icon: Languages,
+        current: location.pathname.startsWith("/admin/localization"),
+        description: "Languages & currencies",
+      },
+      {
+        name: "Tax & Shipping",
+        href: "/admin/tax-shipping",
+        icon: DollarSign,
+        current: location.pathname.startsWith("/admin/tax-shipping"),
+        description: "Tax rates & shipping costs",
+      },
+      {
+        name: "Delivery Scope",
+        href: "/admin/delivery-scope",
+        icon: Globe,
+        current: location.pathname.startsWith("/admin/delivery-scope"),
+        description: "Business delivery configuration",
+      },
+      {
+        name: "Currency Management",
+        href: "/admin/currency",
+        icon: Currency,
+        current: location.pathname.startsWith("/admin/currency"),
+        description: "Base currency & exchange rates",
+      },
+    ],
+    [location.pathname]
+  ); // Add location.pathname back as dependency
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
+      navigate("/");
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error);
     }
   };
 
   const handleBusinessSetupComplete = () => {
     setIsBusinessSetupOpen(false);
     setBusinessSetupComplete(true);
-    toast.success('Business setup completed successfully! You now have full access to the admin panel.');
+    toast.success(
+      "Business setup completed successfully! You now have full access to the admin panel."
+    );
   };
 
   // Show loading state while checking setup
@@ -283,7 +306,7 @@ const AdminLayout: React.FC = () => {
   // No API calls that could cause infinite loops
 
   const goToMainSite = () => {
-    navigate('/');
+    navigate("/");
   };
 
   const toggleMobileSidebar = () => {
@@ -291,22 +314,21 @@ const AdminLayout: React.FC = () => {
   };
 
   // Calculate sidebar positioning and content layout
-  const sidebarWidthClass = isCollapsed ? 'w-16' : 'w-80';
+  const sidebarWidthClass = isCollapsed ? "w-16" : "w-80";
 
   // Mobile sidebar classes
-  const mobileSidebarClass = isMobileSidebarOpen 
-    ? 'translate-x-0' 
-    : '-translate-x-full';
+  const mobileSidebarClass = isMobileSidebarOpen
+    ? "translate-x-0"
+    : "-translate-x-full";
 
   // Handle navigation item click
   const handleNavigationClick = (href: string) => {
     // Always navigate - don't collapse sidebar
     navigate(href);
-    
+
     // Don't auto-collapse when menu items are clicked
     // Sidebar stays open for easy navigation between sections
   };
-
 
   const renderSidebarContent = () => (
     <div className="flex flex-col h-full bg-gradient-to-b from-white to-gray-50">
@@ -334,59 +356,64 @@ const AdminLayout: React.FC = () => {
         )}
       </div>
 
-             {/* Navigation */}
-       <nav className="flex-1 px-3 py-4 overflow-y-auto">
-         <div className="space-y-1">
-           {navigation.map((item) => {
-             const Icon = item.icon;
-             return (
-                               <button
-                  key={item.name}
-                  onClick={() => handleNavigationClick(item.href)}
-                  className={`group relative flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200 w-full text-left ${
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        <div className="space-y-1">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.name}
+                onClick={() => handleNavigationClick(item.href)}
+                className={`group relative flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200 w-full text-left ${
+                  item.current
+                    ? "bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/25"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-white hover:shadow-md"
+                }`}
+                title={isCollapsed ? item.name : undefined}
+              >
+                {/* Active indicator */}
+                {item.current && !isCollapsed && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
+                )}
+
+                <Icon
+                  className={`h-5 w-5 ${isCollapsed ? "mx-auto" : "mr-3"} ${
                     item.current
-                      ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/25'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-white hover:shadow-md'
+                      ? "text-white"
+                      : "text-gray-400 group-hover:text-gray-600"
                   }`}
-                  title={isCollapsed ? item.name : undefined}
-                >
-                 {/* Active indicator */}
-                 {item.current && !isCollapsed && (
-                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
-                 )}
-                 
-                 <Icon
-                   className={`h-5 w-5 ${
-                     isCollapsed ? 'mx-auto' : 'mr-3'
-                   } ${
-                     item.current 
-                       ? 'text-white' 
-                       : 'text-gray-400 group-hover:text-gray-600'
-                   }`}
-                 />
-                 
-                 {!isCollapsed && (
-                   <div className="flex-1 min-w-0">
-                     <div className="flex items-center justify-between">
-                       <span className="truncate">{item.name}</span>
-                       {item.badge && (
-                         <Badge variant={item.badge === 'New' ? 'secondary' : 'default'} className="ml-2">
-                           {item.badge}
-                         </Badge>
-                       )}
-                     </div>
-                     <p className={`text-xs truncate ${
-                       item.current ? 'text-purple-100' : 'text-gray-500'
-                     }`}>
-                       {item.description}
-                     </p>
-                   </div>
-                 )}
-               </button>
-             );
-           })}
-         </div>
-       </nav>
+                />
+
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{item.name}</span>
+                      {item.badge && (
+                        <Badge
+                          variant={
+                            item.badge === "New" ? "secondary" : "default"
+                          }
+                          className="ml-2"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </div>
+                    <p
+                      className={`text-xs truncate ${
+                        item.current ? "text-purple-100" : "text-gray-500"
+                      }`}
+                    >
+                      {item.description}
+                    </p>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* Bottom actions */}
       <div className="px-3 py-4 border-t border-gray-200 bg-white">
@@ -394,11 +421,13 @@ const AdminLayout: React.FC = () => {
           variant="ghost"
           onClick={goToMainSite}
           className="group flex items-center px-3 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all duration-200 w-full justify-start"
-          title={isCollapsed ? 'Back to Site' : undefined}
+          title={isCollapsed ? "Back to Site" : undefined}
         >
-          <Home className={`h-5 w-5 ${
-            isCollapsed ? 'mx-auto' : 'mr-3'
-          } text-gray-400 group-hover:text-gray-600`} />
+          <Home
+            className={`h-5 w-5 ${
+              isCollapsed ? "mx-auto" : "mr-3"
+            } text-gray-400 group-hover:text-gray-600`}
+          />
           {!isCollapsed && (
             <div className="text-left">
               <span>Back to Site</span>
@@ -406,16 +435,18 @@ const AdminLayout: React.FC = () => {
             </div>
           )}
         </Button>
-        
+
         <Button
           variant="ghost"
           onClick={handleSignOut}
           className="group flex items-center px-3 py-3 text-sm font-medium text-red-700 hover:text-red-800 hover:bg-red-50 rounded-xl transition-all duration-200 w-full mt-2 justify-start"
-          title={isCollapsed ? 'Sign Out' : undefined}
+          title={isCollapsed ? "Sign Out" : undefined}
         >
-          <LogOut className={`h-5 w-5 ${
-            isCollapsed ? 'mx-auto' : 'mr-3'
-          } text-red-400 group-hover:text-red-500`} />
+          <LogOut
+            className={`h-5 w-5 ${
+              isCollapsed ? "mx-auto" : "mr-3"
+            } text-red-400 group-hover:text-red-500`}
+          />
           {!isCollapsed && (
             <div className="text-left">
               <span>Sign Out</span>
@@ -431,12 +462,12 @@ const AdminLayout: React.FC = () => {
     <div className="lg:hidden">
       {/* Mobile sidebar backdrop */}
       {isMobileSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
-      
+
       {/* Mobile sidebar */}
       <div
         ref={mobileSidebarRef}
@@ -474,35 +505,42 @@ const AdminLayout: React.FC = () => {
                     onClick={() => handleNavigationClick(item.href)}
                     className={`group relative flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200 w-full text-left ${
                       item.current
-                        ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/25'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-white hover:shadow-md'
+                        ? "bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/25"
+                        : "text-gray-700 hover:text-gray-900 hover:bg-white hover:shadow-md"
                     }`}
                   >
                     {/* Active indicator */}
                     {item.current && (
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
                     )}
-                    
+
                     <Icon
                       className={`h-5 w-5 mr-3 ${
-                        item.current 
-                          ? 'text-white' 
-                          : 'text-gray-400 group-hover:text-gray-600'
+                        item.current
+                          ? "text-white"
+                          : "text-gray-400 group-hover:text-gray-600"
                       }`}
                     />
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="truncate">{item.name}</span>
                         {item.badge && (
-                          <Badge variant={item.badge === 'New' ? 'secondary' : 'default'} className="ml-2">
+                          <Badge
+                            variant={
+                              item.badge === "New" ? "secondary" : "default"
+                            }
+                            className="ml-2"
+                          >
                             {item.badge}
                           </Badge>
                         )}
                       </div>
-                      <p className={`text-xs truncate ${
-                        item.current ? 'text-purple-100' : 'text-gray-500'
-                      }`}>
+                      <p
+                        className={`text-xs truncate ${
+                          item.current ? "text-purple-100" : "text-gray-500"
+                        }`}
+                      >
                         {item.description}
                       </p>
                     </div>
@@ -525,7 +563,7 @@ const AdminLayout: React.FC = () => {
                 <p className="text-xs text-gray-500">Return to main site</p>
               </div>
             </Button>
-            
+
             <Button
               variant="ghost"
               onClick={handleSignOut}
@@ -547,9 +585,11 @@ const AdminLayout: React.FC = () => {
     <div className="h-screen flex overflow-hidden bg-gray-50">
       {/* Mobile Sidebar */}
       {renderMobileSidebar()}
-      
+
       {/* Desktop Sidebar - hidden on mobile */}
-      <div className={`hidden lg:block bg-white shadow-xl transition-all duration-300 ease-in-out flex-shrink-0 ${sidebarWidthClass}`}>
+      <div
+        className={`hidden lg:block bg-white shadow-xl transition-all duration-300 ease-in-out flex-shrink-0 ${sidebarWidthClass}`}
+      >
         {renderSidebarContent()}
       </div>
 
@@ -570,7 +610,7 @@ const AdminLayout: React.FC = () => {
                 <Menu className="w-6 h-6" />
               </Button>
             </div>
-            
+
             {/* Desktop expand sidebar button (when collapsed) */}
             {!isMobile && isCollapsed && (
               <Button
@@ -583,11 +623,11 @@ const AdminLayout: React.FC = () => {
                 <ChevronRight className="w-6 h-6" />
               </Button>
             )}
-            
+
             {/* Page title */}
             <div className="flex-1 lg:flex-none">
               <h1 className="text-lg font-semibold text-gray-900">
-                {navigation.find(item => item.current)?.name || 'Admin Panel'}
+                {navigation.find((item) => item.current)?.name || "Admin Panel"}
               </h1>
             </div>
 
@@ -610,7 +650,7 @@ const AdminLayout: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Toast notifications for admin panel */}
       <Toaster position="top-right" richColors />
 
