@@ -101,6 +101,14 @@ export const mainRoutes = [
     ),
   },
   {
+    path: "login",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <ClerkLogin />
+      </Suspense>
+    ),
+  },
+  {
     path: "login/factor-one",
     element: (
       <Suspense fallback={<PageLoader />}>

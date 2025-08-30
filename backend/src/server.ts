@@ -6,6 +6,13 @@ import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { prisma } from "./lib/prisma";
 import { SocketServer } from "./socket/socketServer";
+import React from "react";
+import { renderToStream } from "./render/renderToHTML";
+import HomeServer from "./components/HomeServer";
+import ProductDetailServer from "./components/ProductDetailServer";
+import ProductsServer from "./components/ProductsServer";
+import CategoriesServer from "./components/CategoriesServer";
+import CategoryServer from "./components/CategoryServer";
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -75,6 +82,72 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Static file serving for uploads
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
+// Static file serving for frontend assets (for RSC)
+app.use(
+  "/static",
+  express.static(path.join(__dirname, "../../frontend/build/static"))
+);
+app.use(
+  "/favicon.ico",
+  express.static(path.join(__dirname, "../../frontend/build/favicon.ico"))
+);
+// Serve the main CSS file
+app.use(
+  "/static/css/main.css",
+  express.static(
+    path.join(__dirname, "../../frontend/build/static/css/main.css")
+  )
+);
+
+// Home page with RSC
+app.get("/", async (req, res) => {
+  try {
+    // Fetch featured products
+    const featuredProducts = await prisma.product.findMany({
+      where: {
+        isFeatured: true,
+        isActive: true,
+      },
+      include: {
+        images: true,
+        category: true,
+      },
+      take: 8,
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Fetch categories for the home page
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+      },
+      take: 8,
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Render the home page with RSC
+    renderToStream(
+      React.createElement(HomeServer, { featuredProducts, categories }),
+      res,
+      {
+        bootstrapScripts: ["/static/js/main.js"],
+        onShellReady: () => {
+          console.log("✅ Home page RSC rendered successfully");
+        },
+        onError: (error) => {
+          console.error("❌ Home page RSC rendering error:", error);
+        },
+      }
+    );
+  } catch (error) {
+    console.error("❌ Error rendering home page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -231,6 +304,289 @@ app.get("/debug-webhook-events", async (req, res) => {
   }
 });
 
+// Product detail page with RSC
+app.get("/products/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Fetch product with all related data
+    const product = await prisma.product.findUnique({
+      where: {
+        slug: slug,
+        isActive: true,
+      },
+      include: {
+        category: true,
+        images: {
+          orderBy: { sortOrder: "asc" },
+        },
+        variants: {
+          where: { isActive: true },
+        },
+        reviews: {
+          where: { isActive: true },
+          include: {
+            user: {
+              select: { name: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).send("Product not found");
+    }
+
+    // Render the product detail page with RSC
+    renderToStream(React.createElement(ProductDetailServer, { product }), res, {
+      bootstrapScripts: ["/static/js/main.js"],
+      onShellReady: () => {
+        console.log(
+          `✅ Product detail page RSC rendered successfully for: ${product.name}`
+        );
+      },
+      onError: (error) => {
+        console.error(
+          `❌ Product detail page RSC rendering error for ${slug}:`,
+          error
+        );
+      },
+    });
+  } catch (error) {
+    console.error(
+      `❌ Error rendering product detail page for ${req.params.slug}:`,
+      error
+    );
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Products listing page with RSC
+app.get("/products", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    const categorySlug = req.query.category as string;
+    const searchQuery = req.query.search as string;
+    const sortBy = req.query.sort as string;
+
+    // Build where clause
+    let whereClause: any = { isActive: true };
+
+    if (categorySlug) {
+      const category = await prisma.category.findUnique({
+        where: { slug: categorySlug, isActive: true },
+      });
+      if (category) {
+        whereClause.categoryId = category.id;
+      }
+    }
+
+    if (searchQuery) {
+      whereClause.OR = [
+        { name: { contains: searchQuery, mode: "insensitive" } },
+        { description: { contains: searchQuery, mode: "insensitive" } },
+        { shortDescription: { contains: searchQuery, mode: "insensitive" } },
+      ];
+    }
+
+    // Build order by clause
+    let orderBy: any = { createdAt: "desc" };
+    if (sortBy === "name") {
+      orderBy = { name: "asc" };
+    } else if (sortBy === "price-low") {
+      orderBy = { price: "asc" };
+    } else if (sortBy === "price-high") {
+      orderBy = { price: "desc" };
+    } else if (sortBy === "newest") {
+      orderBy = { createdAt: "desc" };
+    }
+
+    // Get products with pagination
+    const [products, totalProducts] = await Promise.all([
+      prisma.product.findMany({
+        where: whereClause,
+        include: {
+          category: true,
+          images: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: orderBy,
+        skip: offset,
+        take: limit,
+      }),
+      prisma.product.count({ where: whereClause }),
+    ]);
+
+    // Get all categories for filter sidebar
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    const totalPages = Math.ceil(totalProducts / limit);
+    const selectedCategory = categorySlug
+      ? categories.find((c) => c.slug === categorySlug)?.name
+      : undefined;
+
+    // Render the products listing page with RSC
+    renderToStream(
+      React.createElement(ProductsServer, {
+        products,
+        categories,
+        totalProducts,
+        currentPage: page,
+        totalPages,
+        selectedCategory,
+        searchQuery,
+        sortBy,
+      }),
+      res,
+      {
+        bootstrapScripts: ["/static/js/main.js"],
+        onShellReady: () => {
+          console.log(
+            `✅ Products listing page RSC rendered successfully (page ${page})`
+          );
+        },
+        onError: (error) => {
+          console.error(`❌ Products listing page RSC rendering error:`, error);
+        },
+      }
+    );
+  } catch (error) {
+    console.error("❌ Error rendering products listing page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Categories page with RSC
+app.get("/categories", async (req, res) => {
+  try {
+    // Get all active categories with product count
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      include: {
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    // Render the categories page with RSC
+    renderToStream(React.createElement(CategoriesServer, { categories }), res, {
+      bootstrapScripts: ["/static/js/main.js"],
+      onShellReady: () => {
+        console.log(`✅ Categories page RSC rendered successfully`);
+      },
+      onError: (error) => {
+        console.error(`❌ Categories page RSC rendering error:`, error);
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error rendering categories page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Individual category page with RSC
+app.get("/categories/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    const sortBy = req.query.sort as string;
+
+    // Get category with product count
+    const category = await prisma.category.findUnique({
+      where: { slug: slug, isActive: true },
+      include: {
+        _count: {
+          select: { products: true },
+        },
+      },
+    });
+
+    if (!category) {
+      return res.status(404).send("Category not found");
+    }
+
+    // Build order by clause
+    let orderBy: any = { createdAt: "desc" };
+    if (sortBy === "name") {
+      orderBy = { name: "asc" };
+    } else if (sortBy === "price-low") {
+      orderBy = { price: "asc" };
+    } else if (sortBy === "price-high") {
+      orderBy = { price: "desc" };
+    } else if (sortBy === "newest") {
+      orderBy = { createdAt: "desc" };
+    }
+
+    // Get products for this category with pagination
+    const [products, totalProducts] = await Promise.all([
+      prisma.product.findMany({
+        where: { categoryId: category.id, isActive: true },
+        include: {
+          images: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: orderBy,
+        skip: offset,
+        take: limit,
+      }),
+      prisma.product.count({
+        where: { categoryId: category.id, isActive: true },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // Render the category page with RSC
+    renderToStream(
+      React.createElement(CategoryServer, {
+        category,
+        products,
+        totalProducts,
+        currentPage: page,
+        totalPages,
+        sortBy,
+      }),
+      res,
+      {
+        bootstrapScripts: ["/static/js/main.js"],
+        onShellReady: () => {
+          console.log(
+            `✅ Category page RSC rendered successfully for: ${category.name}`
+          );
+        },
+        onError: (error) => {
+          console.error(
+            `❌ Category page RSC rendering error for ${slug}:`,
+            error
+          );
+        },
+      }
+    );
+  } catch (error) {
+    console.error("❌ Error rendering category page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
 // API Routes
 app.use("/api/users", userRoutes);
 app.use("/api/profile", profileRoutes);
@@ -282,9 +638,20 @@ app.use(
   }
 );
 
-// 404 handler
-app.use("*", (req, res) => {
-  res.status(404).json({ error: "Route not found" });
+// Serve React app for all other routes (SPA fallback)
+app.get("*", (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith("/api")) {
+    return res.status(404).json({ error: "API route not found" });
+  }
+
+  // Skip static files
+  if (req.path.startsWith("/static") || req.path.startsWith("/uploads")) {
+    return res.status(404).send("Static file not found");
+  }
+
+  // Serve the React app's index.html for client-side routing
+  res.sendFile(path.join(__dirname, "../../frontend/build/index.html"));
 });
 
 // Graceful shutdown
