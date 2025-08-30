@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/clerk-react";
-import {
-  MessageCircle,
-  X,
-  Send,
-  HelpCircle,
-  FileText,
-  User,
-  Mail,
-  MessageSquare,
-} from "lucide-react";
+import { MessageCircle, Send, X, HelpCircle, FileText } from "lucide-react";
 import { getApiBaseUrl } from "../config/api";
 
 interface ChatMessage {

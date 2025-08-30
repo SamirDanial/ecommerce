@@ -1,47 +1,25 @@
 import { lazy, ComponentType } from "react";
 
-// Dynamic import with performance monitoring for customer pages
+// Simple dynamic import for customer pages
 export const createCustomerDynamicImport = <T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
-  componentName: string,
-  priority: "critical" | "high" | "medium" | "low" = "medium"
+  importFunc: () => Promise<{ default: T }>
 ) => {
-  const LazyComponent = lazy(() => {
-    const startTime = performance.now();
-
-    return importFunc().then((module) => {
-      const loadTime = performance.now() - startTime;
-      if (process.env.NODE_ENV === "development") {
-        console.log(
-          `🚀 Customer ${componentName} loaded in ${loadTime.toFixed(
-            2
-          )}ms (${priority})`
-        );
-      }
-      return module;
-    });
-  });
-
-  return LazyComponent;
+  return lazy(importFunc);
 };
 
-// Priority-based dynamic imports for customer pages
+// Priority-based dynamic imports for customer pages (simplified)
 export const criticalCustomerImport = <T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
-  componentName: string
-) => createCustomerDynamicImport(importFunc, componentName, "critical");
+  importFunc: () => Promise<{ default: T }>
+) => createCustomerDynamicImport(importFunc);
 
 export const highPriorityCustomerImport = <T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
-  componentName: string
-) => createCustomerDynamicImport(importFunc, componentName, "high");
+  importFunc: () => Promise<{ default: T }>
+) => createCustomerDynamicImport(importFunc);
 
 export const mediumPriorityCustomerImport = <T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
-  componentName: string
-) => createCustomerDynamicImport(importFunc, componentName, "medium");
+  importFunc: () => Promise<{ default: T }>
+) => createCustomerDynamicImport(importFunc);
 
 export const lowPriorityCustomerImport = <T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
-  componentName: string
-) => createCustomerDynamicImport(importFunc, componentName, "low");
+  importFunc: () => Promise<{ default: T }>
+) => createCustomerDynamicImport(importFunc);

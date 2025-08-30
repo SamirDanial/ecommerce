@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
-import { CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { CreditCard, Lock, AlertCircle, CheckCircle, Calendar, Shield, MapPin } from 'lucide-react';
-import { toast } from 'sonner';
-import { useClerkAuth } from '../hooks/useClerkAuth';
-import StockService from '../services/stockService';
+import React, { useState } from "react";
+import {
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import {
+  CreditCard,
+  Lock,
+  AlertCircle,
+  CheckCircle,
+  Calendar,
+  Shield,
+  MapPin,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useClerkAuth } from "../hooks/useClerkAuth";
+import StockService from "../services/stockService";
 
 interface StripePaymentFormProps {
   amount: number;
@@ -55,7 +69,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   orderDetails,
   onPaymentSuccess,
   onPaymentError,
-  isLoading = false
+  isLoading = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -67,25 +81,25 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   const cardElementOptions = {
     style: {
       base: {
-        fontSize: '16px', // Prevents zoom on iOS
-        color: '#374151',
-        '::placeholder': {
-          color: '#9CA3AF',
+        fontSize: "16px", // Prevents zoom on iOS
+        color: "#374151",
+        "::placeholder": {
+          color: "#9CA3AF",
         },
-        border: '1px solid #D1D5DB',
-        borderRadius: '8px',
-        padding: '12px 16px',
-        backgroundColor: '#FFFFFF',
-        lineHeight: '1.5',
-        '&:focus': {
-          borderColor: '#3B82F6',
-          boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)',
-          outline: 'none',
+        border: "1px solid #D1D5DB",
+        borderRadius: "8px",
+        padding: "12px 16px",
+        backgroundColor: "#FFFFFF",
+        lineHeight: "1.5",
+        "&:focus": {
+          borderColor: "#3B82F6",
+          boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.1)",
+          outline: "none",
         },
       },
       invalid: {
-        color: '#EF4444',
-        borderColor: '#EF4444',
+        color: "#EF4444",
+        borderColor: "#EF4444",
       },
     },
     hidePostalCode: true, // We handle postal code separately
@@ -96,17 +110,6 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       setError(event.error.message);
     } else {
       setError(null);
-    }
-  };
-
-  // Helper function to get stored order details
-  const getStoredOrderDetails = () => {
-    try {
-      const stored = localStorage.getItem('pendingOrderDetails');
-      return stored ? JSON.parse(stored) : null;
-    } catch (error) {
-      console.error('Error retrieving stored order details:', error);
-      return null;
     }
   };
 
@@ -124,178 +127,222 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       // Get authentication token
       const token = await getToken();
       if (!token) {
-        throw new Error('Authentication required');
+        throw new Error("Authentication required");
       }
 
       // Check stock availability before proceeding with payment
       if (orderDetails?.items && orderDetails.items.length > 0) {
         try {
           // Filter out items that don't have variant information
-          const itemsWithVariants = orderDetails.items.filter(item => item.size && item.color);
-          const itemsWithoutVariants = orderDetails.items.filter(item => !item.size || !item.color);
+          const itemsWithoutVariants = orderDetails.items.filter(
+            (item) => !item.size || !item.color
+          );
 
           if (itemsWithoutVariants.length > 0) {
-            console.warn('⚠️ Items without variant information found:', itemsWithoutVariants);
-            const missingItems = itemsWithoutVariants.map(item => item.name).join(', ');
+            console.warn(
+              "⚠️ Items without variant information found:",
+              itemsWithoutVariants
+            );
+            const missingItems = itemsWithoutVariants
+              .map((item) => item.name)
+              .join(", ");
             const errorMessage = `The following items are missing variant information (size/color): ${missingItems}. Please return to the cart and ensure all items have size and color selected.`;
             setError(errorMessage);
             onPaymentError(errorMessage);
             return;
           }
 
-          const stockCheckItems = orderDetails.items.map(item => ({
+          const stockCheckItems = orderDetails.items.map((item) => ({
             productId: item.id,
-            size: item.size || '',
-            color: item.color || '',
-            quantity: item.quantity
+            size: item.size || "",
+            color: item.color || "",
+            quantity: item.quantity,
           }));
 
-          console.log('🔍 Stock validation - Items being checked:', stockCheckItems);
-          console.log('🔍 Stock validation - Original orderDetails:', orderDetails.items);
+          console.log(
+            "🔍 Stock validation - Items being checked:",
+            stockCheckItems
+          );
+          console.log(
+            "🔍 Stock validation - Original orderDetails:",
+            orderDetails.items
+          );
 
-          const stockValidation = await StockService.checkStockAvailability(stockCheckItems);
-          
+          const stockValidation = await StockService.checkStockAvailability(
+            stockCheckItems
+          );
+
           if (!stockValidation.allAvailable) {
             const stockErrors = stockValidation.results
-              .filter(result => !result.available)
-              .map(result => {
-                const itemInfo = `${result.color || 'Unknown Color'} ${result.size || 'Unknown Size'}`;
-                const errorDetails = result.error || 'Insufficient stock';
+              .filter((result) => !result.available)
+              .map((result) => {
+                const itemInfo = `${result.color || "Unknown Color"} ${
+                  result.size || "Unknown Size"
+                }`;
+                const errorDetails = result.error || "Insufficient stock";
                 return `${itemInfo}: ${errorDetails}`;
               });
-            
-            const errorMessage = `Stock validation failed:\n${stockErrors.join('\n')}`;
+
+            const errorMessage = `Stock validation failed:\n${stockErrors.join(
+              "\n"
+            )}`;
             setError(errorMessage);
             onPaymentError(errorMessage);
             return;
           }
 
           // Check for low stock warnings
-          const lowStockItems = stockValidation.results.filter(result => result.isLowStock);
+          const lowStockItems = stockValidation.results.filter(
+            (result) => result.isLowStock
+          );
           if (lowStockItems.length > 0) {
-            const lowStockWarnings = lowStockItems.map(item => 
-              `${item.color} ${item.size}: Only ${item.currentStock} left in stock`
+            const lowStockWarnings = lowStockItems.map(
+              (item) =>
+                `${item.color} ${item.size}: Only ${item.currentStock} left in stock`
             );
-            toast.warning(`Low stock warning:\n${lowStockWarnings.join('\n')}`);
+            toast.warning(`Low stock warning:\n${lowStockWarnings.join("\n")}`);
           }
         } catch (stockError) {
-          console.error('Stock validation error:', stockError);
-          const errorMessage = stockError instanceof Error ? stockError.message : 'Failed to validate stock availability';
-          setError(`Stock validation failed: ${errorMessage}. Please try again.`);
-          onPaymentError(`Stock validation failed: ${errorMessage}. Please try again.`);
+          console.error("Stock validation error:", stockError);
+          const errorMessage =
+            stockError instanceof Error
+              ? stockError.message
+              : "Failed to validate stock availability";
+          setError(
+            `Stock validation failed: ${errorMessage}. Please try again.`
+          );
+          onPaymentError(
+            `Stock validation failed: ${errorMessage}. Please try again.`
+          );
           return;
         }
       }
 
       // Create payment intent on the backend
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
       // Debug: Log the amounts being sent
-      console.log('💰 Payment amounts:', {
+      console.log("💰 Payment amounts:", {
         originalAmount: amount,
         amountInCents: Math.round(amount * 100),
         currency: currency,
-        orderDetails: orderDetails
+        orderDetails: orderDetails,
       });
-      
+
       // Debug: Check metadata size
       const metadataSize = JSON.stringify(orderDetails).length;
-      console.log('📏 Metadata size check:', {
+      console.log("📏 Metadata size check:", {
         metadataSize,
         isWithinLimit: metadataSize <= 500,
-        metadataPreview: JSON.stringify(orderDetails).substring(0, 100) + '...'
+        metadataPreview: JSON.stringify(orderDetails).substring(0, 100) + "...",
       });
-      
+
       const response = await fetch(`${apiUrl}/stripe/create-payment-intent`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           amount: Math.round(amount * 100), // Convert dollars to cents for Stripe
           currency: currency, // Currency is already in correct format (e.g., 'usd')
           orderDetails: orderDetails || {},
-          customerName: customerName || 'Customer',
-          shippingAddressId: shippingAddressId
+          customerName: customerName || "Customer",
+          shippingAddressId: shippingAddressId,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Payment intent creation failed:', {
+        console.error("Payment intent creation failed:", {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
         });
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
       }
 
-      const { client_secret, orderDetails: storedOrderDetails } = await response.json();
-      
+      const { client_secret, orderDetails: storedOrderDetails } =
+        await response.json();
+
       // Store the order details for later use when payment succeeds
       if (storedOrderDetails) {
-        console.log('📦 Order details stored from payment intent:', storedOrderDetails);
+        console.log(
+          "📦 Order details stored from payment intent:",
+          storedOrderDetails
+        );
         // You can store this in localStorage or pass it to the parent component
-        localStorage.setItem('pendingOrderDetails', JSON.stringify(storedOrderDetails));
+        localStorage.setItem(
+          "pendingOrderDetails",
+          JSON.stringify(storedOrderDetails)
+        );
       }
-      
-      console.log('Payment intent response:', { client_secret: client_secret ? 'present' : 'missing' });
+
+      console.log("Payment intent response:", {
+        client_secret: client_secret ? "present" : "missing",
+      });
 
       // Confirm card payment with Stripe using individual card elements
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
-        payment_method: {
-          card: elements.getElement(CardNumberElement)!,
-        },
-      });
-      
-      console.log('Stripe confirmCardPayment result:', { 
-        error: stripeError ? stripeError.message : 'none',
-        paymentIntent: paymentIntent ? { 
-          id: paymentIntent.id, 
-          status: paymentIntent.status 
-        } : 'none' 
+      const { error: stripeError, paymentIntent } =
+        await stripe.confirmCardPayment(client_secret, {
+          payment_method: {
+            card: elements.getElement(CardNumberElement)!,
+          },
+        });
+
+      console.log("Stripe confirmCardPayment result:", {
+        error: stripeError ? stripeError.message : "none",
+        paymentIntent: paymentIntent
+          ? {
+              id: paymentIntent.id,
+              status: paymentIntent.status,
+            }
+          : "none",
       });
 
       if (stripeError) {
-        setError(stripeError.message || 'Payment failed');
-        onPaymentError(stripeError.message || 'Payment failed');
-        
+        setError(stripeError.message || "Payment failed");
+        onPaymentError(stripeError.message || "Payment failed");
+
         // Clean up stored order details on error
-        localStorage.removeItem('pendingOrderDetails');
-      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        toast.success('Payment successful!');
+        localStorage.removeItem("pendingOrderDetails");
+      } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        toast.success("Payment successful!");
         onPaymentSuccess(paymentIntent);
-        
+
         // Clean up stored order details
-        localStorage.removeItem('pendingOrderDetails');
-      } else if (paymentIntent && paymentIntent.status === 'requires_action') {
+        localStorage.removeItem("pendingOrderDetails");
+      } else if (paymentIntent && paymentIntent.status === "requires_action") {
         // Handle 3D Secure or other authentication requirements
-        setError('Additional authentication required. Please complete the payment.');
-        onPaymentError('Additional authentication required. Please complete the payment.');
-        
+        setError(
+          "Additional authentication required. Please complete the payment."
+        );
+        onPaymentError(
+          "Additional authentication required. Please complete the payment."
+        );
+
         // Clean up stored order details on authentication requirement
-        localStorage.removeItem('pendingOrderDetails');
+        localStorage.removeItem("pendingOrderDetails");
       } else {
-        setError('Payment failed. Please try again.');
-        onPaymentError('Payment failed. Please try again.');
-        
+        setError("Payment failed. Please try again.");
+        onPaymentError("Payment failed. Please try again.");
+
         // Clean up stored order details on failure
-        localStorage.removeItem('pendingOrderDetails');
+        localStorage.removeItem("pendingOrderDetails");
       }
     } catch (err: any) {
-      const errorMessage = err.message || 'Payment failed. Please try again.';
+      const errorMessage = err.message || "Payment failed. Please try again.";
       setError(errorMessage);
       onPaymentError(errorMessage);
-      
+
       // Clean up stored order details on error
-      localStorage.removeItem('pendingOrderDetails');
+      localStorage.removeItem("pendingOrderDetails");
     } finally {
       setProcessing(false);
     }
   };
-
-
 
   return (
     <Card className="w-full">
@@ -312,8 +359,10 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Card Details - Mobile Optimized */}
           <div className="space-y-4">
-            <label className="text-sm font-medium text-gray-700">Card Details *</label>
-            
+            <label className="text-sm font-medium text-gray-700">
+              Card Details *
+            </label>
+
             {/* Card Number */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
@@ -342,7 +391,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
                   className="min-h-[48px] w-full"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
                   <Shield className="h-3 w-3" />
@@ -371,7 +420,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
                 className="w-full min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors text-base"
                 onChange={(e) => {
                   // Only allow numbers
-                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  const value = e.target.value.replace(/[^0-9]/g, "");
                   e.target.value = value;
                 }}
                 onKeyPress={(e) => {
@@ -398,14 +447,15 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
               <span className="font-medium">Secure Payment</span>
             </div>
             <p className="text-blue-700 text-sm mt-1">
-              Your payment information is encrypted and secure. We never store your card details.
+              Your payment information is encrypted and secure. We never store
+              your card details.
             </p>
           </div>
 
           {/* Submit Button */}
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             size="lg"
             disabled={!stripe || processing || isLoading || succeeded}
           >

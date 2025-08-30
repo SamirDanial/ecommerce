@@ -1,28 +1,32 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Checkbox } from './ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { 
-  MapPin, 
-  User, 
-  Settings, 
-  CreditCard, 
-  Truck, 
-  Edit, 
-  Trash2, 
-  Plus, 
-  CheckCircle, 
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Checkbox } from "./ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  MapPin,
+  User,
+  Settings,
+  CreditCard,
+  Truck,
+  Edit,
+  Trash2,
+  Plus,
+  CheckCircle,
   Phone,
-  Mail,
-  Loader2
-} from 'lucide-react';
-import { Address } from '../types';
-import { toast } from 'sonner';
+  Loader2,
+} from "lucide-react";
+import { Address } from "../types";
 
 interface AddressSectionProps {
   addresses: Address[];
@@ -41,7 +45,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
   addAddressMutation,
   updateAddressMutation,
   deleteAddressMutation,
-  countries
+  countries,
 }) => {
   // State for address management
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -51,35 +55,35 @@ const AddressSection: React.FC<AddressSectionProps> = ({
   const [addressToDelete, setAddressToDelete] = useState<Address | null>(null);
   const [addressToView, setAddressToView] = useState<Address | null>(null);
   const [addressForm, setAddressForm] = useState({
-    type: 'SHIPPING' as 'SHIPPING' | 'BILLING',
+    type: "SHIPPING" as "SHIPPING" | "BILLING",
     isDefault: false,
-    firstName: '',
-    lastName: '',
-    company: '',
-    address1: '',
-    address2: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'US',
-    phone: ''
+    firstName: "",
+    lastName: "",
+    company: "",
+    address1: "",
+    address2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "US",
+    phone: "",
   });
 
   // Reset address form
   const resetAddressForm = () => {
     setAddressForm({
-      type: 'SHIPPING',
+      type: "SHIPPING",
       isDefault: false,
-      firstName: '',
-      lastName: '',
-      company: '',
-      address1: '',
-      address2: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: countries.length > 0 ? countries[0].code : 'US',
-      phone: ''
+      firstName: "",
+      lastName: "",
+      company: "",
+      address1: "",
+      address2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: countries.length > 0 ? countries[0].code : "US",
+      phone: "",
     });
     setEditingAddress(null);
   };
@@ -97,14 +101,14 @@ const AddressSection: React.FC<AddressSectionProps> = ({
       isDefault: address.isDefault,
       firstName: address.firstName,
       lastName: address.lastName,
-      company: address.company || '',
+      company: address.company || "",
       address1: address.address1,
-      address2: address.address2 || '',
+      address2: address.address2 || "",
       city: address.city,
       state: address.state,
       postalCode: address.postalCode,
       country: address.country,
-      phone: address.phone
+      phone: address.phone,
     });
     setEditingAddress(address);
     setIsAddressModalOpen(true);
@@ -118,32 +122,35 @@ const AddressSection: React.FC<AddressSectionProps> = ({
 
   // Handle address form changes
   const handleAddressFormChange = (field: string, value: string | boolean) => {
-    setAddressForm(prev => ({
+    setAddressForm((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   // Handle address form submission
   const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (editingAddress) {
       // Update existing address
-      updateAddressMutation.mutate({
-        addressId: editingAddress.id,
-        address: addressForm
-      }, {
-        onSuccess: () => {
-          closeAddressModal();
+      updateAddressMutation.mutate(
+        {
+          addressId: editingAddress.id,
+          address: addressForm,
+        },
+        {
+          onSuccess: () => {
+            closeAddressModal();
+          },
         }
-      });
+      );
     } else {
       // Add new address
       addAddressMutation.mutate(addressForm, {
         onSuccess: () => {
           closeAddressModal();
-        }
+        },
       });
     }
   };
@@ -192,7 +199,9 @@ const AddressSection: React.FC<AddressSectionProps> = ({
         <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
           <MapPin className="h-8 w-8 text-red-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Error loading addresses</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Error loading addresses
+        </h3>
         <p className="text-gray-600">Please try again later</p>
       </div>
     );
@@ -210,7 +219,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               </div>
               Saved Addresses
             </CardTitle>
-            <Button 
+            <Button
               onClick={openAddAddressModal}
               className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 h-auto text-base font-semibold"
             >
@@ -225,28 +234,36 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <MapPin className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No addresses saved</h3>
-              <p className="text-gray-600 max-w-sm mx-auto">Add an address to make checkout faster and easier</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No addresses saved
+              </h3>
+              <p className="text-gray-600 max-w-sm mx-auto">
+                Add an address to make checkout faster and easier
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {addresses.map((address: Address) => (
-                <div key={address.id} className="bg-white border-0 shadow-lg rounded-2xl p-5 sm:p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 overflow-hidden relative group cursor-pointer" onClick={() => openAddressDetail(address)}>
+                <div
+                  key={address.id}
+                  className="bg-white border-0 shadow-lg rounded-2xl p-5 sm:p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 overflow-hidden relative group cursor-pointer"
+                  onClick={() => openAddressDetail(address)}
+                >
                   {/* Decorative gradient border */}
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-2xl"></div>
                   <div className="relative z-10">
                     {/* Header with badges */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <Badge 
+                      <Badge
                         variant={address.isDefault ? "default" : "secondary"}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium"
                       >
                         <MapPin className="h-3.5 w-3.5" />
-                        {address.type === 'SHIPPING' ? 'Shipping' : 'Billing'}
+                        {address.type === "SHIPPING" ? "Shipping" : "Billing"}
                       </Badge>
                       {address.isDefault && (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="border-green-200 text-green-700 bg-green-50 px-3 py-1.5 text-sm font-medium"
                         >
                           <CheckCircle className="h-3.5 w-3.5 mr-1" />
@@ -254,7 +271,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                         </Badge>
                       )}
                     </div>
-                    
+
                     {/* Address content */}
                     <div className="space-y-3 mb-5">
                       <div className="flex items-center gap-3">
@@ -265,46 +282,57 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                           {address.firstName} {address.lastName}
                         </p>
                       </div>
-                      
+
                       {address.company && (
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-gray-100 rounded-lg">
                             <Settings className="h-4 w-4 text-gray-600" />
                           </div>
-                          <p className="text-base font-medium text-gray-700">{address.company}</p>
+                          <p className="text-base font-medium text-gray-700">
+                            {address.company}
+                          </p>
                         </div>
                       )}
-                      
+
                       <div className="space-y-2">
                         <div className="flex items-start gap-3">
                           <div className="p-2 bg-gray-100 rounded-lg mt-1">
                             <MapPin className="h-4 w-4 text-gray-600" />
                           </div>
                           <div className="space-y-1">
-                            <p className="text-base text-gray-900 font-medium break-words">{address.address1}</p>
+                            <p className="text-base text-gray-900 font-medium break-words">
+                              {address.address1}
+                            </p>
                             {address.address2 && (
-                              <p className="text-sm text-gray-600 break-words">{address.address2}</p>
+                              <p className="text-sm text-gray-600 break-words">
+                                {address.address2}
+                              </p>
                             )}
                             <p className="text-base text-gray-900 font-medium">
-                              {address.city}, {address.state} {address.postalCode}
+                              {address.city}, {address.state}{" "}
+                              {address.postalCode}
                             </p>
-                            <p className="text-base text-gray-900 font-medium">{address.country}</p>
+                            <p className="text-base text-gray-900 font-medium">
+                              {address.country}
+                            </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-gray-100 rounded-lg">
                             <Phone className="h-4 w-4 text-gray-600" />
                           </div>
-                          <p className="text-base text-gray-900 font-medium">{address.phone}</p>
+                          <p className="text-base text-gray-900 font-medium">
+                            {address.phone}
+                          </p>
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Action buttons */}
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -315,8 +343,8 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                         <MapPin className="h-4 w-4 mr-1" />
                         <span className="hidden sm:inline">Details</span>
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -327,9 +355,9 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                         <Edit className="h-4 w-4 mr-1" />
                         <span className="hidden sm:inline">Edit</span>
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="h-10 font-medium text-destructive border-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -357,11 +385,14 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
                 <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               </div>
-              {editingAddress ? 'Edit Address' : 'Add New Address'}
+              {editingAddress ? "Edit Address" : "Add New Address"}
             </DialogTitle>
           </DialogHeader>
-          
-          <form onSubmit={handleAddressSubmit} className="space-y-4 sm:space-y-6">
+
+          <form
+            onSubmit={handleAddressSubmit}
+            className="space-y-4 sm:space-y-6"
+          >
             {/* Address Type & Default Section */}
             <div className="border border-gray-200 rounded-lg p-3 sm:p-6">
               <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -370,40 +401,56 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                 </div>
                 Address Configuration
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="type" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label
+                    htmlFor="type"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
                     Address Type *
                   </Label>
-                  <Select 
-                    value={addressForm.type} 
-                    onValueChange={(value: string) => handleAddressFormChange('type', value)}
+                  <Select
+                    value={addressForm.type}
+                    onValueChange={(value: string) =>
+                      handleAddressFormChange("type", value)
+                    }
                   >
                     <SelectTrigger className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
                       <SelectValue placeholder="Select address type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SHIPPING" className="flex items-center gap-2">
+                      <SelectItem
+                        value="SHIPPING"
+                        className="flex items-center gap-2"
+                      >
                         <Truck className="h-4 w-4" />
                         Shipping Address
                       </SelectItem>
-                      <SelectItem value="BILLING" className="flex items-center gap-2">
+                      <SelectItem
+                        value="BILLING"
+                        className="flex items-center gap-2"
+                      >
                         <CreditCard className="h-4 w-4" />
                         Billing Address
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <Checkbox
                     id="isDefault"
                     checked={addressForm.isDefault}
-                    onCheckedChange={(checked: boolean | 'indeterminate') => handleAddressFormChange('isDefault', checked === true)}
+                    onCheckedChange={(checked: boolean | "indeterminate") =>
+                      handleAddressFormChange("isDefault", checked === true)
+                    }
                     className="h-5 w-5 border-2 border-blue-500 data-[state=checked]:bg-blue-500"
                   />
-                  <Label htmlFor="isDefault" className="text-base font-medium text-gray-900 cursor-pointer">
+                  <Label
+                    htmlFor="isDefault"
+                    className="text-base font-medium text-gray-900 cursor-pointer"
+                  >
                     Set as default address
                   </Label>
                 </div>
@@ -418,44 +465,59 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                 </div>
                 Personal Information
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label
+                    htmlFor="firstName"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
                     First Name *
                   </Label>
                   <Input
                     id="firstName"
                     value={addressForm.firstName}
-                    onChange={(e) => handleAddressFormChange('firstName', e.target.value)}
+                    onChange={(e) =>
+                      handleAddressFormChange("firstName", e.target.value)
+                    }
                     placeholder="Enter first name"
                     required
                     className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
                 </div>
-                
+
                 <div>
-                  <Label htmlFor="lastName" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label
+                    htmlFor="lastName"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
                     Last Name *
                   </Label>
                   <Input
                     id="lastName"
                     value={addressForm.lastName}
-                    onChange={(e) => handleAddressFormChange('lastName', e.target.value)}
+                    onChange={(e) =>
+                      handleAddressFormChange("lastName", e.target.value)
+                    }
                     placeholder="Enter last name"
                     required
                     className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
                 </div>
-                
+
                 <div className="md:col-span-2">
-                  <Label htmlFor="company" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label
+                    htmlFor="company"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
                     Company (Optional)
                   </Label>
                   <Input
                     id="company"
                     value={addressForm.company}
-                    onChange={(e) => handleAddressFormChange('company', e.target.value)}
+                    onChange={(e) =>
+                      handleAddressFormChange("company", e.target.value)
+                    }
                     placeholder="Enter company name"
                     className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
@@ -471,87 +533,117 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                 </div>
                 Address Information
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="address1" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label
+                    htmlFor="address1"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
                     Street Address *
                   </Label>
                   <Input
                     id="address1"
                     value={addressForm.address1}
-                    onChange={(e) => handleAddressFormChange('address1', e.target.value)}
+                    onChange={(e) =>
+                      handleAddressFormChange("address1", e.target.value)
+                    }
                     placeholder="Enter street address"
                     required
                     className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
                 </div>
-                
+
                 <div>
-                  <Label htmlFor="address2" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label
+                    htmlFor="address2"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
                     Apartment, suite, etc. (Optional)
                   </Label>
                   <Input
                     id="address2"
                     value={addressForm.address2}
-                    onChange={(e) => handleAddressFormChange('address2', e.target.value)}
+                    onChange={(e) =>
+                      handleAddressFormChange("address2", e.target.value)
+                    }
                     placeholder="Enter apartment or suite number"
                     className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="city" className="text-sm font-medium text-gray-700 mb-2 block">
+                    <Label
+                      htmlFor="city"
+                      className="text-sm font-medium text-gray-700 mb-2 block"
+                    >
                       City *
                     </Label>
                     <Input
                       id="city"
                       value={addressForm.city}
-                      onChange={(e) => handleAddressFormChange('city', e.target.value)}
+                      onChange={(e) =>
+                        handleAddressFormChange("city", e.target.value)
+                      }
                       placeholder="Enter city"
                       required
                       className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     />
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="state" className="text-sm font-medium text-gray-700 mb-2 block">
+                    <Label
+                      htmlFor="state"
+                      className="text-sm font-medium text-gray-700 mb-2 block"
+                    >
                       State/Province *
                     </Label>
                     <Input
                       id="state"
                       value={addressForm.state}
-                      onChange={(e) => handleAddressFormChange('state', e.target.value)}
+                      onChange={(e) =>
+                        handleAddressFormChange("state", e.target.value)
+                      }
                       placeholder="Enter state"
                       required
                       className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     />
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="postalCode" className="text-sm font-medium text-gray-700 mb-2 block">
+                    <Label
+                      htmlFor="postalCode"
+                      className="text-sm font-medium text-gray-700 mb-2 block"
+                    >
                       Postal Code *
                     </Label>
                     <Input
                       id="postalCode"
                       value={addressForm.postalCode}
-                      onChange={(e) => handleAddressFormChange('postalCode', e.target.value)}
+                      onChange={(e) =>
+                        handleAddressFormChange("postalCode", e.target.value)
+                      }
                       placeholder="Enter postal code"
                       required
                       className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="country" className="text-sm font-medium text-gray-700 mb-2 block">
+                    <Label
+                      htmlFor="country"
+                      className="text-sm font-medium text-gray-700 mb-2 block"
+                    >
                       Country *
                     </Label>
-                    <Select 
-                      value={addressForm.country} 
-                      onValueChange={(value: string) => handleAddressFormChange('country', value)}
+                    <Select
+                      value={addressForm.country}
+                      onValueChange={(value: string) =>
+                        handleAddressFormChange("country", value)
+                      }
                     >
                       <SelectTrigger className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
                         <SelectValue placeholder="Select country" />
@@ -565,15 +657,20 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="phone" className="text-sm font-medium text-gray-700 mb-2 block">
+                    <Label
+                      htmlFor="phone"
+                      className="text-sm font-medium text-gray-700 mb-2 block"
+                    >
                       Phone Number *
                     </Label>
                     <Input
                       id="phone"
                       value={addressForm.phone}
-                      onChange={(e) => handleAddressFormChange('phone', e.target.value)}
+                      onChange={(e) =>
+                        handleAddressFormChange("phone", e.target.value)
+                      }
                       placeholder="Enter phone number"
                       required
                       className="h-12 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
@@ -595,16 +692,22 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={addAddressMutation.isPending || updateAddressMutation.isPending}
+                disabled={
+                  addAddressMutation.isPending ||
+                  updateAddressMutation.isPending
+                }
                 className="flex-1"
               >
-                {addAddressMutation.isPending || updateAddressMutation.isPending ? (
+                {addAddressMutation.isPending ||
+                updateAddressMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {editingAddress ? 'Updating...' : 'Adding...'}
+                    {editingAddress ? "Updating..." : "Adding..."}
                   </>
+                ) : editingAddress ? (
+                  "Update Address"
                 ) : (
-                  editingAddress ? 'Update Address' : 'Add Address'
+                  "Add Address"
                 )}
               </Button>
             </div>
@@ -623,12 +726,13 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               Delete Address
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="py-4">
             <p className="text-gray-700 mb-4">
-              Are you sure you want to delete this address? This action cannot be undone.
+              Are you sure you want to delete this address? This action cannot
+              be undone.
             </p>
-            
+
             {addressToDelete && (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-3 mb-2">
@@ -644,13 +748,16 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                   {addressToDelete.address2 && `, ${addressToDelete.address2}`}
                 </p>
                 <p className="text-sm text-gray-600">
-                  {addressToDelete.city}, {addressToDelete.state} {addressToDelete.postalCode}
+                  {addressToDelete.city}, {addressToDelete.state}{" "}
+                  {addressToDelete.postalCode}
                 </p>
-                <p className="text-sm text-gray-600">{addressToDelete.country}</p>
+                <p className="text-sm text-gray-600">
+                  {addressToDelete.country}
+                </p>
               </div>
             )}
           </div>
-          
+
           <div className="flex gap-3 pt-4">
             <Button
               variant="outline"
@@ -671,7 +778,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                   Deleting...
                 </>
               ) : (
-                'Delete Address'
+                "Delete Address"
               )}
             </Button>
           </div>
@@ -690,7 +797,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               Address Details
             </DialogTitle>
           </DialogHeader>
-          
+
           {/* Address Details Content */}
           {addressToView && (
             <div className="space-y-4 sm:space-y-6">
@@ -702,7 +809,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                   </div>
                   Personal Information
                 </h3>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <User className="h-4 w-4 text-gray-500" />
@@ -713,22 +820,26 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                       </p>
                     </div>
                   </div>
-                  
+
                   {addressToView.company && (
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                       <Settings className="h-4 w-4 text-gray-500" />
                       <div>
                         <p className="text-sm text-gray-600">Company</p>
-                        <p className="font-medium text-gray-900">{addressToView.company}</p>
+                        <p className="font-medium text-gray-900">
+                          {addressToView.company}
+                        </p>
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <Phone className="h-4 w-4 text-gray-500" />
                     <div>
                       <p className="text-sm text-gray-600">Phone Number</p>
-                      <p className="font-medium text-gray-900">{addressToView.phone}</p>
+                      <p className="font-medium text-gray-900">
+                        {addressToView.phone}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -742,7 +853,7 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                   </div>
                   Address Information
                 </h3>
-                
+
                 <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-gray-500 mt-1" />
@@ -750,14 +861,15 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                       <p className="font-medium text-gray-900 mb-2">
                         {addressToView.firstName} {addressToView.lastName}
                       </p>
-                      
+
                       <div className="space-y-1 text-gray-600">
                         <p>{addressToView.address1}</p>
                         {addressToView.address2 && (
                           <p>{addressToView.address2}</p>
                         )}
                         <p>
-                          {addressToView.city}, {addressToView.state} {addressToView.postalCode}
+                          {addressToView.city}, {addressToView.state}{" "}
+                          {addressToView.postalCode}
                         </p>
                         <p className="font-medium">{addressToView.country}</p>
                       </div>
@@ -774,33 +886,46 @@ const AddressSection: React.FC<AddressSectionProps> = ({
                   </div>
                   Address Details
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Address Type</label>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                      Address Type
+                    </label>
                     <div className="flex items-center gap-2 mt-2">
-                      <Badge 
-                        variant={addressToView.type === 'SHIPPING' ? "default" : "secondary"}
+                      <Badge
+                        variant={
+                          addressToView.type === "SHIPPING"
+                            ? "default"
+                            : "secondary"
+                        }
                         className="text-base px-3 py-1"
                       >
-                        {addressToView.type === 'SHIPPING' ? 'Shipping' : 'Billing'}
+                        {addressToView.type === "SHIPPING"
+                          ? "Shipping"
+                          : "Billing"}
                       </Badge>
                     </div>
                   </div>
-                  
+
                   <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</label>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                      Status
+                    </label>
                     <div className="flex items-center gap-2 mt-2">
                       {addressToView.isDefault ? (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="border-green-200 text-green-700 bg-green-50 text-base px-3 py-1"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Default Address
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-base px-3 py-1">
+                        <Badge
+                          variant="secondary"
+                          className="text-base px-3 py-1"
+                        >
                           Regular Address
                         </Badge>
                       )}

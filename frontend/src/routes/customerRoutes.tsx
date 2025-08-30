@@ -13,71 +13,44 @@ const PageLoader = () => (
   </div>
 );
 
-// Customer pages with dynamic imports (priority-based)
-export const Home = criticalCustomerImport(
-  () => import("../pages/Home"),
-  "Home"
-);
-
+// Customer pages with dynamic imports
+export const Home = criticalCustomerImport(() => import("../pages/Home"));
 export const Products = highPriorityCustomerImport(
-  () => import("../pages/Products"),
-  "Products"
+  () => import("../pages/Products")
 );
-
 export const ProductDetail = highPriorityCustomerImport(
-  () => import("../pages/ProductDetail"),
-  "ProductDetail"
+  () => import("../pages/ProductDetail")
 );
-
 export const Categories = highPriorityCustomerImport(
-  () => import("../pages/Categories"),
-  "Categories"
+  () => import("../pages/Categories")
 );
-
 export const CategoryDetail = highPriorityCustomerImport(
-  () => import("../pages/CategoryDetail"),
-  "CategoryDetail"
+  () => import("../pages/CategoryDetail")
 );
-
-export const Cart = criticalCustomerImport(
-  () => import("../pages/Cart"),
-  "Cart"
-);
-
+export const Cart = criticalCustomerImport(() => import("../pages/Cart"));
 export const Checkout = highPriorityCustomerImport(
-  () => import("../pages/Checkout"),
-  "Checkout"
+  () => import("../pages/Checkout")
 );
-
 export const Wishlist = mediumPriorityCustomerImport(
-  () => import("../pages/Wishlist"),
-  "Wishlist"
+  () => import("../pages/Wishlist")
 );
-
 export const Success = mediumPriorityCustomerImport(
-  () => import("../pages/Success"),
-  "Success"
+  () => import("../pages/Success")
 );
-
 export const Cancel = mediumPriorityCustomerImport(
-  () => import("../pages/Cancel"),
-  "Cancel"
+  () => import("../pages/Cancel")
 );
-
 export const About = mediumPriorityCustomerImport(
-  () => import("../pages/About"),
-  "About"
+  () => import("../pages/About")
 );
-
 export const Contact = mediumPriorityCustomerImport(
-  () => import("../pages/Contact"),
-  "Contact"
+  () => import("../pages/Contact")
 );
 
 // Customer routes with dynamic imports
 export const customerRoutes = [
   {
-    path: "", // Home page - critical priority
+    path: "",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Home />
@@ -85,7 +58,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "products", // Products page - high priority
+    path: "products",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Products />
@@ -93,7 +66,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "products/:slug", // Product Detail page - high priority
+    path: "products/:slug",
     element: (
       <Suspense fallback={<PageLoader />}>
         <ProductDetail />
@@ -101,7 +74,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "categories", // Categories page - high priority
+    path: "categories",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Categories />
@@ -109,7 +82,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "categories/:slug", // Category Detail page - high priority
+    path: "categories/:slug",
     element: (
       <Suspense fallback={<PageLoader />}>
         <CategoryDetail />
@@ -117,7 +90,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "cart", // Cart page - critical priority
+    path: "cart",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Cart />
@@ -125,7 +98,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "checkout", // Checkout page - high priority
+    path: "checkout",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Checkout />
@@ -133,7 +106,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "wishlist", // Wishlist page - medium priority
+    path: "wishlist",
     element: (
       <ProtectedRoute>
         <Suspense fallback={<PageLoader />}>
@@ -143,7 +116,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "success", // Success page - medium priority
+    path: "success",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Success />
@@ -151,7 +124,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "cancel", // Cancel page - medium priority
+    path: "cancel",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Cancel />
@@ -159,7 +132,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "about", // About page - medium priority
+    path: "about",
     element: (
       <Suspense fallback={<PageLoader />}>
         <About />
@@ -167,7 +140,7 @@ export const customerRoutes = [
     ),
   },
   {
-    path: "contact", // Contact page - medium priority
+    path: "contact",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Contact />

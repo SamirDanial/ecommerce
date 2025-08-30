@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { ImageWithPlaceholder } from './ui/image-with-placeholder';
-import { ShoppingCart, Package, Check, Zap } from 'lucide-react';
-import { useCartStore } from '../stores/cartStore';
-import { useUserInteractionStore } from '../stores/userInteractionStore';
-import { useCurrency } from '../contexts/CurrencyContext';
-import { Product } from '../types';
-import RatingDisplay from './ui/rating-display';
-import { getImageUrl } from '../utils/productUtils';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Separator } from "./ui/separator";
+import { ImageWithPlaceholder } from "./ui/image-with-placeholder";
+import { ShoppingCart, Package, Check, Zap } from "lucide-react";
+import { useCartStore } from "../stores/cartStore";
+import { useUserInteractionStore } from "../stores/userInteractionStore";
+import { useCurrency } from "../contexts/CurrencyContext";
+import { Product } from "../types";
+import RatingDisplay from "./ui/rating-display";
+import { getImageUrl } from "../utils/productUtils";
 
 interface FrequentlyBoughtTogetherProps {
   currentProduct: Product;
@@ -26,11 +25,11 @@ interface BundleItem {
 
 const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
   currentProduct,
-  relatedProducts
+  relatedProducts,
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [bundleItems, setBundleItems] = useState<BundleItem[]>([]);
-  
+
   const { addToCart } = useCartStore();
   const { addInteraction } = useUserInteractionStore();
   const { formatPrice } = useCurrency();
@@ -39,17 +38,17 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
   React.useEffect(() => {
     if (relatedProducts.length > 0) {
       // Create bundle items with quantities and selection state
-      const bundle = relatedProducts.slice(0, 4).map(product => ({
+      const bundle = relatedProducts.slice(0, 4).map((product) => ({
         product,
         quantity: 1,
-        isSelected: false
+        isSelected: false,
       }));
       setBundleItems(bundle);
     }
   }, [relatedProducts]);
 
   const handleItemToggle = (productId: number) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(productId)) {
         newSet.delete(productId);
@@ -59,9 +58,9 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
       return newSet;
     });
 
-    setBundleItems(prev => 
-      prev.map(item => 
-        item.product.id === productId 
+    setBundleItems((prev) =>
+      prev.map((item) =>
+        item.product.id === productId
           ? { ...item, isSelected: !item.isSelected }
           : item
       )
@@ -70,10 +69,10 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
 
   const handleQuantityChange = (productId: number, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
-    setBundleItems(prev => 
-      prev.map(item => 
-        item.product.id === productId 
+
+    setBundleItems((prev) =>
+      prev.map((item) =>
+        item.product.id === productId
           ? { ...item, quantity: newQuantity }
           : item
       )
@@ -82,9 +81,9 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
 
   const calculateBundlePrice = () => {
     let total = 0;
-    bundleItems.forEach(item => {
+    bundleItems.forEach((item) => {
       if (selectedItems.has(item.product.id)) {
-        total += (item.product.price * item.quantity);
+        total += item.product.price * item.quantity;
       }
     });
     return total;
@@ -98,31 +97,41 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
       }
       return total;
     }, 0);
-    
+
     return Math.max(0, originalPrice - bundlePrice);
   };
 
   const handleAddBundleToCart = () => {
-    const selectedBundle = bundleItems.filter(item => selectedItems.has(item.product.id));
-    
+    const selectedBundle = bundleItems.filter((item) =>
+      selectedItems.has(item.product.id)
+    );
+
     // Add each selected item to cart
-    selectedBundle.forEach(item => {
+    selectedBundle.forEach((item) => {
       const quantity = 1; // itemQuantities[item.product.id] || 1; // This line was removed
-      addToCart(item.product, quantity, undefined, undefined, item.product.images?.[0]?.url, undefined, undefined);
-      
+      addToCart(
+        item.product,
+        quantity,
+        undefined,
+        undefined,
+        item.product.images?.[0]?.url,
+        undefined,
+        undefined
+      );
+
       // Track interaction
       addInteraction({
-        type: 'cart_add',
+        type: "cart_add",
         targetId: item.product.id.toString(),
-        targetType: 'product',
-        data: { 
-          productName: item.product.name, 
+        targetType: "product",
+        data: {
+          productName: item.product.name,
           quantity,
-          context: 'bundle_purchase'
-        }
+          context: "bundle_purchase",
+        },
       });
     });
-    
+
     // Success indication (no alert)
     // You could add a toast notification here later
   };
@@ -150,7 +159,10 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
             <span>Frequently Bought Together</span>
           </div>
           {selectedCount > 0 && (
-            <Badge variant="secondary" className="w-fit mx-auto sm:mx-0 sm:ml-2">
+            <Badge
+              variant="secondary"
+              className="w-fit mx-auto sm:mx-0 sm:ml-2"
+            >
               {selectedCount} selected
             </Badge>
           )}
@@ -163,12 +175,12 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
         {/* Bundle Items */}
         <div className="space-y-3">
           {bundleItems.map((item) => (
-            <Card 
-              key={item.product.id} 
+            <Card
+              key={item.product.id}
               className={`relative cursor-pointer transition-all hover:shadow-md ${
-                selectedItems.has(item.product.id) 
-                  ? 'ring-2 ring-primary ring-offset-2' 
-                  : ''
+                selectedItems.has(item.product.id)
+                  ? "ring-2 ring-primary ring-offset-2"
+                  : ""
               }`}
               onClick={() => handleItemToggle(item.product.id)}
             >
@@ -185,19 +197,29 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                       <Check className="h-4 w-4" />
                     </div>
                   )}
-                  {item.product.comparePrice && item.product.comparePrice > item.product.price && (
-                    <Badge variant="destructive" className="absolute top-2 left-2">
-                      -{Math.round(((item.product.comparePrice - item.product.price) / item.product.comparePrice) * 100)}%
-                    </Badge>
-                  )}
+                  {item.product.comparePrice &&
+                    item.product.comparePrice > item.product.price && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute top-2 left-2"
+                      >
+                        -
+                        {Math.round(
+                          ((item.product.comparePrice - item.product.price) /
+                            item.product.comparePrice) *
+                            100
+                        )}
+                        %
+                      </Badge>
+                    )}
                 </div>
-                
+
                 <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
                   <div>
                     <h4 className="font-medium text-base sm:text-lg line-clamp-2 mb-2">
                       {item.product.name}
                     </h4>
-                    
+
                     <RatingDisplay
                       rating={item.product.averageRating}
                       reviewCount={item.product.reviewCount}
@@ -206,7 +228,8 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                     />
 
                     <div className="flex items-center gap-2 mb-2">
-                      {item.product.comparePrice && item.product.comparePrice > item.product.price ? (
+                      {item.product.comparePrice &&
+                      item.product.comparePrice > item.product.price ? (
                         <>
                           <span className="font-semibold text-primary text-base sm:text-lg">
                             {formatPrice(item.product.price)}
@@ -231,7 +254,10 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                         className="h-8 w-8 p-0"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleQuantityChange(item.product.id, item.quantity - 1);
+                          handleQuantityChange(
+                            item.product.id,
+                            item.quantity - 1
+                          );
                         }}
                       >
                         -
@@ -245,7 +271,10 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                         className="h-8 w-8 p-0"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleQuantityChange(item.product.id, item.quantity + 1);
+                          handleQuantityChange(
+                            item.product.id,
+                            item.quantity + 1
+                          );
                         }}
                       >
                         +
@@ -264,17 +293,25 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
             <Separator />
             <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                <h4 className="font-semibold text-center sm:text-left">Bundle Summary</h4>
-                <Badge variant="outline" className="text-green-600 border-green-600 w-fit mx-auto sm:mx-0">
+                <h4 className="font-semibold text-center sm:text-left">
+                  Bundle Summary
+                </h4>
+                <Badge
+                  variant="outline"
+                  className="text-green-600 border-green-600 w-fit mx-auto sm:mx-0"
+                >
                   Save {formatPrice(savings)}
                 </Badge>
               </div>
-              
+
               <div className="space-y-2 mb-4">
                 {bundleItems
-                  .filter(item => selectedItems.has(item.product.id))
-                  .map(item => (
-                    <div key={item.product.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-0">
+                  .filter((item) => selectedItems.has(item.product.id))
+                  .map((item) => (
+                    <div
+                      key={item.product.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-0"
+                    >
                       <span className="flex items-center gap-2">
                         <span className="truncate">{item.product.name}</span>
                         {item.quantity > 1 && (
@@ -287,18 +324,19 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                         {formatPrice(item.product.price * item.quantity)}
                       </span>
                     </div>
-                  ))
-                }
+                  ))}
               </div>
 
               <div className="border-t pt-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                  <span className="font-semibold text-center sm:text-left">Bundle Total:</span>
+                  <span className="font-semibold text-center sm:text-left">
+                    Bundle Total:
+                  </span>
                   <span className="font-semibold text-lg text-primary text-center sm:text-right">
                     {formatPrice(bundlePrice)}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
                   <Zap className="h-4 w-4 text-green-600" />
                   <span className="text-sm text-green-600 font-medium text-center sm:text-left">
@@ -306,21 +344,23 @@ const FrequentlyBoughtTogether: React.FC<FrequentlyBoughtTogetherProps> = ({
                   </span>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleAddBundleToCart}
                   className="w-full h-12 sm:h-10"
                   size="lg"
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
-                                          <span className="hidden sm:inline">Add Bundle to Cart - Save {formatPrice(savings)}</span>
-                        <span className="sm:hidden">Add Bundle - Save {formatPrice(savings)}</span>
+                  <span className="hidden sm:inline">
+                    Add Bundle to Cart - Save {formatPrice(savings)}
+                  </span>
+                  <span className="sm:hidden">
+                    Add Bundle - Save {formatPrice(savings)}
+                  </span>
                 </Button>
               </div>
             </div>
           </>
         )}
-
-
       </CardContent>
     </Card>
   );

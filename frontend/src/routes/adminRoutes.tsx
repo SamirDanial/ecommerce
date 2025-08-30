@@ -1,28 +1,27 @@
 import React, { Suspense } from "react";
-import { Route } from "react-router-dom";
-import { AdminPageLoader } from "./index";
+import { PageLoader } from "./index";
 import {
   Admin,
   AdminProducts,
   AdminCategories,
   AdminOrders,
   Customers,
-  ReviewManagement,
-  QuestionManagement,
   AdminAnalytics,
-  ChatManagement,
   AdminLocalization,
   AdminTaxShipping,
   AdminDeliveryScope,
   CurrencyManagement,
   Notifications,
+  QuestionManagement,
+  ReviewManagement,
+  ChatManagement,
 } from "./index";
 
 export const adminRoutes = [
   {
     path: "", // Changed from "/" to "" for index route
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <Admin />
       </Suspense>
     ),
@@ -30,7 +29,7 @@ export const adminRoutes = [
   {
     path: "products",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminProducts />
       </Suspense>
     ),
@@ -38,7 +37,7 @@ export const adminRoutes = [
   {
     path: "categories",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminCategories />
       </Suspense>
     ),
@@ -46,7 +45,7 @@ export const adminRoutes = [
   {
     path: "orders",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminOrders />
       </Suspense>
     ),
@@ -54,7 +53,7 @@ export const adminRoutes = [
   {
     path: "customers",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <Customers />
       </Suspense>
     ),
@@ -62,7 +61,7 @@ export const adminRoutes = [
   {
     path: "reviews",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <ReviewManagement />
       </Suspense>
     ),
@@ -70,7 +69,7 @@ export const adminRoutes = [
   {
     path: "questions",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <QuestionManagement />
       </Suspense>
     ),
@@ -78,7 +77,7 @@ export const adminRoutes = [
   {
     path: "chat",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <ChatManagement />
       </Suspense>
     ),
@@ -86,7 +85,7 @@ export const adminRoutes = [
   {
     path: "analytics",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminAnalytics />
       </Suspense>
     ),
@@ -94,7 +93,7 @@ export const adminRoutes = [
   {
     path: "localization",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminLocalization />
       </Suspense>
     ),
@@ -102,7 +101,7 @@ export const adminRoutes = [
   {
     path: "tax-shipping",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminTaxShipping />
       </Suspense>
     ),
@@ -110,7 +109,7 @@ export const adminRoutes = [
   {
     path: "delivery-scope",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <AdminDeliveryScope />
       </Suspense>
     ),
@@ -118,7 +117,7 @@ export const adminRoutes = [
   {
     path: "currency",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <CurrencyManagement />
       </Suspense>
     ),
@@ -126,7 +125,7 @@ export const adminRoutes = [
   {
     path: "notifications",
     element: (
-      <Suspense fallback={<AdminPageLoader />}>
+      <Suspense fallback={<PageLoader />}>
         <Notifications />
       </Suspense>
     ),

@@ -14,12 +14,12 @@ import {
   Cancel,
   About,
   Contact,
-} from "./customerRoutes"; // Import all customer pages from customer routes
+} from "./customerRoutes";
 import { ClerkLogin, ClerkRegister, VerifyEmail, UserProfile } from "./index";
 
 export const mainRoutes = [
   {
-    path: "", // Home page - now using customer dynamic import
+    path: "",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Home />
@@ -27,7 +27,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "products", // Products page - now using customer dynamic import
+    path: "products",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Products />
@@ -35,7 +35,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "products/:slug", // Product Detail page - now using customer dynamic import
+    path: "products/:slug",
     element: (
       <Suspense fallback={<PageLoader />}>
         <ProductDetail />
@@ -43,7 +43,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "categories", // Categories page - now using customer dynamic import
+    path: "categories",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Categories />
@@ -51,7 +51,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "categories/:slug", // Category Detail page - now using customer dynamic import
+    path: "categories/:slug",
     element: (
       <Suspense fallback={<PageLoader />}>
         <CategoryDetail />
@@ -59,7 +59,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "wishlist", // Wishlist page - now using customer dynamic import
+    path: "wishlist",
     element: (
       <ProtectedRoute>
         <Suspense fallback={<PageLoader />}>
@@ -69,7 +69,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "cart", // Cart page - now using customer dynamic import
+    path: "cart",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Cart />
@@ -77,7 +77,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "checkout", // Checkout page - now using customer dynamic import
+    path: "checkout",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Checkout />
@@ -85,7 +85,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "success", // Success page - now using customer dynamic import
+    path: "success",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Success />
@@ -93,7 +93,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "cancel", // Cancel page - now using customer dynamic import
+    path: "cancel",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Cancel />
@@ -135,7 +135,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "about", // About page - now using customer dynamic import
+    path: "about",
     element: (
       <Suspense fallback={<PageLoader />}>
         <About />
@@ -143,7 +143,7 @@ export const mainRoutes = [
     ),
   },
   {
-    path: "contact", // Contact page - now using customer dynamic import
+    path: "contact",
     element: (
       <Suspense fallback={<PageLoader />}>
         <Contact />
