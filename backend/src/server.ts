@@ -13,6 +13,12 @@ import ProductDetailServer from "./components/ProductDetailServer";
 import ProductsServer from "./components/ProductsServer";
 import CategoriesServer from "./components/CategoriesServer";
 import CategoryServer from "./components/CategoryServer";
+import AboutServer from "./components/AboutServer";
+import ContactServer from "./components/ContactServer";
+import {
+  generateSitemap,
+  generateProductSitemap,
+} from "./utils/sitemapGenerator";
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -64,7 +70,7 @@ const socketServer = new SocketServer(server);
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: true, // Allow all origins since we're serving everything from the same server
     credentials: true,
   })
 );
@@ -83,25 +89,37 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // Static file serving for uploads
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Static file serving for frontend assets (for RSC)
-app.use(
-  "/static",
-  express.static(path.join(__dirname, "../../frontend/build/static"))
-);
+// Static file serving for frontend assets (production build)
+app.use("/static", express.static(path.join(__dirname, "../public/static")));
 app.use(
   "/favicon.ico",
-  express.static(path.join(__dirname, "../../frontend/build/favicon.ico"))
+  express.static(path.join(__dirname, "../public/favicon.ico"))
 );
-// Serve the main CSS file
 app.use(
-  "/static/css/main.css",
-  express.static(
-    path.join(__dirname, "../../frontend/build/static/css/main.css")
-  )
+  "/manifest.json",
+  express.static(path.join(__dirname, "../public/manifest.json"))
 );
+app.use(
+  "/robots.txt",
+  express.static(path.join(__dirname, "../public/robots.txt"))
+);
+app.use(
+  "/logo192.png",
+  express.static(path.join(__dirname, "../public/logo192.png"))
+);
+app.use(
+  "/logo512.png",
+  express.static(path.join(__dirname, "../public/logo512.png"))
+);
+app.use("/assets", express.static(path.join(__dirname, "../public/assets")));
 
-// Home page with RSC
-app.get("/", async (req, res) => {
+// Home page - serve React app (not RSC)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
+});
+
+// SEO route for search engines (RSC version)
+app.get("/seo", async (req, res) => {
   try {
     // Fetch featured products
     const featuredProducts = await prisma.product.findMany({
@@ -136,17 +154,384 @@ app.get("/", async (req, res) => {
       {
         bootstrapScripts: ["/static/js/main.js"],
         onShellReady: () => {
-          console.log("✅ Home page RSC rendered successfully");
+          console.log("✅ SEO Home page RSC rendered successfully");
         },
         onError: (error) => {
-          console.error("❌ Home page RSC rendering error:", error);
+          console.error("❌ SEO Home page RSC rendering error:", error);
         },
       }
     );
   } catch (error) {
-    console.error("❌ Error rendering home page:", error);
+    console.error("❌ Error rendering SEO home page:", error);
     res.status(500).send("Internal Server Error");
   }
+});
+
+// SEO routes for search engines (RSC versions)
+app.get("/seo/products", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    const categorySlug = req.query.category as string;
+    const searchQuery = req.query.search as string;
+    const sortBy = req.query.sort as string;
+
+    // Build where clause
+    let whereClause: any = { isActive: true };
+
+    if (categorySlug) {
+      const category = await prisma.category.findUnique({
+        where: { slug: categorySlug, isActive: true },
+      });
+      if (category) {
+        whereClause.categoryId = category.id;
+      }
+    }
+
+    if (searchQuery) {
+      whereClause.OR = [
+        { name: { contains: searchQuery, mode: "insensitive" } },
+        { description: { contains: searchQuery, mode: "insensitive" } },
+        { shortDescription: { contains: searchQuery, mode: "insensitive" } },
+      ];
+    }
+
+    // Build order by clause
+    let orderBy: any = { createdAt: "desc" };
+    if (sortBy === "name") {
+      orderBy = { name: "asc" };
+    } else if (sortBy === "price-low") {
+      orderBy = { price: "asc" };
+    } else if (sortBy === "price-high") {
+      orderBy = { price: "desc" };
+    } else if (sortBy === "newest") {
+      orderBy = { createdAt: "desc" };
+    }
+
+    // Get products with pagination
+    const [products, totalProducts] = await Promise.all([
+      prisma.product.findMany({
+        where: whereClause,
+        include: {
+          category: true,
+          images: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: orderBy,
+        skip: offset,
+        take: limit,
+      }),
+      prisma.product.count({ where: whereClause }),
+    ]);
+
+    // Get all categories for filter sidebar
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    const totalPages = Math.ceil(totalProducts / limit);
+    const selectedCategory = categorySlug
+      ? categories.find((c) => c.slug === categorySlug)?.name
+      : undefined;
+
+    // Render the products listing page with RSC
+    renderToStream(
+      React.createElement(ProductsServer, {
+        products,
+        categories,
+        totalProducts,
+        currentPage: page,
+        totalPages,
+        selectedCategory,
+        searchQuery,
+        sortBy,
+      }),
+      res,
+      {
+        bootstrapScripts: ["/static/js/main.js"],
+        onShellReady: () => {
+          console.log(
+            `✅ SEO Products listing page RSC rendered successfully (page ${page})`
+          );
+        },
+        onError: (error) => {
+          console.error(
+            `❌ SEO Products listing page RSC rendering error:`,
+            error
+          );
+        },
+      }
+    );
+  } catch (error) {
+    console.error("❌ Error rendering SEO products listing page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/seo/products/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Fetch product with all related data
+    const product = await prisma.product.findUnique({
+      where: {
+        slug: slug,
+        isActive: true,
+      },
+      include: {
+        category: true,
+        images: {
+          orderBy: { sortOrder: "asc" },
+        },
+        variants: {
+          where: { isActive: true },
+        },
+        reviews: {
+          where: { isActive: true },
+          include: {
+            user: {
+              select: { name: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).send("Product not found");
+    }
+
+    // Render the product detail page with RSC
+    renderToStream(React.createElement(ProductDetailServer, { product }), res, {
+      bootstrapScripts: ["/static/js/main.js"],
+      onShellReady: () => {
+        console.log(
+          `✅ SEO Product detail page RSC rendered successfully for: ${product.name}`
+        );
+      },
+      onError: (error) => {
+        console.error(
+          `❌ SEO Product detail page RSC rendering error for ${slug}:`,
+          error
+        );
+      },
+    });
+  } catch (error) {
+    console.error(
+      `❌ Error rendering SEO product detail page for ${req.params.slug}:`,
+      error
+    );
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/seo/categories", async (req, res) => {
+  try {
+    // Get all active categories with product count
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      include: {
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    // Render the categories page with RSC
+    renderToStream(React.createElement(CategoriesServer, { categories }), res, {
+      bootstrapScripts: ["/static/js/main.js"],
+      onShellReady: () => {
+        console.log(`✅ SEO Categories page RSC rendered successfully`);
+      },
+      onError: (error) => {
+        console.error(`❌ SEO Categories page RSC rendering error:`, error);
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error rendering SEO categories page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/seo/categories/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    const sortBy = req.query.sort as string;
+
+    // Get category with product count
+    const category = await prisma.category.findUnique({
+      where: { slug: slug, isActive: true },
+      include: {
+        _count: {
+          select: { products: true },
+        },
+      },
+    });
+
+    if (!category) {
+      return res.status(404).send("Category not found");
+    }
+
+    // Build order by clause
+    let orderBy: any = { createdAt: "desc" };
+    if (sortBy === "name") {
+      orderBy = { name: "asc" };
+    } else if (sortBy === "price-low") {
+      orderBy = { price: "asc" };
+    } else if (sortBy === "price-high") {
+      orderBy = { price: "desc" };
+    } else if (sortBy === "newest") {
+      orderBy = { createdAt: "desc" };
+    }
+
+    // Get products for this category with pagination
+    const [products, totalProducts] = await Promise.all([
+      prisma.product.findMany({
+        where: { categoryId: category.id, isActive: true },
+        include: {
+          images: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        orderBy: orderBy,
+        skip: offset,
+        take: limit,
+      }),
+      prisma.product.count({
+        where: { categoryId: category.id, isActive: true },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // Render the category page with RSC
+    renderToStream(
+      React.createElement(CategoryServer, {
+        category,
+        products,
+        totalProducts,
+        currentPage: page,
+        totalPages,
+        sortBy,
+      }),
+      res,
+      {
+        bootstrapScripts: ["/static/js/main.js"],
+        onShellReady: () => {
+          console.log(
+            `✅ SEO Category page RSC rendered successfully for: ${category.name}`
+          );
+        },
+        onError: (error) => {
+          console.error(
+            `❌ SEO Category page RSC rendering error for ${slug}:`,
+            error
+          );
+        },
+      }
+    );
+  } catch (error) {
+    console.error("❌ Error rendering SEO category page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/seo/about", async (req, res) => {
+  try {
+    // Render the about page with RSC
+    renderToStream(React.createElement(AboutServer, {}), res, {
+      bootstrapScripts: ["/static/js/main.js"],
+      onShellReady: () => {
+        console.log("✅ SEO About page RSC rendered successfully");
+      },
+      onError: (error) => {
+        console.error("❌ SEO About page RSC rendering error:", error);
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error rendering SEO about page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/seo/contact", async (req, res) => {
+  try {
+    // Render the contact page with RSC
+    renderToStream(React.createElement(ContactServer, {}), res, {
+      bootstrapScripts: ["/static/js/main.js"],
+      onShellReady: () => {
+        console.log("✅ SEO Contact page RSC rendered successfully");
+      },
+      onError: (error) => {
+        console.error("❌ SEO Contact page RSC rendering error:", error);
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error rendering SEO contact page:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Sitemap routes
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const sitemap = await generateSitemap();
+    res.setHeader("Content-Type", "application/xml");
+    res.send(sitemap);
+  } catch (error) {
+    console.error("Error generating sitemap:", error);
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
+app.get("/sitemap-products.xml", async (req, res) => {
+  try {
+    const sitemap = await generateProductSitemap();
+    res.setHeader("Content-Type", "application/xml");
+    res.send(sitemap);
+  } catch (error) {
+    console.error("Error generating product sitemap:", error);
+    res.status(500).send("Error generating product sitemap");
+  }
+});
+
+// Robots.txt
+app.get("/robots.txt", (req, res) => {
+  const robotsTxt = `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /seo/
+
+# Sitemaps
+Sitemap: https://yourdomain.com/sitemap.xml
+Sitemap: https://yourdomain.com/sitemap-products.xml
+
+# Crawl-delay
+Crawl-delay: 1`;
+
+  res.setHeader("Content-Type", "text/plain");
+  res.send(robotsTxt);
+});
+
+// Service Worker
+app.get("/sw.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript");
+  res.sendFile(path.join(__dirname, "../public/sw.js"));
 });
 
 // Health check endpoint
@@ -304,287 +689,24 @@ app.get("/debug-webhook-events", async (req, res) => {
   }
 });
 
-// Product detail page with RSC
-app.get("/products/:slug", async (req, res) => {
-  try {
-    const { slug } = req.params;
-
-    // Fetch product with all related data
-    const product = await prisma.product.findUnique({
-      where: {
-        slug: slug,
-        isActive: true,
-      },
-      include: {
-        category: true,
-        images: {
-          orderBy: { sortOrder: "asc" },
-        },
-        variants: {
-          where: { isActive: true },
-        },
-        reviews: {
-          where: { isActive: true },
-          include: {
-            user: {
-              select: { name: true },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        },
-      },
-    });
-
-    if (!product) {
-      return res.status(404).send("Product not found");
-    }
-
-    // Render the product detail page with RSC
-    renderToStream(React.createElement(ProductDetailServer, { product }), res, {
-      bootstrapScripts: ["/static/js/main.js"],
-      onShellReady: () => {
-        console.log(
-          `✅ Product detail page RSC rendered successfully for: ${product.name}`
-        );
-      },
-      onError: (error) => {
-        console.error(
-          `❌ Product detail page RSC rendering error for ${slug}:`,
-          error
-        );
-      },
-    });
-  } catch (error) {
-    console.error(
-      `❌ Error rendering product detail page for ${req.params.slug}:`,
-      error
-    );
-    res.status(500).send("Internal Server Error");
-  }
+// Product detail page - serve React app
+app.get("/products/:slug", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-// Products listing page with RSC
-app.get("/products", async (req, res) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = 12;
-    const offset = (page - 1) * limit;
-    const categorySlug = req.query.category as string;
-    const searchQuery = req.query.search as string;
-    const sortBy = req.query.sort as string;
-
-    // Build where clause
-    let whereClause: any = { isActive: true };
-
-    if (categorySlug) {
-      const category = await prisma.category.findUnique({
-        where: { slug: categorySlug, isActive: true },
-      });
-      if (category) {
-        whereClause.categoryId = category.id;
-      }
-    }
-
-    if (searchQuery) {
-      whereClause.OR = [
-        { name: { contains: searchQuery, mode: "insensitive" } },
-        { description: { contains: searchQuery, mode: "insensitive" } },
-        { shortDescription: { contains: searchQuery, mode: "insensitive" } },
-      ];
-    }
-
-    // Build order by clause
-    let orderBy: any = { createdAt: "desc" };
-    if (sortBy === "name") {
-      orderBy = { name: "asc" };
-    } else if (sortBy === "price-low") {
-      orderBy = { price: "asc" };
-    } else if (sortBy === "price-high") {
-      orderBy = { price: "desc" };
-    } else if (sortBy === "newest") {
-      orderBy = { createdAt: "desc" };
-    }
-
-    // Get products with pagination
-    const [products, totalProducts] = await Promise.all([
-      prisma.product.findMany({
-        where: whereClause,
-        include: {
-          category: true,
-          images: {
-            orderBy: { sortOrder: "asc" },
-          },
-        },
-        orderBy: orderBy,
-        skip: offset,
-        take: limit,
-      }),
-      prisma.product.count({ where: whereClause }),
-    ]);
-
-    // Get all categories for filter sidebar
-    const categories = await prisma.category.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-      },
-      orderBy: { sortOrder: "asc" },
-    });
-
-    const totalPages = Math.ceil(totalProducts / limit);
-    const selectedCategory = categorySlug
-      ? categories.find((c) => c.slug === categorySlug)?.name
-      : undefined;
-
-    // Render the products listing page with RSC
-    renderToStream(
-      React.createElement(ProductsServer, {
-        products,
-        categories,
-        totalProducts,
-        currentPage: page,
-        totalPages,
-        selectedCategory,
-        searchQuery,
-        sortBy,
-      }),
-      res,
-      {
-        bootstrapScripts: ["/static/js/main.js"],
-        onShellReady: () => {
-          console.log(
-            `✅ Products listing page RSC rendered successfully (page ${page})`
-          );
-        },
-        onError: (error) => {
-          console.error(`❌ Products listing page RSC rendering error:`, error);
-        },
-      }
-    );
-  } catch (error) {
-    console.error("❌ Error rendering products listing page:", error);
-    res.status(500).send("Internal Server Error");
-  }
+// Products listing page - serve React app
+app.get("/products", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-// Categories page with RSC
-app.get("/categories", async (req, res) => {
-  try {
-    // Get all active categories with product count
-    const categories = await prisma.category.findMany({
-      where: { isActive: true },
-      include: {
-        _count: {
-          select: { products: true },
-        },
-      },
-      orderBy: { sortOrder: "asc" },
-    });
-
-    // Render the categories page with RSC
-    renderToStream(React.createElement(CategoriesServer, { categories }), res, {
-      bootstrapScripts: ["/static/js/main.js"],
-      onShellReady: () => {
-        console.log(`✅ Categories page RSC rendered successfully`);
-      },
-      onError: (error) => {
-        console.error(`❌ Categories page RSC rendering error:`, error);
-      },
-    });
-  } catch (error) {
-    console.error("❌ Error rendering categories page:", error);
-    res.status(500).send("Internal Server Error");
-  }
+// Categories page - serve React app
+app.get("/categories", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-// Individual category page with RSC
-app.get("/categories/:slug", async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = 12;
-    const offset = (page - 1) * limit;
-    const sortBy = req.query.sort as string;
-
-    // Get category with product count
-    const category = await prisma.category.findUnique({
-      where: { slug: slug, isActive: true },
-      include: {
-        _count: {
-          select: { products: true },
-        },
-      },
-    });
-
-    if (!category) {
-      return res.status(404).send("Category not found");
-    }
-
-    // Build order by clause
-    let orderBy: any = { createdAt: "desc" };
-    if (sortBy === "name") {
-      orderBy = { name: "asc" };
-    } else if (sortBy === "price-low") {
-      orderBy = { price: "asc" };
-    } else if (sortBy === "price-high") {
-      orderBy = { price: "desc" };
-    } else if (sortBy === "newest") {
-      orderBy = { createdAt: "desc" };
-    }
-
-    // Get products for this category with pagination
-    const [products, totalProducts] = await Promise.all([
-      prisma.product.findMany({
-        where: { categoryId: category.id, isActive: true },
-        include: {
-          images: {
-            orderBy: { sortOrder: "asc" },
-          },
-        },
-        orderBy: orderBy,
-        skip: offset,
-        take: limit,
-      }),
-      prisma.product.count({
-        where: { categoryId: category.id, isActive: true },
-      }),
-    ]);
-
-    const totalPages = Math.ceil(totalProducts / limit);
-
-    // Render the category page with RSC
-    renderToStream(
-      React.createElement(CategoryServer, {
-        category,
-        products,
-        totalProducts,
-        currentPage: page,
-        totalPages,
-        sortBy,
-      }),
-      res,
-      {
-        bootstrapScripts: ["/static/js/main.js"],
-        onShellReady: () => {
-          console.log(
-            `✅ Category page RSC rendered successfully for: ${category.name}`
-          );
-        },
-        onError: (error) => {
-          console.error(
-            `❌ Category page RSC rendering error for ${slug}:`,
-            error
-          );
-        },
-      }
-    );
-  } catch (error) {
-    console.error("❌ Error rendering category page:", error);
-    res.status(500).send("Internal Server Error");
-  }
+// Individual category page - serve React app
+app.get("/categories/:slug", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 // API Routes
@@ -651,7 +773,7 @@ app.get("*", (req, res) => {
   }
 
   // Serve the React app's index.html for client-side routing
-  res.sendFile(path.join(__dirname, "../../frontend/build/index.html"));
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 // Graceful shutdown

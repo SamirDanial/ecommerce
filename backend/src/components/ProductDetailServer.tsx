@@ -66,10 +66,12 @@ interface Product {
 
 interface ProductDetailServerProps {
   product: Product;
+  relatedProducts?: Product[];
 }
 
 export default function ProductDetailServer({
   product,
+  relatedProducts = [],
 }: ProductDetailServerProps) {
   // Calculate review statistics
   const reviewCount = product.reviews.length;
@@ -94,7 +96,16 @@ export default function ProductDetailServer({
   const primaryImage =
     product.images.find((img) => img.isPrimary) || product.images[0];
 
-  // Generate structured data for rich snippets
+  // Generate absolute URLs for social media
+  const absoluteImageUrl = primaryImage?.url
+    ? `https://yourdomain.com${primaryImage.url.startsWith("/") ? "" : "/"}${
+        primaryImage.url
+      }`
+    : "https://yourdomain.com/placeholder-product.jpg";
+
+  const absoluteUrl = `https://yourdomain.com/products/${product.slug}`;
+
+  // Enhanced structured data with BreadcrumbList
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -117,16 +128,20 @@ export default function ProductDetailServer({
       availability: product.isActive
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
-      url: `https://yourdomain.com/products/${product.slug}`,
-    },
-    ...(product.isOnSale && {
-      priceSpecification: {
-        "@type": "PriceSpecification",
-        price: displayPrice,
-        priceCurrency: "USD",
-        valueAddedTaxIncluded: false,
+      url: absoluteUrl,
+      seller: {
+        "@type": "Organization",
+        name: "E-commerce Store",
       },
-    }),
+      ...(product.isOnSale && {
+        priceSpecification: {
+          "@type": "PriceSpecification",
+          price: displayPrice,
+          priceCurrency: "USD",
+          valueAddedTaxIncluded: false,
+        },
+      }),
+    },
     ...(reviewCount > 0 && {
       aggregateRating: {
         "@type": "AggregateRating",
@@ -135,25 +150,160 @@ export default function ProductDetailServer({
         bestRating: 5,
         worstRating: 1,
       },
+      review: product.reviews.slice(0, 3).map((review) => ({
+        "@type": "Review",
+        author: {
+          "@type": "Person",
+          name: review.user.name,
+        },
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: review.rating,
+          bestRating: 5,
+          worstRating: 1,
+        },
+        reviewBody: review.comment || "",
+        datePublished: review.createdAt.toISOString(),
+      })),
+    }),
+    ...(product.weight && {
+      weight: {
+        "@type": "QuantitativeValue",
+        value: Number(product.weight),
+        unitCode: "LBR", // pounds
+      },
+    }),
+    ...(product.dimensions && {
+      additionalProperty: {
+        "@type": "PropertyValue",
+        name: "dimensions",
+        value: product.dimensions,
+      },
     }),
   };
 
-  // Generate meta title and description
+  // Breadcrumb structured data
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://yourdomain.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Products",
+        item: "https://yourdomain.com/products",
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.category.name,
+        item: `https://yourdomain.com/categories/${product.category.slug}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: product.name,
+        item: absoluteUrl,
+      },
+    ],
+  };
+
+  // FAQ Schema for Voice Search and Featured Snippets
+  const faqData = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `What is the price of ${product.name}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `The ${product.name} is priced at $${displayPrice}. ${
+            product.isOnSale
+              ? `It's currently on sale from $${originalPrice}.`
+              : ""
+          }`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Is ${product.name} available in stock?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: product.isActive
+            ? `Yes, ${product.name} is currently in stock and available for immediate purchase.`
+            : `Currently, ${product.name} is out of stock. Please check back later or contact us for availability updates.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `What are the shipping options for ${product.name}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `We offer free standard shipping on orders over $50. Express shipping is available for $9.99 and delivers within 2-3 business days. International shipping is also available.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `What is the return policy for ${product.name}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `We offer a 30-day return policy for ${product.name}. Products must be unused and in original packaging. Contact our customer service team to initiate a return.`,
+        },
+      },
+    ],
+  };
+
+  // How-to Schema for product usage
+  const howToData = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: `How to Care for Your ${product.name}`,
+    description: `Learn how to properly care for and maintain your ${product.name} to ensure it lasts for years to come.`,
+    step: [
+      {
+        "@type": "HowToStep",
+        name: "Washing Instructions",
+        text: "Follow the care label instructions. Generally, wash in cold water and tumble dry on low heat.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Storage",
+        text: "Store in a cool, dry place away from direct sunlight to prevent fading.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Maintenance",
+        text: "Regular maintenance will help preserve the quality and appearance of your product.",
+      },
+    ],
+  };
+
+  // Generate meta title and description with better optimization
   const metaTitle =
     product.metaTitle ||
     `${product.name} - ${product.category.name} | E-commerce Store`;
   const metaDescription =
     product.metaDescription ||
-    (product.shortDescription || product.description).substring(0, 160);
+    (product.shortDescription || product.description).substring(0, 155) + "...";
 
-  // Generate absolute URLs for social media
-  const absoluteImageUrl = primaryImage?.url
-    ? `https://yourdomain.com${primaryImage.url.startsWith("/") ? "" : "/"}${
-        primaryImage.url
-      }`
-    : "https://yourdomain.com/placeholder-product.jpg";
-
-  const absoluteUrl = `https://yourdomain.com/products/${product.slug}`;
+  // Generate keywords from tags and category
+  const keywords = [
+    product.name,
+    product.category.name,
+    ...product.tags,
+    "online shopping",
+    "e-commerce",
+    "buy online",
+    "free shipping",
+    "best price",
+  ].join(", ");
 
   return (
     <html lang="en">
@@ -164,7 +314,12 @@ export default function ProductDetailServer({
         {/* Primary Meta Tags */}
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
-        <meta name="keywords" content={product.tags.join(", ")} />
+        <meta name="keywords" content={keywords} />
+
+        {/* Language and Region */}
+        <meta name="language" content="English" />
+        <meta name="geo.region" content="US" />
+        <meta name="geo.placename" content="United States" />
 
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
@@ -219,12 +374,24 @@ export default function ProductDetailServer({
         <meta property="og:image:type" content="image/jpeg" />
 
         {/* Additional SEO Meta Tags */}
-        <meta name="robots" content="index, follow" />
-        <meta name="author" content="E-commerce Store" />
-        <link
-          rel="canonical"
-          href={`https://yourdomain.com/products/${product.slug}`}
+        <meta
+          name="robots"
+          content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
         />
+        <meta name="author" content="E-commerce Store" />
+        <meta name="copyright" content="E-commerce Store" />
+        <meta name="distribution" content="global" />
+        <meta name="rating" content="general" />
+        <meta name="revisit-after" content="7 days" />
+        <meta name="coverage" content="Worldwide" />
+        <meta name="target" content="all" />
+        <meta name="HandheldFriendly" content="true" />
+        <meta name="format-detection" content="telephone=no" />
+
+        {/* Canonical and Alternate URLs */}
+        <link rel="canonical" href={absoluteUrl} />
+        <link rel="alternate" hrefLang="en" href={absoluteUrl} />
+        <link rel="alternate" hrefLang="x-default" href={absoluteUrl} />
 
         {/* Product-specific meta tags */}
         <meta name="product:price:amount" content={displayPrice.toString()} />
@@ -243,8 +410,50 @@ export default function ProductDetailServer({
           }}
         />
 
+        {/* Breadcrumb Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(breadcrumbData),
+          }}
+        />
+
+        {/* FAQ Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(faqData),
+          }}
+        />
+
+        {/* How-to Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(howToData),
+          }}
+        />
+
         <link rel="icon" href="/favicon.ico" />
         <link rel="stylesheet" href="/static/css/main.css" />
+
+        {/* Preload critical resources */}
+        <link rel="preload" href="/static/css/main.css" as="style" />
+        <link rel="preload" href="/static/js/main.js" as="script" />
+        {primaryImage && (
+          <link rel="preload" href={primaryImage.url} as="image" />
+        )}
+
+        {/* Service Worker for offline functionality */}
+        <script>
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `}
+        </script>
       </head>
       <body>
         <div id="root">
@@ -303,8 +512,8 @@ export default function ProductDetailServer({
             </div>
           </header>
 
-          {/* Breadcrumb */}
-          <nav className="bg-gray-50 border-b">
+          {/* Breadcrumb Navigation */}
+          <nav className="bg-gray-50 border-b" aria-label="Breadcrumb">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
               <ol className="flex items-center space-x-2 text-sm text-gray-600">
                 <li>
@@ -314,8 +523,8 @@ export default function ProductDetailServer({
                 </li>
                 <li className="text-gray-400">/</li>
                 <li>
-                  <a href="/categories" className="hover:text-blue-600">
-                    Categories
+                  <a href="/products" className="hover:text-blue-600">
+                    Products
                   </a>
                 </li>
                 <li className="text-gray-400">/</li>
@@ -333,226 +542,314 @@ export default function ProductDetailServer({
             </div>
           </nav>
 
-          {/* Product Detail Section */}
+          {/* Main Content */}
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Product Images */}
-              <div className="space-y-4">
-                <div className="aspect-w-1 aspect-h-1 w-full">
-                  <img
-                    src={primaryImage?.url || "/placeholder-product.jpg"}
-                    alt={primaryImage?.alt || product.name}
-                    className="w-full h-96 object-cover rounded-lg"
-                  />
+            <article itemScope itemType="https://schema.org/Product">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                {/* Product Images */}
+                <div className="space-y-4">
+                  <div className="aspect-w-1 aspect-h-1 w-full">
+                    <img
+                      src={primaryImage?.url || "/placeholder-product.jpg"}
+                      alt={primaryImage?.alt || product.name}
+                      className="w-full h-full object-cover rounded-lg"
+                      itemProp="image"
+                      loading="lazy"
+                    />
+                  </div>
+                  {product.images.length > 1 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {product.images.slice(0, 4).map((image) => (
+                        <img
+                          key={image.id}
+                          src={image.url}
+                          alt={image.alt || product.name}
+                          className="w-full h-24 object-cover rounded-lg cursor-pointer"
+                          loading="lazy"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {product.images.length > 1 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {product.images.slice(0, 4).map((image) => (
-                      <img
-                        key={image.id}
-                        src={image.url}
-                        alt={image.alt || product.name}
-                        className="w-full h-24 object-cover rounded-md cursor-pointer hover:opacity-75"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Product Info */}
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {product.name}
-                  </h1>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {product.category.name}
-                  </p>
+                {/* Product Details */}
+                <div className="space-y-6">
+                  <div>
+                    <h1
+                      className="text-3xl font-bold text-gray-900 mb-2"
+                      itemProp="name"
+                    >
+                      {product.name}
+                    </h1>
+                    <p className="text-gray-600 mb-4" itemProp="category">
+                      Category: {product.category.name}
+                    </p>
 
-                  {/* Price */}
-                  <div className="flex items-center space-x-3 mb-4">
-                    <span className="text-3xl font-bold text-gray-900">
-                      ${displayPrice.toFixed(2)}
-                    </span>
-                    {product.isOnSale && originalPrice > displayPrice && (
-                      <span className="text-xl text-gray-500 line-through">
-                        ${originalPrice.toFixed(2)}
+                    {/* Price Information */}
+                    <div className="flex items-center space-x-4 mb-4">
+                      <span
+                        className="text-3xl font-bold text-gray-900"
+                        itemProp="offers"
+                        itemScope
+                        itemType="https://schema.org/Offer"
+                      >
+                        <meta itemProp="priceCurrency" content="USD" />
+                        <meta
+                          itemProp="price"
+                          content={displayPrice.toString()}
+                        />
+                        ${displayPrice}
                       </span>
-                    )}
-                    {product.isOnSale && (
-                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded-md text-sm font-medium">
-                        Sale
-                      </span>
-                    )}
-                  </div>
+                      {product.isOnSale && (
+                        <span className="text-xl text-gray-500 line-through">
+                          ${originalPrice}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Rating */}
-                  {reviewCount > 0 && (
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="flex items-center">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <svg
-                            key={star}
-                            className={`w-5 h-5 ${
-                              star <= averageRating
-                                ? "text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
+                    {/* SKU */}
+                    {product.sku && (
+                      <p className="text-sm text-gray-600 mb-4">
+                        SKU: <span itemProp="sku">{product.sku}</span>
+                      </p>
+                    )}
+
+                    {/* Description */}
+                    <div className="prose max-w-none mb-6">
+                      <p itemProp="description">{product.description}</p>
+                    </div>
+
+                    {/* Tags */}
+                    {product.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-6">
+                        {product.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
                           >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
+                            {tag}
+                          </span>
                         ))}
                       </div>
-                      <span className="text-sm text-gray-600">
-                        {averageRating.toFixed(1)} ({reviewCount} reviews)
-                      </span>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Description */}
-                  <div className="prose max-w-none mb-6">
-                    <p className="text-gray-700 leading-relaxed">
-                      {product.shortDescription || product.description}
-                    </p>
-                  </div>
-
-                  {/* Product Details */}
-                  <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Product Details
-                    </h3>
-                    <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                      {product.sku && (
-                        <>
-                          <dt className="text-sm font-medium text-gray-500">
-                            SKU
-                          </dt>
-                          <dd className="text-sm text-gray-900">
-                            {product.sku}
-                          </dd>
-                        </>
-                      )}
-                      {product.weight && (
-                        <>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Weight
-                          </dt>
-                          <dd className="text-sm text-gray-900">
-                            {Number(product.weight).toFixed(2)} lbs
-                          </dd>
-                        </>
-                      )}
-                      {product.dimensions && (
-                        <>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Dimensions
-                          </dt>
-                          <dd className="text-sm text-gray-900">
-                            {product.dimensions}
-                          </dd>
-                        </>
-                      )}
-                      {product.tags.length > 0 && (
-                        <>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Tags
-                          </dt>
-                          <dd className="text-sm text-gray-900">
-                            <div className="flex flex-wrap gap-2">
-                              {product.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-xs"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </dd>
-                        </>
-                      )}
-                    </dl>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex space-x-4 mt-8">
-                    <button className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                    {/* Add to Cart Button */}
+                    <button className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
                       Add to Cart
                     </button>
-                    <button className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                      Add to Wishlist
-                    </button>
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Reviews Section */}
-            {reviewCount > 0 && (
-              <section className="mt-16 border-t border-gray-200 pt-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-8">
-                  Customer Reviews
-                </h2>
-                <div className="space-y-6">
-                  {product.reviews.slice(0, 3).map((review) => (
-                    <div
-                      key={review.id}
-                      className="border border-gray-200 rounded-lg p-6"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-2">
-                          <div className="flex items-center">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <svg
-                                key={star}
-                                className={`w-4 h-4 ${
-                                  star <= review.rating
-                                    ? "text-yellow-400"
-                                    : "text-gray-300"
-                                }`}
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            ))}
-                          </div>
-                          <span className="text-sm text-gray-600">
-                            {review.user.name}
+                  {/* Reviews */}
+                  {reviewCount > 0 && (
+                    <div className="border-t pt-6">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div
+                          itemProp="aggregateRating"
+                          itemScope
+                          itemType="https://schema.org/AggregateRating"
+                        >
+                          <meta
+                            itemProp="ratingValue"
+                            content={averageRating.toString()}
+                          />
+                          <meta
+                            itemProp="reviewCount"
+                            content={reviewCount.toString()}
+                          />
+                          <meta itemProp="bestRating" content="5" />
+                          <meta itemProp="worstRating" content="1" />
+                          <span className="text-lg font-semibold text-gray-900">
+                            {averageRating.toFixed(1)}/5
                           </span>
-                          {review.isVerified && (
-                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs font-medium">
-                              Verified Purchase
-                            </span>
-                          )}
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {new Date(review.createdAt).toLocaleDateString()}
+                        <span className="text-gray-600">
+                          ({reviewCount} reviews)
                         </span>
                       </div>
-                      {review.title && (
-                        <h3 className="font-semibold text-gray-900 mb-2">
-                          {review.title}
-                        </h3>
-                      )}
-                      <p className="text-gray-700">{review.comment}</p>
-                    </div>
-                  ))}
-                  {reviewCount > 3 && (
-                    <div className="text-center">
-                      <a
-                        href={`/products/${product.slug}#reviews`}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        View all {reviewCount} reviews
-                      </a>
+
+                      {/* Review List */}
+                      <div className="space-y-4">
+                        {product.reviews.slice(0, 3).map((review) => (
+                          <div
+                            key={review.id}
+                            itemProp="review"
+                            itemScope
+                            itemType="https://schema.org/Review"
+                          >
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="flex text-yellow-400">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg
+                                    key={i}
+                                    className={`w-4 h-4 ${
+                                      i < review.rating
+                                        ? "text-yellow-400"
+                                        : "text-gray-300"
+                                    }`}
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                ))}
+                              </div>
+                              <span
+                                itemProp="author"
+                                itemScope
+                                itemType="https://schema.org/Person"
+                              >
+                                <span itemProp="name" className="font-semibold">
+                                  {review.user.name}
+                                </span>
+                              </span>
+                            </div>
+                            {review.comment && (
+                              <p
+                                itemProp="reviewBody"
+                                className="text-gray-700"
+                              >
+                                {review.comment}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* FAQ Section for Voice Search */}
+              <section className="mt-16 border-t pt-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  Frequently Asked Questions
+                </h2>
+                <div className="space-y-4">
+                  <details className="bg-gray-50 rounded-lg p-4">
+                    <summary className="font-semibold text-gray-900 cursor-pointer">
+                      What is the price of {product.name}?
+                    </summary>
+                    <p className="mt-2 text-gray-700">
+                      The {product.name} is priced at ${displayPrice}.{" "}
+                      {product.isOnSale
+                        ? `It's currently on sale from $${originalPrice}.`
+                        : ""}
+                    </p>
+                  </details>
+                  <details className="bg-gray-50 rounded-lg p-4">
+                    <summary className="font-semibold text-gray-900 cursor-pointer">
+                      Is {product.name} available in stock?
+                    </summary>
+                    <p className="mt-2 text-gray-700">
+                      {product.isActive
+                        ? `Yes, ${product.name} is currently in stock and available for immediate purchase.`
+                        : `Currently, ${product.name} is out of stock. Please check back later or contact us for availability updates.`}
+                    </p>
+                  </details>
+                  <details className="bg-gray-50 rounded-lg p-4">
+                    <summary className="font-semibold text-gray-900 cursor-pointer">
+                      What are the shipping options?
+                    </summary>
+                    <p className="mt-2 text-gray-700">
+                      We offer free standard shipping on orders over $50.
+                      Express shipping is available for $9.99 and delivers
+                      within 2-3 business days. International shipping is also
+                      available.
+                    </p>
+                  </details>
+                  <details className="bg-gray-50 rounded-lg p-4">
+                    <summary className="font-semibold text-gray-900 cursor-pointer">
+                      What is the return policy?
+                    </summary>
+                    <p className="mt-2 text-gray-700">
+                      We offer a 30-day return policy. Products must be unused
+                      and in original packaging. Contact our customer service
+                      team to initiate a return.
+                    </p>
+                  </details>
+                </div>
               </section>
-            )}
+
+              {/* Related Products */}
+              {relatedProducts.length > 0 && (
+                <section className="mt-16 border-t pt-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                    Related Products
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {relatedProducts.slice(0, 4).map((relatedProduct) => (
+                      <div
+                        key={relatedProduct.id}
+                        className="bg-white rounded-lg shadow-sm border"
+                      >
+                        <img
+                          src={
+                            relatedProduct.images[0]?.url ||
+                            "/placeholder-product.jpg"
+                          }
+                          alt={
+                            relatedProduct.images[0]?.alt || relatedProduct.name
+                          }
+                          className="w-full h-48 object-cover rounded-t-lg"
+                          loading="lazy"
+                        />
+                        <div className="p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            <a
+                              href={`/products/${relatedProduct.slug}`}
+                              className="hover:text-blue-600"
+                            >
+                              {relatedProduct.name}
+                            </a>
+                          </h3>
+                          <p className="text-lg font-bold text-gray-900">
+                            ${Number(relatedProduct.price)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Product Care Instructions */}
+              <section className="mt-16 border-t pt-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  How to Care for Your {product.name}
+                </h2>
+                <div className="bg-blue-50 rounded-lg p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Washing Instructions
+                      </h3>
+                      <p className="text-gray-700">
+                        Follow the care label instructions. Generally, wash in
+                        cold water and tumble dry on low heat.
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Storage
+                      </h3>
+                      <p className="text-gray-700">
+                        Store in a cool, dry place away from direct sunlight to
+                        prevent fading.
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Maintenance
+                      </h3>
+                      <p className="text-gray-700">
+                        Regular maintenance will help preserve the quality and
+                        appearance of your product.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </article>
           </main>
 
           {/* Footer */}
@@ -664,8 +961,6 @@ export default function ProductDetailServer({
             </div>
           </footer>
         </div>
-
-        {/* Client-side hydration script */}
         <script src="/static/js/main.js" defer></script>
       </body>
     </html>
