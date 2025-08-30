@@ -7,45 +7,31 @@ import ThemeProvider from "./components/ThemeProvider";
 import ClerkProvider from "./components/ClerkProvider";
 import ClerkSessionManager from "./components/ClerkSessionManager";
 import SessionRecovery from "./components/SessionRecovery";
-import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AdminLayout from "./components/admin/AdminLayout";
 import GlobalWishlistLoader from "./components/GlobalWishlistLoader";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
-
 import { AuthRedirectWrapper } from "./components/AuthRedirectWrapper";
-import Home from "./pages/Home";
-import Admin from "./pages/Admin";
-import AdminProducts from "./pages/admin/Products";
-import AdminCategories from "./pages/admin/Categories";
-import AdminOrders from "./pages/admin/Orders";
-import Customers from "./pages/admin/Customers";
-import ReviewManagement from "./pages/admin/ReviewManagement";
-import QuestionManagement from "./pages/admin/QuestionManagement";
-import AdminAnalytics from "./pages/admin/Analytics";
-import ChatManagement from "./components/admin/ChatManagement";
-import AdminLocalization from "./pages/admin/Localization";
-import AdminTaxShipping from "./pages/admin/TaxShipping";
-import AdminDeliveryScope from "./pages/admin/DeliveryScope";
-import CurrencyManagement from "./pages/admin/CurrencyManagement";
-import Notifications from "./pages/admin/Notifications";
-import Products from "./pages/Products";
-import ProductDetail from "./pages/ProductDetail";
-import Categories from "./pages/Categories";
-import CategoryDetail from "./pages/CategoryDetail";
-import Wishlist from "./pages/Wishlist";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import Success from "./pages/Success";
-import Cancel from "./pages/Cancel";
-import ClerkLogin from "./pages/ClerkLogin";
-import ClerkRegister from "./pages/ClerkRegister";
-import VerifyEmail from "./pages/VerifyEmail";
-import UserProfile from "./pages/UserProfile";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
 import ChatWidget from "./components/ChatWidget";
+import { SmartPreloader } from "./components/SmartPreloader";
+import { adminRoutes } from "./routes/adminRoutes";
+import { mainRoutes } from "./routes/mainRoutes";
+import {
+  Home,
+  Products,
+  ProductDetail,
+  Categories,
+  CategoryDetail,
+  Wishlist,
+  Cart,
+  Checkout,
+  About,
+  Contact,
+  Admin,
+  AdminProducts,
+  AdminCategories,
+} from "./routes";
 import "./App.css";
 
 // Create a client
@@ -59,6 +45,57 @@ const queryClient = new QueryClient({
   },
 });
 
+// Define preload priorities
+const preloadComponents = [
+  // High priority - essential pages
+  { name: "Home", component: Home, priority: "high" as const },
+  { name: "Products", component: Products, priority: "high" as const },
+  { name: "Cart", component: Cart, priority: "high" as const },
+
+  // Medium priority - commonly accessed
+  {
+    name: "ProductDetail",
+    component: ProductDetail,
+    priority: "medium" as const,
+  },
+  { name: "Categories", component: Categories, priority: "medium" as const },
+  {
+    name: "CategoryDetail",
+    component: CategoryDetail,
+    priority: "medium" as const,
+  },
+  { name: "Checkout", component: Checkout, priority: "medium" as const },
+  { name: "About", component: About, priority: "medium" as const },
+  { name: "Contact", component: Contact, priority: "medium" as const },
+
+  // Low priority - less frequently accessed
+  { name: "Wishlist", component: Wishlist, priority: "low" as const },
+  { name: "Admin", component: Admin, priority: "low" as const },
+  { name: "AdminProducts", component: AdminProducts, priority: "low" as const },
+  {
+    name: "AdminCategories",
+    component: AdminCategories,
+    priority: "low" as const,
+  },
+];
+
+// Main site layout component
+const MainSiteLayout = () => (
+  <div className="App">
+    <GlobalWishlistLoader />
+    <Header />
+    <main>
+      <Routes>
+        {mainRoutes.map((route, index) => (
+          <Route key={index} path={route.path} element={route.element} />
+        ))}
+      </Routes>
+    </main>
+    <Toaster position="top-right" richColors />
+    <ChatWidget />
+  </div>
+);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -68,114 +105,34 @@ function App() {
         <ThemeProvider>
           <CurrencyProvider>
             <NotificationProvider>
-              <Router>
-                <AuthRedirectWrapper>
-                  <Routes>
-                    {/* Admin Routes - No Header/Footer */}
-                    <Route
-                      path="/admin/*"
-                      element={
-                        <AdminRoute>
-                          <AdminLayout />
-                        </AdminRoute>
-                      }
-                    >
-                      <Route index element={<Admin />} />
-                      <Route path="products" element={<AdminProducts />} />
-                      <Route path="categories" element={<AdminCategories />} />
-                      <Route path="orders" element={<AdminOrders />} />
-                      <Route path="customers" element={<Customers />} />
-                      <Route path="reviews" element={<ReviewManagement />} />
+              <SmartPreloader preloadComponents={preloadComponents}>
+                <Router>
+                  <AuthRedirectWrapper>
+                    <Routes>
+                      {/* Admin Routes - No Header/Footer */}
                       <Route
-                        path="questions"
-                        element={<QuestionManagement />}
-                      />
-                      <Route path="chat" element={<ChatManagement />} />
-                      <Route path="analytics" element={<AdminAnalytics />} />
-                      <Route
-                        path="localization"
-                        element={<AdminLocalization />}
-                      />
-                      <Route
-                        path="tax-shipping"
-                        element={<AdminTaxShipping />}
-                      />
-                      <Route
-                        path="delivery-scope"
-                        element={<AdminDeliveryScope />}
-                      />
-                      <Route path="currency" element={<CurrencyManagement />} />
-                      <Route path="notifications" element={<Notifications />} />
-                    </Route>
+                        path="/admin/*"
+                        element={
+                          <AdminRoute>
+                            <AdminLayout />
+                          </AdminRoute>
+                        }
+                      >
+                        {adminRoutes.map((route, index) => (
+                          <Route
+                            key={index}
+                            path={route.path}
+                            element={route.element}
+                          />
+                        ))}
+                      </Route>
 
-                    {/* Main Site Routes - With Header/Footer */}
-                    <Route
-                      path="/*"
-                      element={
-                        <div className="App">
-                          <GlobalWishlistLoader />
-                          <Header />
-                          <main>
-                            <Routes>
-                              <Route path="/" element={<Home />} />
-                              <Route path="/products" element={<Products />} />
-                              <Route
-                                path="/products/:slug"
-                                element={<ProductDetail />}
-                              />
-                              <Route
-                                path="/categories"
-                                element={<Categories />}
-                              />
-                              <Route
-                                path="/categories/:slug"
-                                element={<CategoryDetail />}
-                              />
-                              <Route
-                                path="/wishlist"
-                                element={
-                                  <ProtectedRoute>
-                                    <Wishlist />
-                                  </ProtectedRoute>
-                                }
-                              />
-                              <Route path="/cart" element={<Cart />} />
-                              <Route path="/checkout" element={<Checkout />} />
-                              <Route path="/success" element={<Success />} />
-                              <Route path="/cancel" element={<Cancel />} />
-                              <Route path="/login" element={<ClerkLogin />} />
-                              <Route
-                                path="/login/factor-one"
-                                element={<ClerkLogin />}
-                              />
-                              <Route
-                                path="/register"
-                                element={<ClerkRegister />}
-                              />
-                              <Route
-                                path="/register/verify-email-address"
-                                element={<VerifyEmail />}
-                              />
-                              <Route
-                                path="/profile"
-                                element={
-                                  <ProtectedRoute>
-                                    <UserProfile />
-                                  </ProtectedRoute>
-                                }
-                              />
-                              <Route path="/about" element={<About />} />
-                              <Route path="/contact" element={<Contact />} />
-                            </Routes>
-                          </main>
-                          <Toaster position="top-right" richColors />
-                          <ChatWidget />
-                        </div>
-                      }
-                    />
-                  </Routes>
-                </AuthRedirectWrapper>
-              </Router>
+                      {/* Main Site Routes - With Header/Footer */}
+                      <Route path="/*" element={<MainSiteLayout />} />
+                    </Routes>
+                  </AuthRedirectWrapper>
+                </Router>
+              </SmartPreloader>
             </NotificationProvider>
           </CurrencyProvider>
         </ThemeProvider>
